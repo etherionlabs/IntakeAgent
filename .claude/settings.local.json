@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:brainstorming:*)",
+      "WebFetch(domain:openrouter.ai)",
+      "Skill(superpowers:receiving-code-review)",
+      "Skill(superpowers:receiving-code-review:*)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:writing-plans:*)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Skill(superpowers:subagent-driven-development:*)",
+      "Bash(ls \"C:/Users/yasse/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development/\")",
+      "Bash(npm --version)",
+      "Bash(git --version)",
+      "Bash(git init *)"
+    ]
+  }
+}
