@@ -16,7 +16,8 @@
     "prisma:studio": "prisma studio --url=file:./data/intake.db",
     "cli:show-intake": "tsx src/cli/show-intake.ts",
     "cli:run-turn": "tsx src/cli/run-turn.ts",
-    "cli:inbound-demo": "tsx src/cli/inbound-demo.ts"
+    "cli:inbound-demo": "tsx src/cli/inbound-demo.ts",
+    "db:inspect": "tsx src/cli/db-inspect.ts"
   },
   "keywords": [],
   "author": "",
