@@ -6,3 +6,7 @@ media/
 .env.local
 *.log
 .DS_Store
+
+# Baileys session
+data/baileys-session/
+*.qr.png
