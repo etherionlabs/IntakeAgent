@@ -13,9 +13,20 @@ export const defaultAgentFactory: AgentFactory = async (cfg) => {
     apiKey: cfg.apiKey,
   });
 
-  // Map tool array to SDK Tool format
-  // Tools coming from buildTools are already in SDK format (with type: 'function')
-  const sdkTools = cfg.tools as never[];
+  // Map our flat tools to the SDK's nested format:
+  //   our tool: { name, description, inputSchema, execute }
+  //   SDK tool: { type: 'function', function: { name, description, inputSchema, execute } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sdkTools = (cfg.tools as any[]).map((t) => ({
+    type: 'function' as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema,
+      // El SDK pasa (args, ctx) al execute; nuestra tool solo usa args.
+      execute: async (args: unknown) => t.execute(args),
+    },
+  })) as never[];
 
   const wrapper: AgentLike = {
     on: (event: string, handler: (...args: unknown[]) => void) => {

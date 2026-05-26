@@ -1,6 +1,6 @@
 {
   "profile": "./profiles/tapiceria",
-  "model": "anthropic/claude-sonnet-4-6",
+  "model": "anthropic/claude-sonnet-4.6",
   "maxSteps": 6,
   "temperature": 0.4,
   "debounceMs": 5000,
@@ -13,7 +13,7 @@
     "outOfHoursNotice": ""
   },
   "owner": {
-    "phoneE164": "+521234567890",
+    "phoneE164": "+13058799511",
     "notifyOnReady": true,
     "notifyOnDisconnect": true,
     "panelUrl": "http://localhost:3000"
