@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio --url=file:./data/intake.db",
     "cli:show-intake": "tsx src/cli/show-intake.ts",
     "cli:run-turn": "tsx src/cli/run-turn.ts",
     "cli:inbound-demo": "tsx src/cli/inbound-demo.ts"
@@ -28,6 +29,7 @@
     "@openrouter/sdk": "^0.12.35",
     "@prisma/client": "^7.8.0",
     "baileys": "^7.0.0-rc13",
+    "dotenv": "^17.4.2",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0",
     "zod": "^4.4.3"
