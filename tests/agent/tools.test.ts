@@ -280,3 +280,41 @@ describe('tool select_or_open_job', () => {
     expect(out.ok).toBe(false);
   });
 });
+
+import { buildTools } from '../../src/agent/tools';
+
+describe('buildTools', () => {
+  it('expone 5 tools cuando otherOpenJobs.length < 2', async () => {
+    const ctx = await setupCtx();
+    const tools = buildTools(ctx, {
+      prisma,
+      profile: { intakeSchema: schema, hash: 'h' } as any,
+      notifier: new NoopNotifier(),
+      config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'x' } } as any,
+    } as any);
+    const names = tools.map((t) => t.name).sort();
+    expect(names).toEqual([
+      'close_job',
+      'flag_non_intake',
+      'mark_ready_for_review',
+      'request_photo',
+      'update_intake',
+    ]);
+  });
+
+  it('agrega select_or_open_job cuando hay 2+ otherOpenJobs', async () => {
+    const ctx = await setupCtx();
+    ctx.otherOpenJobs = [
+      { id: 'a', summary: null, openedAt: new Date() },
+      { id: 'b', summary: null, openedAt: new Date() },
+    ];
+    const tools = buildTools(ctx, {
+      prisma,
+      profile: { intakeSchema: schema, hash: 'h' } as any,
+      notifier: new NoopNotifier(),
+      config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'x' } } as any,
+    } as any);
+    expect(tools.map((t) => t.name)).toContain('select_or_open_job');
+    expect(tools).toHaveLength(6);
+  });
+});

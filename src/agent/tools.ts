@@ -231,3 +231,17 @@ export function buildSelectOrOpenJobTool(ctx: TurnContext): AgentTool {
     },
   };
 }
+
+export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
+  const tools: AgentTool[] = [
+    buildUpdateIntakeTool(ctx, deps),
+    buildMarkReadyTool(ctx, deps),
+    buildCloseJobTool(ctx, deps),
+    buildFlagNonIntakeTool(ctx, deps),
+    buildRequestPhotoTool(ctx),
+  ];
+  if (ctx.otherOpenJobs.length >= 2) {
+    tools.push(buildSelectOrOpenJobTool(ctx));
+  }
+  return tools;
+}
