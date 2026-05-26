@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyIntakeFromSchema, bulkUpdate, addFreeNote, isIntakeComplete } from '../../src/services/intake';
+import { createEmptyIntakeFromSchema, bulkUpdate, addFreeNote, isIntakeComplete, renderIntakeForModel } from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 
 const schema: IntakeSchema = {
@@ -178,5 +178,51 @@ describe('isIntakeComplete', () => {
     const r2 = bulkUpdate(schema, r1.intake, [{ path: 'work.qty', declined: true, declined_reason: 'no sabe' }], { now: 't', source_message_id: null });
     if (!r2.ok) throw new Error('fail');
     expect(isIntakeComplete(schema, r2.intake)).toBe(true);
+  });
+});
+
+describe('renderIntakeForModel', () => {
+  it('renderiza estado vacío con iconos correctos', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const out = renderIntakeForModel(schema, intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toContain('job #j1');
+    expect(out).toContain('status=OPEN_INTAKE');
+    expect(out).toMatch(/✗\s+Nombre/);
+    expect(out).toMatch(/○\s+Teléfono/); // opcional
+    expect(out).toContain('Pendientes mínimos');
+  });
+
+  it('marca campos llenos con ✓', () => {
+    let intake = createEmptyIntakeFromSchema(schema);
+    const r = bulkUpdate(schema, intake, [{ path: 'client.name', value: 'María' }], {
+      now: 't',
+      source_message_id: null,
+    });
+    if (!r.ok) throw new Error('fail');
+    const out = renderIntakeForModel(schema, r.intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toMatch(/✓\s+Nombre: "María"/);
+  });
+
+  it('marca campos declinados con ⊘ y razón', () => {
+    let intake = createEmptyIntakeFromSchema(schema);
+    const r = bulkUpdate(
+      schema,
+      intake,
+      [{ path: 'client.phone', declined: true, declined_reason: 'no tiene' }],
+      { now: 't', source_message_id: null },
+    );
+    if (!r.ok) throw new Error('fail');
+    const out = renderIntakeForModel(schema, r.intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toMatch(/⊘\s+Teléfono.*no tiene/);
+  });
+
+  it('incluye contadores de media y free_notes', () => {
+    let intake = createEmptyIntakeFromSchema(schema);
+    intake.media = { photo_count: 2, audio_count: 1 };
+    intake = addFreeNote(intake, 'evento el 15', 't', 'msg');
+    const out = renderIntakeForModel(schema, intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toContain('fotos recibidas: 2');
+    expect(out).toContain('audios recibidos: 1');
+    expect(out).toContain('evento el 15');
   });
 });

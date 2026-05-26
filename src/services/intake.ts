@@ -179,3 +179,68 @@ export function isIntakeComplete(schema: IntakeSchema, intake: IntakeState): boo
   }
   return true;
 }
+
+export interface RenderCtx {
+  jobId: string;
+  status: string;
+}
+
+export function renderIntakeForModel(
+  schema: IntakeSchema,
+  intake: IntakeState,
+  ctx: RenderCtx,
+): string {
+  const lines: string[] = [];
+  lines.push(`=== ESTADO DEL INTAKE (job #${ctx.jobId}, status=${ctx.status}) ===`);
+
+  for (const section of schema.sections) {
+    lines.push(`${section.label}:`);
+    const sec = intake[section.key] as Record<string, FieldState>;
+    for (const field of section.fields) {
+      const f = sec?.[field.key];
+      const reqMark = field.required ? ' (REQUERIDO)' : '';
+      if (!f || (f.value === null && !f.declined)) {
+        const icon = field.required ? '✗' : '○';
+        const askedNote = f?.asked ? ' [ya preguntado]' : '';
+        lines.push(`  ${icon} ${field.label}${reqMark}${askedNote}`);
+      } else if (f.declined) {
+        lines.push(
+          `  ⊘ ${field.label}${reqMark} — declinado: "${f.declined_reason ?? ''}"`,
+        );
+      } else {
+        const v = typeof f.value === 'string' ? `"${f.value}"` : String(f.value);
+        lines.push(`  ✓ ${field.label}: ${v}`);
+      }
+    }
+  }
+
+  lines.push(`Media:`);
+  lines.push(`  📷 fotos recibidas: ${intake.media.photo_count}`);
+  lines.push(`  🎤 audios recibidos: ${intake.media.audio_count}`);
+
+  if (intake.free_notes.length > 0) {
+    lines.push(`Notas libres:`);
+    for (const n of intake.free_notes) {
+      lines.push(`  - ${n.text}`);
+    }
+  }
+
+  const missing: string[] = [];
+  for (const section of schema.sections) {
+    const sec = intake[section.key] as Record<string, FieldState>;
+    for (const field of section.fields) {
+      if (!field.required) continue;
+      const f = sec?.[field.key];
+      const satisfied = f && (f.value !== null || f.declined === true);
+      if (!satisfied) missing.push(`${section.key}.${field.key}`);
+    }
+  }
+
+  lines.push(
+    missing.length === 0
+      ? 'Pendientes mínimos para cerrar intake: ninguno (puedes presentar resumen)'
+      : `Pendientes mínimos para cerrar intake: ${missing.join(', ')}`,
+  );
+
+  return lines.join('\n');
+}
