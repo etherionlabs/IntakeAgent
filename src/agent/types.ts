@@ -36,7 +36,7 @@ export interface AgentDeps {
   prisma: PrismaClient;
   config: Config;
   profile: Profile;
-  // notifier: import('../services/notification').Notifier; // restored in Plan 2 Task 5
+  notifier: import('../services/notification').Notifier;
   /** Factory del SDK — el runner llama `deps.createAgent({...})`. Permite stub en tests. */
   createAgent: AgentFactory;
 }
