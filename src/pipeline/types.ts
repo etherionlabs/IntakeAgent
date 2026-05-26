@@ -3,7 +3,7 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import type { OutboundSender } from '../services/outbound';
 // import type { Transcriber } from '../media/transcriber';
-// import type { MediaStore } from '../media/store';
+import type { MediaStore } from '../media/store';
 import type { AgentFactory } from '../agent/types';
 
 export interface RawInboundMessage {
@@ -25,7 +25,7 @@ export interface PipelineDeps {
   notifier: Notifier;
   sender: OutboundSender;
   // transcriber: Transcriber;
-  // mediaStore: MediaStore;
+  mediaStore: MediaStore;
   agentFactory: AgentFactory;
   now: () => Date;
 }
