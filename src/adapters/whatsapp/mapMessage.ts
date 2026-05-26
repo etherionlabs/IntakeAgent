@@ -106,11 +106,37 @@ function inferChatKind(jid: string): RawInboundMessage['chatKind'] {
   return 'individual';
 }
 
+/**
+ * Devuelve un identificador estable del remitente.
+ *
+ * Baileys 7 con cuentas LID usa JIDs como "166137958535379@lid" en vez de
+ * "+5215...@s.whatsapp.net". Para poder responderles, debemos preservar el
+ * JID completo (con su sufijo) como identificador, NO un E.164 inventado.
+ *
+ * El campo se llama `fromPhoneE164` por compatibilidad histórica, pero el
+ * sender acepta tanto E.164 (+...) como JID directo (...@...).
+ */
 function jidToE164(jid: string, participant: string | null): string {
-  const source = participant ?? jid;
+  // participant puede llegar como "" en Baileys 7 — ?? no lo descarta.
+  const source = participant && participant.length > 0 ? participant : jid;
+  if (!source) return '';
+  // Si el JID viene de un sufijo distinto a @s.whatsapp.net o @c.us, lo
+  // preservamos completo (LID, newsletter, etc.) — el sender lo usa tal cual.
+  if (
+    source.includes('@') &&
+    !source.endsWith('@s.whatsapp.net') &&
+    !source.endsWith('@c.us')
+  ) {
+    return source;
+  }
+  // Para JIDs tradicionales o números sueltos, extraer la parte numérica y
+  // prefijar con "+".
   const at = source.indexOf('@');
   const num = at >= 0 ? source.slice(0, at) : source;
-  return num.startsWith('+') ? num : `+${num}`;
+  // Algunos JIDs incluyen device suffix como "13058799511:15" — quitar el :N.
+  const cleaned = num.split(':')[0];
+  if (!cleaned) return source; // fallback al JID original si quedó vacío
+  return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
 }
 
 function timestampToIso(ts: number | Long | null | undefined): string {
