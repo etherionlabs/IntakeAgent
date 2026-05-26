@@ -5,9 +5,10 @@ import { upsertContactByPhone } from '../../src/services/contact';
 import { openJob } from '../../src/services/job';
 import {
   createEmptyIntakeFromSchema,
+  bulkUpdate,
   type IntakeState,
 } from '../../src/services/intake';
-import { buildUpdateIntakeTool } from '../../src/agent/tools';
+import { buildUpdateIntakeTool, buildMarkReadyTool } from '../../src/agent/tools';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
 
@@ -109,5 +110,76 @@ describe('tool update_intake', () => {
     const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
     const intake = JSON.parse(reload!.intake);
     expect(intake.client.phone.declined).toBe(true);
+  });
+});
+
+describe('tool mark_ready_for_review', () => {
+  it('rechaza si faltan campos requeridos', async () => {
+    const ctx = await setupCtx();
+    const profile = { intakeSchema: schema, hash: 'h' } as any;
+    const notifier = new NoopNotifier();
+    const tool = buildMarkReadyTool(ctx, { prisma, profile, notifier, config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' } } } as any);
+    const out = await tool.execute({ summary: 'Trabajo de retapizado para sillón' });
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.error).toMatch(/requerido/i);
+  });
+
+  it('cuando los requeridos están satisfechos transiciona el job a READY y dispara notifier', async () => {
+    const ctx = await setupCtx();
+    const profile = { intakeSchema: schema, hash: 'h' } as any;
+    // Llenar required
+    const filled = bulkUpdate(schema, ctx.intake, [{ path: 'client.name', value: 'María' }], {
+      now: ctx.now,
+      source_message_id: 'm1',
+    });
+    if (!filled.ok) throw new Error('fail');
+    ctx.intake = filled.intake;
+    await prisma.job.update({ where: { id: ctx.job.id }, data: { intake: JSON.stringify(filled.intake) } });
+
+    const notifier = new NoopNotifier();
+    const tool = buildMarkReadyTool(ctx, {
+      prisma,
+      profile,
+      notifier,
+      config: {
+        owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
+      },
+    } as any);
+
+    const out = await tool.execute({ summary: 'Retapizado de sillón 3 plazas para María en Polanco.' });
+    expect(out.ok).toBe(true);
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    expect(reload!.status).toBe('READY_FOR_REVIEW');
+    expect(reload!.summary).toContain('Retapizado');
+    expect(notifier.history).toHaveLength(1);
+    expect(notifier.history[0].kind).toBe('owner_ready');
+  });
+
+  it('rechaza summary demasiado corto', async () => {
+    const ctx = await setupCtx();
+    const profile = { intakeSchema: schema, hash: 'h' } as any;
+    const tool = buildMarkReadyTool(ctx, { prisma, profile, notifier: new NoopNotifier(), config: { owner: { phoneE164: '+5215', notifyOnReady: false, notifyOnDisconnect: false, panelUrl: 'x' } } } as any);
+    const out = await tool.execute({ summary: 'corto' });
+    expect(out.ok).toBe(false);
+  });
+
+  it('no notifica si owner.notifyOnReady=false (pero sí transiciona el job)', async () => {
+    const ctx = await setupCtx();
+    const profile = { intakeSchema: schema, hash: 'h' } as any;
+    const filled = bulkUpdate(schema, ctx.intake, [{ path: 'client.name', value: 'X' }], { now: ctx.now, source_message_id: 'm1' });
+    if (!filled.ok) throw new Error('fail');
+    ctx.intake = filled.intake;
+    await prisma.job.update({ where: { id: ctx.job.id }, data: { intake: JSON.stringify(filled.intake) } });
+
+    const notifier = new NoopNotifier();
+    const tool = buildMarkReadyTool(ctx, {
+      prisma, profile, notifier,
+      config: { owner: { phoneE164: '+5215', notifyOnReady: false, notifyOnDisconnect: true, panelUrl: 'x' } },
+    } as any);
+
+    const out = await tool.execute({ summary: 'Resumen largo para revisión del dueño.' });
+    expect(out.ok).toBe(true);
+    expect(notifier.history).toHaveLength(0);
   });
 });
