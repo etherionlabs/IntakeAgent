@@ -2,6 +2,7 @@ import {
   makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
+  Browsers,
 } from 'baileys';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -85,7 +86,9 @@ export class BaileysConnection {
 
     const sock = makeWASocket({
       auth: state,
-      browser: ['Intake', 'Chrome', '1.0.0'],
+      // Usar un fingerprint de browser conocido — WhatsApp rechaza browsers
+      // genéricos en el handshake de registración (error 405).
+      browser: Browsers.macOS('Desktop'),
       syncFullHistory: false,
     });
 
