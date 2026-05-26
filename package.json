@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "cli:show-intake": "tsx src/cli/show-intake.ts",
-    "cli:run-turn": "tsx src/cli/run-turn.ts"
+    "cli:run-turn": "tsx src/cli/run-turn.ts",
+    "cli:inbound-demo": "tsx src/cli/inbound-demo.ts"
   },
   "keywords": [],
   "author": "",
