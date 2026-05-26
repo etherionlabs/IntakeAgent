@@ -22,6 +22,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@openrouter/sdk": "^0.12.35",
     "@prisma/client": "^7.8.0",
     "pino": "^10.3.1",
     "zod": "^4.4.3"
