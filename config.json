@@ -1,0 +1,36 @@
+{
+  "profile": "./profiles/tapiceria",
+  "model": "anthropic/claude-sonnet-4-6",
+  "maxSteps": 6,
+  "temperature": 0.4,
+  "debounceMs": 5000,
+  "fallbackOnError": "Disculpa, tuve un problema. ¿Me lo repites?",
+  "outOfScopeNudge": "Esto es solo para temas de {{businessDomain}}. ¿Cómo puedo ayudarte?",
+  "hours": {
+    "enabled": false,
+    "timezone": "America/Mexico_City",
+    "schedule": {},
+    "outOfHoursNotice": ""
+  },
+  "owner": {
+    "phoneE164": "+521234567890",
+    "notifyOnReady": true,
+    "notifyOnDisconnect": true,
+    "panelUrl": "http://localhost:3000"
+  },
+  "panel": {
+    "users": [
+      { "username": "duenio", "passwordHashEnv": "PANEL_PASSWORD_HASH" }
+    ]
+  },
+  "media": {
+    "storeDir": "./media",
+    "transcribeAudio": true,
+    "whisperModel": "openai/whisper-1"
+  },
+  "limits": {
+    "monthlyCostUsd": 50,
+    "alertOnCostUsd": 40,
+    "maxConsecutiveErrors": 3
+  }
+}

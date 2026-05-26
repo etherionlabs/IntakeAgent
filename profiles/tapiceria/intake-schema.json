@@ -1,0 +1,44 @@
+{
+  "$businessName": "Tapicería Demo",
+  "$businessDomain": "tapicería de muebles",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "client",
+      "label": "Cliente",
+      "fields": [
+        { "key": "name", "label": "Nombre", "type": "string", "required": true },
+        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": true },
+        { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
+      ]
+    },
+    {
+      "key": "work",
+      "label": "Trabajo",
+      "fields": [
+        { "key": "item_type", "label": "Mueble", "type": "string", "required": true, "hint": "sillón 3 plazas, silla de comedor, cabecera, etc." },
+        { "key": "service_type", "label": "Tipo de trabajo", "type": "enum", "required": true, "options": ["retapizar", "reparar", "fabricar", "otro"] },
+        { "key": "quantity", "label": "Cantidad", "type": "integer", "required": true, "min": 1 },
+        { "key": "current_state", "label": "Estado actual", "type": "text", "required": false }
+      ]
+    },
+    {
+      "key": "specs",
+      "label": "Especificaciones",
+      "fields": [
+        { "key": "fabric_preference", "label": "Tela preferida", "type": "string", "required": false },
+        { "key": "color_preference", "label": "Color preferido", "type": "string", "required": false },
+        { "key": "extra_requirements", "label": "Requerimientos extra", "type": "text", "required": false }
+      ]
+    },
+    {
+      "key": "logistics",
+      "label": "Logística",
+      "fields": [
+        { "key": "pickup_needed", "label": "¿Recolección a domicilio?", "type": "boolean", "required": false },
+        { "key": "address", "label": "Dirección", "type": "text", "required": false },
+        { "key": "desired_deadline", "label": "Fecha deseada", "type": "date", "required": false }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "facts": [
+    { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda"], "answer": "Estamos en Av. Reforma 123, colonia Centro." },
+    { "topic": "horarios", "aliases": ["a qué hora", "cuando abren"], "answer": "Lunes a viernes de 9:00 a 19:00, sábados de 10:00 a 14:00." },
+    { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia"], "answer": "Aceptamos efectivo, transferencia y tarjeta. El anticipo es del 50%." }
+  ],
+  "freeContext": "Trabajamos sobre todo con muebles de sala y comedor. No hacemos colchones ni tapicería automotriz."
+}
