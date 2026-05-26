@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import type { OutboundSender } from '../services/outbound';
-// import type { Transcriber } from '../media/transcriber';
+import type { Transcriber } from '../media/transcriber';
 import type { MediaStore } from '../media/store';
 import type { AgentFactory } from '../agent/types';
 
@@ -24,7 +24,7 @@ export interface PipelineDeps {
   profile: Profile;
   notifier: Notifier;
   sender: OutboundSender;
-  // transcriber: Transcriber;
+  transcriber: Transcriber;
   mediaStore: MediaStore;
   agentFactory: AgentFactory;
   now: () => Date;
