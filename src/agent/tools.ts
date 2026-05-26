@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import type { TurnContext, AgentDeps } from './types';
 import { bulkUpdate, addFreeNote, isIntakeComplete, type IntakeState } from '../services/intake';
-import { updateJobIntake, markReadyForReview, JOB_STATUS } from '../services/job';
+import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob } from '../services/job';
+import { flagNonIntake } from '../services/contact';
 import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 
@@ -125,6 +126,73 @@ export function buildMarkReadyTool(
       ctx.job.summary = updated.summary;
 
       return { ok: true, status: 'READY_FOR_REVIEW' };
+    },
+  };
+}
+
+const CloseJobArgsZ = z.object({});
+
+export function buildCloseJobTool(
+  ctx: TurnContext,
+  deps: Pick<AgentDeps, 'prisma'>,
+): AgentTool {
+  return {
+    name: 'close_job',
+    description:
+      'Cierra el job. SOLO cuando el cliente diga explícitamente que terminó (ej: "eso es todo", "gracias, espero respuesta"). Requiere status OPEN_INTAKE o READY_FOR_REVIEW.',
+    inputSchema: CloseJobArgsZ,
+    execute: async () => {
+      if (ctx.job.status !== JOB_STATUS.OPEN && ctx.job.status !== JOB_STATUS.READY) {
+        return {
+          ok: false,
+          error: `close_job requiere OPEN_INTAKE o READY_FOR_REVIEW, actual=${ctx.job.status}`,
+        };
+      }
+      const updated = await closeJob(deps.prisma, ctx.job.id);
+      ctx.job.status = updated.status;
+      return { ok: true, status: 'CLOSED' };
+    },
+  };
+}
+
+const FlagNonIntakeArgsZ = z.object({
+  reason: z.string().min(5, 'reason debe describir por qué este contacto no es un intake'),
+});
+
+export function buildFlagNonIntakeTool(
+  ctx: TurnContext,
+  deps: Pick<AgentDeps, 'prisma'>,
+): AgentTool {
+  return {
+    name: 'flag_non_intake',
+    description:
+      'Marca al contacto como NO intake (spam, conversación irrelevante después de reconducir 1-2 veces). El bot dejará de responder.',
+    inputSchema: FlagNonIntakeArgsZ,
+    execute: async (rawArgs) => {
+      const parse = FlagNonIntakeArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+      await flagNonIntake(deps.prisma, ctx.contact.id, parse.data.reason);
+      ctx.contact.flaggedNonIntake = true;
+      ctx.contact.flaggedReason = parse.data.reason;
+      return { ok: true };
+    },
+  };
+}
+
+const RequestPhotoArgsZ = z.object({
+  purpose: z.string().min(3, 'describe brevemente para qué se piden las fotos'),
+});
+
+export function buildRequestPhotoTool(ctx: TurnContext): AgentTool {
+  return {
+    name: 'request_photo',
+    description:
+      'Indica que tu respuesta al cliente va a PEDIR fotos específicas. No envía nada por sí solo; tu texto al cliente debe pedirlas. Sirve para registrar la intención.',
+    inputSchema: RequestPhotoArgsZ,
+    execute: async (rawArgs) => {
+      const parse = RequestPhotoArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+      return { ok: true, purpose: parse.data.purpose };
     },
   };
 }

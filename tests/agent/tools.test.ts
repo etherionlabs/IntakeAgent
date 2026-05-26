@@ -183,3 +183,60 @@ describe('tool mark_ready_for_review', () => {
     expect(notifier.history).toHaveLength(0);
   });
 });
+
+import { buildCloseJobTool, buildFlagNonIntakeTool, buildRequestPhotoTool } from '../../src/agent/tools';
+
+describe('tool close_job', () => {
+  it('cierra desde OPEN_INTAKE', async () => {
+    const ctx = await setupCtx();
+    const tool = buildCloseJobTool(ctx, { prisma } as any);
+    const out = await tool.execute({});
+    expect(out.ok).toBe(true);
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    expect(reload!.status).toBe('CLOSED');
+  });
+
+  it('rechaza desde IN_PROGRESS', async () => {
+    const ctx = await setupCtx();
+    await prisma.job.update({ where: { id: ctx.job.id }, data: { status: 'IN_PROGRESS' } });
+    ctx.job.status = 'IN_PROGRESS';
+    const tool = buildCloseJobTool(ctx, { prisma } as any);
+    const out = await tool.execute({});
+    expect(out.ok).toBe(false);
+  });
+});
+
+describe('tool flag_non_intake', () => {
+  it('marca el contacto y devuelve ok', async () => {
+    const ctx = await setupCtx();
+    const tool = buildFlagNonIntakeTool(ctx, { prisma } as any);
+    const out = await tool.execute({ reason: 'cliente sólo manda promociones' });
+    expect(out.ok).toBe(true);
+    const reload = await prisma.contact.findUnique({ where: { id: ctx.contact.id } });
+    expect(reload!.flaggedNonIntake).toBe(true);
+    expect(reload!.flaggedReason).toBe('cliente sólo manda promociones');
+  });
+
+  it('rechaza reason demasiado corto', async () => {
+    const ctx = await setupCtx();
+    const tool = buildFlagNonIntakeTool(ctx, { prisma } as any);
+    const out = await tool.execute({ reason: 'x' });
+    expect(out.ok).toBe(false);
+  });
+});
+
+describe('tool request_photo', () => {
+  it('siempre devuelve ok con purpose válido', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRequestPhotoTool(ctx);
+    const out = await tool.execute({ purpose: 'vista frontal del sillón' });
+    expect(out.ok).toBe(true);
+  });
+
+  it('rechaza purpose vacío', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRequestPhotoTool(ctx);
+    const out = await tool.execute({ purpose: '' });
+    expect(out.ok).toBe(false);
+  });
+});
