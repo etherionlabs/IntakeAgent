@@ -1,4 +1,5 @@
 import type { IntakeSchema } from '../config/intake-schema';
+import { getFieldByPath } from '../config/intake-schema';
 
 export interface FieldState {
   value: string | number | boolean | null;
@@ -36,4 +37,120 @@ export function createEmptyIntakeFromSchema(schema: IntakeSchema): IntakeState {
     intake[section.key] = sec;
   }
   return intake;
+}
+
+export interface IntakeUpdate {
+  path: string;
+  value?: string | number | boolean;
+  declined?: boolean;
+  declined_reason?: string;
+}
+
+export interface UpdateMeta {
+  now: string;
+  source_message_id: string | null;
+}
+
+export type BulkUpdateResult =
+  | { ok: true; intake: IntakeState }
+  | { ok: false; error: string };
+
+export function bulkUpdate(
+  schema: IntakeSchema,
+  intake: IntakeState,
+  updates: IntakeUpdate[],
+  meta: UpdateMeta,
+): BulkUpdateResult {
+  if (updates.length === 0) {
+    return { ok: false, error: 'updates vacío' };
+  }
+  const next = structuredClone(intake);
+
+  for (const u of updates) {
+    const field = getFieldByPath(schema, u.path);
+    if (!field) return { ok: false, error: `path no existe en schema: ${u.path}` };
+
+    const hasValue = u.value !== undefined;
+    const isDeclined = u.declined === true;
+
+    if (hasValue && isDeclined) {
+      return { ok: false, error: `${u.path}: no se permite value y declined a la vez` };
+    }
+    if (!hasValue && !isDeclined) {
+      return { ok: false, error: `${u.path}: requiere value o declined=true` };
+    }
+    if (isDeclined && (!u.declined_reason || u.declined_reason.length < 2)) {
+      return { ok: false, error: `${u.path}: declined requiere declined_reason` };
+    }
+
+    const [sectionKey, fieldKey] = u.path.split('.');
+    const section = next[sectionKey] as Record<string, FieldState>;
+
+    if (hasValue) {
+      const validationError = validateValueAgainstField(field, u.value!);
+      if (validationError) {
+        return { ok: false, error: `${u.path}: ${validationError}` };
+      }
+      section[fieldKey] = {
+        value: u.value!,
+        asked: true,
+        updated_at: meta.now,
+        source_message_id: meta.source_message_id ?? undefined,
+      };
+    } else {
+      section[fieldKey] = {
+        value: null,
+        asked: true,
+        declined: true,
+        declined_reason: u.declined_reason,
+        updated_at: meta.now,
+        source_message_id: meta.source_message_id ?? undefined,
+      };
+    }
+  }
+  return { ok: true, intake: next };
+}
+
+function validateValueAgainstField(
+  field: import('../config/intake-schema').IntakeField,
+  value: unknown,
+): string | null {
+  switch (field.type) {
+    case 'string':
+    case 'text':
+    case 'phone':
+    case 'date':
+      if (typeof value !== 'string' || value.length === 0)
+        return `tipo ${field.type} requiere string no vacío`;
+      return null;
+    case 'integer':
+      if (typeof value !== 'number' || !Number.isInteger(value))
+        return 'tipo integer requiere número entero';
+      if (field.min !== undefined && value < field.min)
+        return `valor menor que min=${field.min}`;
+      if (field.max !== undefined && value > field.max)
+        return `valor mayor que max=${field.max}`;
+      return null;
+    case 'number':
+    case 'currency':
+      if (typeof value !== 'number')
+        return `tipo ${field.type} requiere número`;
+      if (field.min !== undefined && value < field.min)
+        return `valor menor que min=${field.min}`;
+      if (field.max !== undefined && value > field.max)
+        return `valor mayor que max=${field.max}`;
+      return null;
+    case 'boolean':
+      if (typeof value !== 'boolean')
+        return 'tipo boolean requiere true/false';
+      return null;
+    case 'enum':
+      if (typeof value !== 'string' || !field.options!.includes(value))
+        return `valor no está en options (${field.options!.join(', ')})`;
+      return null;
+    case 'multi_enum':
+      return 'multi_enum no soportado en update directo, usa array fuera del MVP';
+    default:
+      return `tipo desconocido: ${field.type}`;
+  }
 }

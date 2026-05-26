@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyIntakeFromSchema } from '../../src/services/intake';
+import { createEmptyIntakeFromSchema, bulkUpdate } from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 
 const schema: IntakeSchema = {
@@ -46,5 +46,101 @@ describe('createEmptyIntakeFromSchema', () => {
     const intake = createEmptyIntakeFromSchema(schema);
     expect(intake.media).toEqual({ photo_count: 0, audio_count: 0 });
     expect(intake.free_notes).toEqual([]);
+  });
+});
+
+describe('bulkUpdate', () => {
+  const meta = {
+    now: '2026-05-25T10:00:00Z',
+    source_message_id: 'msg_1',
+  };
+
+  it('actualiza un campo string válido', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'client.name', value: 'María' }], meta);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect((result.intake.client as any).name.value).toBe('María');
+    expect((result.intake.client as any).name.asked).toBe(true);
+    expect((result.intake.client as any).name.updated_at).toBe(meta.now);
+    expect((result.intake.client as any).name.source_message_id).toBe('msg_1');
+  });
+
+  it('rechaza path inexistente', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'nope.x', value: 'y' }], meta);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/no existe/i);
+  });
+
+  it('rechaza valor con tipo incorrecto (integer recibe string)', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'work.qty', value: 'cinco' as any }], meta);
+    expect(result.ok).toBe(false);
+  });
+
+  it('acepta integer dentro de min', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'work.qty', value: 3 }], meta);
+    expect(result.ok).toBe(true);
+  });
+
+  it('rechaza integer por debajo de min', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'work.qty', value: 0 }], meta);
+    expect(result.ok).toBe(false);
+  });
+
+  it('acepta declined con motivo', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(
+      schema,
+      intake,
+      [{ path: 'client.phone', declined: true, declined_reason: 'no tiene' }],
+      meta,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect((result.intake.client as any).phone.declined).toBe(true);
+    expect((result.intake.client as any).phone.declined_reason).toBe('no tiene');
+    expect((result.intake.client as any).phone.value).toBeNull();
+  });
+
+  it('rechaza declined sin motivo', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(
+      schema,
+      intake,
+      [{ path: 'client.phone', declined: true }],
+      meta,
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it('rechaza value y declined simultáneos', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(
+      schema,
+      intake,
+      [{ path: 'client.phone', value: 'x', declined: true, declined_reason: 'r' }],
+      meta,
+    );
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('bulkUpdate enum', () => {
+  const meta = { now: 't', source_message_id: null };
+
+  it('acepta valor en options', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'work.service', value: 'reparar' }], meta);
+    expect(result.ok).toBe(true);
+  });
+  it('rechaza valor fuera de options', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const result = bulkUpdate(schema, intake, [{ path: 'work.service', value: 'pintar' }], meta);
+    expect(result.ok).toBe(false);
   });
 });
