@@ -1,5 +1,6 @@
 import type { IntakeSchema } from '../config/intake-schema';
-import { getFieldByPath } from '../config/intake-schema';
+import { getFieldByPath, listRequiredPaths } from '../config/intake-schema';
+import { getByPath } from '../lib/path';
 
 export interface FieldState {
   value: string | number | boolean | null;
@@ -153,4 +154,28 @@ function validateValueAgainstField(
     default:
       return `tipo desconocido: ${field.type}`;
   }
+}
+
+export function addFreeNote(
+  intake: IntakeState,
+  text: string,
+  now: string,
+  source_message_id: string | null,
+): IntakeState {
+  const next = structuredClone(intake);
+  next.free_notes = [
+    ...next.free_notes,
+    { text, added_at: now, source_message_id },
+  ];
+  return next;
+}
+
+export function isIntakeComplete(schema: IntakeSchema, intake: IntakeState): boolean {
+  for (const path of listRequiredPaths(schema)) {
+    const field = getByPath(intake, path) as FieldState | undefined;
+    if (!field) return false;
+    const satisfied = field.value !== null || field.declined === true;
+    if (!satisfied) return false;
+  }
+  return true;
 }

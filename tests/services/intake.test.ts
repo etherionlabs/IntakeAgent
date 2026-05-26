@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyIntakeFromSchema, bulkUpdate } from '../../src/services/intake';
+import { createEmptyIntakeFromSchema, bulkUpdate, addFreeNote, isIntakeComplete } from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 
 const schema: IntakeSchema = {
@@ -142,5 +142,41 @@ describe('bulkUpdate enum', () => {
     const intake = createEmptyIntakeFromSchema(schema);
     const result = bulkUpdate(schema, intake, [{ path: 'work.service', value: 'pintar' }], meta);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('addFreeNote', () => {
+  it('agrega una nota al array', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const next = addFreeNote(intake, 'cliente alérgico al cuero', '2026-05-25T10:00:00Z', 'msg_3');
+    expect(next.free_notes).toHaveLength(1);
+    expect(next.free_notes[0].text).toBe('cliente alérgico al cuero');
+    expect(next.free_notes[0].source_message_id).toBe('msg_3');
+  });
+});
+
+describe('isIntakeComplete', () => {
+  it('false cuando falta un required', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    expect(isIntakeComplete(schema, intake)).toBe(false);
+  });
+
+  it('true cuando todos los required tienen valor', () => {
+    let intake = createEmptyIntakeFromSchema(schema);
+    const r1 = bulkUpdate(schema, intake, [{ path: 'client.name', value: 'María' }], { now: 't', source_message_id: null });
+    if (!r1.ok) throw new Error('fail');
+    intake = r1.intake;
+    const r2 = bulkUpdate(schema, intake, [{ path: 'work.qty', value: 2 }], { now: 't', source_message_id: null });
+    if (!r2.ok) throw new Error('fail');
+    expect(isIntakeComplete(schema, r2.intake)).toBe(true);
+  });
+
+  it('true cuando un required está declined', () => {
+    let intake = createEmptyIntakeFromSchema(schema);
+    const r1 = bulkUpdate(schema, intake, [{ path: 'client.name', value: 'M' }], { now: 't', source_message_id: null });
+    if (!r1.ok) throw new Error('fail');
+    const r2 = bulkUpdate(schema, r1.intake, [{ path: 'work.qty', declined: true, declined_reason: 'no sabe' }], { now: 't', source_message_id: null });
+    if (!r2.ok) throw new Error('fail');
+    expect(isIntakeComplete(schema, r2.intake)).toBe(true);
   });
 });
