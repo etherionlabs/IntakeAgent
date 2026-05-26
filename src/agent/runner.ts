@@ -50,7 +50,7 @@ export async function runAgentTurn(
   let error: string | null = null;
 
   try {
-    const agent = deps.createAgent({
+    const agent = await deps.createAgent({
       apiKey,
       model: deps.config.model,
       instructions,

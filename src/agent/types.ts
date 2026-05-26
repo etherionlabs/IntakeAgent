@@ -49,7 +49,7 @@ export interface AgentLike {
 
 export interface AgentResponse {
   text: string;
-  usage?: { inputTokens?: number; outputTokens?: number; costUsd?: number };
+  usage?: { inputTokens?: number | null; outputTokens?: number | null; costUsd?: number | null };
 }
 
 export interface AgentFactoryConfig {
@@ -61,7 +61,7 @@ export interface AgentFactoryConfig {
   temperature?: number;
 }
 
-export type AgentFactory = (config: AgentFactoryConfig) => AgentLike;
+export type AgentFactory = (config: AgentFactoryConfig) => AgentLike | Promise<AgentLike>;
 
 /** Resultado del turno. */
 export interface ToolCallRecord {
