@@ -27,7 +27,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@types/node": "^25.9.1",
+    "better-sqlite3": "^12.10.0",
     "prisma": "^7.8.0",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
