@@ -100,8 +100,10 @@ function inferChatKind(jid: string): RawInboundMessage['chatKind'] {
   if (!jid) return 'other';
   if (jid.endsWith('@g.us')) return 'group';
   if (jid === 'status@broadcast' || jid.endsWith('@broadcast')) return 'status';
-  if (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@c.us')) return 'individual';
-  return 'other';
+  // Baileys 7 puede usar nuevos sufijos (@lid, @newsletter, etc.) además de los
+  // tradicionales. Tratamos como individual cualquier JID que no sea grupo ni
+  // status — el contenido y el número los decide el pipeline después.
+  return 'individual';
 }
 
 function jidToE164(jid: string, participant: string | null): string {

@@ -133,6 +133,18 @@ export class BaileysConnection {
     });
 
     sock.ev.on('messages.upsert', async (upsert: any) => {
+      logger.info(
+        {
+          type: upsert.type,
+          count: upsert.messages?.length ?? 0,
+          jids: (upsert.messages ?? []).map((m: any) => m?.key?.remoteJid),
+          fromMes: (upsert.messages ?? []).map((m: any) => m?.key?.fromMe),
+          kinds: (upsert.messages ?? []).map((m: any) =>
+            Object.keys(m?.message ?? {}).slice(0, 3),
+          ),
+        },
+        'whatsapp.messages_upsert',
+      );
       if (upsert.type !== 'notify') return;
       for (const wam of upsert.messages) {
         try {

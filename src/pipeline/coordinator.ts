@@ -21,14 +21,26 @@ export class InboundCoordinator {
   }
 
   async handleInbound(raw: RawInboundMessage): Promise<void> {
+    logger.info(
+      {
+        whatsappMsgId: raw.whatsappMsgId,
+        from: raw.fromPhoneE164,
+        kind: raw.kind,
+        chatKind: raw.chatKind,
+        fromMe: raw.fromMe,
+        textPreview: raw.text?.slice(0, 60) ?? null,
+      },
+      'inbound.received',
+    );
+
     const pf = prefilter(raw);
     if (pf.rejected) {
-      logger.debug({ reason: pf.reason, whatsappMsgId: raw.whatsappMsgId }, 'inbound.prefiltered');
+      logger.info({ reason: pf.reason, whatsappMsgId: raw.whatsappMsgId }, 'inbound.prefiltered');
       return;
     }
 
     if (await alreadySeen(this.deps.prisma, raw.whatsappMsgId)) {
-      logger.debug({ whatsappMsgId: raw.whatsappMsgId }, 'inbound.duplicate');
+      logger.info({ whatsappMsgId: raw.whatsappMsgId }, 'inbound.duplicate');
       return;
     }
 
