@@ -1,6 +1,8 @@
 import type { BatchMessage } from './types';
-import type { BusinessFacts, Config } from '../config/schema';
+import type { BusinessFacts, Config, Profile } from '../config/schema';
 import type { OpenJobSummary } from './types';
+import type { IntakeState } from '../services/intake';
+import { renderIntakeForModel } from '../services/intake';
 
 export function renderUserMessage(batch: BatchMessage[]): string {
   if (batch.length === 0) {
@@ -110,4 +112,46 @@ export function buildHoursBlock(config: Config, now: Date): string {
     }
   }
   return lines.join('\n');
+}
+
+export interface BuildSystemPromptArgs {
+  profile: Profile;
+  config: Config;
+  intake: IntakeState;
+  jobId: string;
+  jobStatus: string;
+  otherOpenJobs: OpenJobSummary[];
+  now: Date;
+}
+
+export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
+  const { profile, config, intake, jobId, jobStatus, otherOpenJobs, now } = args;
+
+  // 1. Aplicar plantilla con variables.
+  const allVars: Record<string, string> = {
+    businessName: profile.intakeSchema.$businessName,
+    businessDomain: profile.intakeSchema.$businessDomain,
+    ...profile.promptVars.vars,
+  };
+  const baseTemplate = profile.promptVars.promptTemplate.replace(
+    /\{\{(\w+)\}\}/g,
+    (_, key) => allVars[key] ?? '',
+  );
+
+  // 2. Componer bloques opcionales.
+  const facts = buildBusinessFactsBlock(
+    profile.businessFacts,
+    profile.intakeSchema.$businessName,
+  );
+  const intakeBlock = renderIntakeForModel(profile.intakeSchema, intake, {
+    jobId,
+    status: jobStatus,
+  });
+  const openJobs = buildOpenJobsBlock(otherOpenJobs);
+  const hours = buildHoursBlock(config, now);
+
+  // 3. Unir con separadores.
+  return [baseTemplate, facts, intakeBlock, openJobs, hours]
+    .filter((s) => s.length > 0)
+    .join('\n\n');
 }

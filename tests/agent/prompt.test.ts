@@ -153,3 +153,107 @@ describe('buildHoursBlock', () => {
     expect(out).toContain('fuera de horario');
   });
 });
+
+import { buildSystemPrompt } from '../../src/agent/prompt';
+import { createEmptyIntakeFromSchema } from '../../src/services/intake';
+import type { Profile } from '../../src/config/schema';
+import type { IntakeSchema } from '../../src/config/intake-schema';
+
+const intakeSchema: IntakeSchema = {
+  $businessName: 'Tapicería Demo',
+  $businessDomain: 'tapicería',
+  $language: 'es-MX',
+  sections: [
+    {
+      key: 'client',
+      label: 'Cliente',
+      fields: [{ key: 'name', label: 'Nombre', type: 'string', required: true }],
+    },
+  ],
+};
+
+const profile: Profile = {
+  intakeSchema,
+  promptVars: {
+    promptTemplate:
+      'Eres asistente de **{{businessName}}**, negocio de {{businessDomain}}.\n## Tono\n{{tone}}\n## Reglas\n{{rules}}',
+    vars: { tone: 'Cercano', rules: 'No inventes precios.' },
+  },
+  businessFacts: sampleFacts,
+  welcome: 'hola',
+  hash: 'abc',
+};
+
+const cfg: Pick<Config, 'hours'> = {
+  hours: { enabled: false, timezone: 'America/Mexico_City', schedule: {}, outOfHoursNotice: '' },
+};
+
+describe('buildSystemPrompt', () => {
+  it('compone plantilla + facts + intake + (sin jobs múltiples) + (sin horario)', () => {
+    const intake = createEmptyIntakeFromSchema(intakeSchema);
+    const out = buildSystemPrompt({
+      profile,
+      config: cfg as Config,
+      intake,
+      jobId: 'j1',
+      jobStatus: 'OPEN_INTAKE',
+      otherOpenJobs: [],
+      now: new Date('2026-05-25T18:00:00Z'),
+    });
+    // template aplicado
+    expect(out).toContain('Tapicería Demo');
+    expect(out).toContain('tapicería');
+    expect(out).toContain('Cercano');
+    expect(out).toContain('No inventes precios.');
+    // business facts
+    expect(out).toContain('INFORMACIÓN DEL NEGOCIO');
+    expect(out).toContain('Av. Reforma 123');
+    // intake state
+    expect(out).toContain('ESTADO DEL INTAKE');
+    expect(out).toContain('job #j1');
+    // sin bloques opcionales
+    expect(out).not.toContain('JOBS ABIERTOS MÚLTIPLES');
+    expect(out).not.toContain('HORARIO ACTUAL');
+  });
+
+  it('incluye bloque de jobs múltiples cuando hay 2+', () => {
+    const intake = createEmptyIntakeFromSchema(intakeSchema);
+    const out = buildSystemPrompt({
+      profile,
+      config: cfg as Config,
+      intake,
+      jobId: 'j1',
+      jobStatus: 'OPEN_INTAKE',
+      otherOpenJobs: [
+        { id: 'a', summary: 'sillón', openedAt: new Date('2026-05-01') },
+        { id: 'b', summary: 'silla', openedAt: new Date('2026-05-02') },
+      ],
+      now: new Date('2026-05-25T18:00:00Z'),
+    });
+    expect(out).toContain('JOBS ABIERTOS MÚLTIPLES');
+    expect(out).toContain('sillón');
+    expect(out).toContain('silla');
+  });
+
+  it('sustituye {{var}} desconocida con cadena vacía', () => {
+    const profileWithMissingVar: Profile = {
+      ...profile,
+      promptVars: {
+        promptTemplate: 'Hola {{businessName}} y {{noExiste}}',
+        vars: {},
+      },
+    };
+    const intake = createEmptyIntakeFromSchema(intakeSchema);
+    const out = buildSystemPrompt({
+      profile: profileWithMissingVar,
+      config: cfg as Config,
+      intake,
+      jobId: 'j1',
+      jobStatus: 'OPEN_INTAKE',
+      otherOpenJobs: [],
+      now: new Date('2026-05-25T18:00:00Z'),
+    });
+    expect(out).toContain('Hola Tapicería Demo y ');
+    expect(out).not.toContain('{{noExiste}}');
+  });
+});
