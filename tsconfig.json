@@ -10,11 +10,7 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": false,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "verbatimModuleSyntax": false
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
