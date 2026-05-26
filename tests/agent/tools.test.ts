@@ -40,14 +40,15 @@ async function setupCtx() {
   const c = await upsertContactByPhone(prisma, '+521');
   const j = await openJob(prisma, c.id, createEmptyIntakeFromSchema(schema));
   const intake: IntakeState = createEmptyIntakeFromSchema(schema);
-  return {
+  const ctx: import('../../src/agent/types').TurnContext = {
     job: j,
     contact: c,
     intake,
-    batchMessages: [{ id: 'm1', kind: 'text' as const, body: 'hola' }],
+    batchMessages: [{ id: 'm1', kind: 'text', body: 'hola' }],
     otherOpenJobs: [],
     now: '2026-05-25T10:00:00Z',
   };
+  return ctx;
 }
 
 afterAll(async () => {
