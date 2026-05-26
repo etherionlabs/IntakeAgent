@@ -196,3 +196,38 @@ export function buildRequestPhotoTool(ctx: TurnContext): AgentTool {
     },
   };
 }
+
+const SelectOrOpenJobArgsZ = z
+  .object({
+    action: z.enum(['use_existing', 'open_new']),
+    existing_job_id: z.string().optional(),
+  })
+  .refine(
+    (d) => d.action === 'open_new' || (d.action === 'use_existing' && !!d.existing_job_id),
+    { message: 'use_existing requiere existing_job_id' },
+  );
+
+export function buildSelectOrOpenJobTool(ctx: TurnContext): AgentTool {
+  return {
+    name: 'select_or_open_job',
+    description:
+      'Solo disponible si hay múltiples jobs abiertos. Decide a cuál pertenece el mensaje o abre uno nuevo. La asignación efectiva la hace el pipeline; aquí sólo registras la decisión.',
+    inputSchema: SelectOrOpenJobArgsZ,
+    execute: async (rawArgs) => {
+      const parse = SelectOrOpenJobArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+      const args = parse.data;
+      if (args.action === 'use_existing') {
+        const exists = ctx.otherOpenJobs.some((j) => j.id === args.existing_job_id);
+        if (!exists) {
+          return {
+            ok: false,
+            error: `existing_job_id ${args.existing_job_id} no está en la lista de jobs abiertos`,
+          };
+        }
+        return { ok: true, selected_job_id: args.existing_job_id };
+      }
+      return { ok: true, action: 'open_new' };
+    },
+  };
+}

@@ -240,3 +240,43 @@ describe('tool request_photo', () => {
     expect(out.ok).toBe(false);
   });
 });
+
+import { buildSelectOrOpenJobTool } from '../../src/agent/tools';
+
+describe('tool select_or_open_job', () => {
+  it('valida use_existing con id de la lista de otherOpenJobs', async () => {
+    const ctx = await setupCtx();
+    ctx.otherOpenJobs = [
+      { id: 'job-a', summary: null, openedAt: new Date() },
+      { id: 'job-b', summary: null, openedAt: new Date() },
+    ];
+    const tool = buildSelectOrOpenJobTool(ctx);
+    const out = await tool.execute({ action: 'use_existing', existing_job_id: 'job-a' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.selected_job_id).toBe('job-a');
+  });
+
+  it('rechaza use_existing con id no listado', async () => {
+    const ctx = await setupCtx();
+    ctx.otherOpenJobs = [{ id: 'job-a', summary: null, openedAt: new Date() }];
+    const tool = buildSelectOrOpenJobTool(ctx);
+    const out = await tool.execute({ action: 'use_existing', existing_job_id: 'fake' });
+    expect(out.ok).toBe(false);
+  });
+
+  it('acepta open_new sin id', async () => {
+    const ctx = await setupCtx();
+    const tool = buildSelectOrOpenJobTool(ctx);
+    const out = await tool.execute({ action: 'open_new' });
+    expect(out.ok).toBe(true);
+  });
+
+  it('rechaza use_existing sin id', async () => {
+    const ctx = await setupCtx();
+    ctx.otherOpenJobs = [{ id: 'job-a', summary: null, openedAt: new Date() }];
+    const tool = buildSelectOrOpenJobTool(ctx);
+    const out = await tool.execute({ action: 'use_existing' });
+    expect(out.ok).toBe(false);
+  });
+});
