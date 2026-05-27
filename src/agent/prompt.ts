@@ -122,10 +122,11 @@ export interface BuildSystemPromptArgs {
   jobStatus: string;
   otherOpenJobs: OpenJobSummary[];
   now: Date;
+  recentHistory?: import('./types').HistoryEntry[];
 }
 
 export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
-  const { profile, config, intake, jobId, jobStatus, otherOpenJobs, now } = args;
+  const { profile, config, intake, jobId, jobStatus, otherOpenJobs, now, recentHistory } = args;
 
   // 1. Aplicar plantilla con variables.
   const allVars: Record<string, string> = {
@@ -143,6 +144,7 @@ export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
     profile.businessFacts,
     profile.intakeSchema.$businessName,
   );
+  const history = buildHistoryBlock(recentHistory ?? []);
   const intakeBlock = renderIntakeForModel(profile.intakeSchema, intake, {
     jobId,
     status: jobStatus,
@@ -150,8 +152,22 @@ export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
   const openJobs = buildOpenJobsBlock(otherOpenJobs);
   const hours = buildHoursBlock(config, now);
 
-  // 3. Unir con separadores.
-  return [baseTemplate, facts, intakeBlock, openJobs, hours]
+  // 3. Unir con separadores. Historial va antes del estado del intake.
+  return [baseTemplate, facts, history, intakeBlock, openJobs, hours]
     .filter((s) => s.length > 0)
     .join('\n\n');
+}
+
+export function buildHistoryBlock(history: import('./types').HistoryEntry[]): string {
+  if (history.length === 0) return '';
+  const lines: string[] = [];
+  lines.push('=== HISTORIAL RECIENTE DE LA CONVERSACIÓN ===');
+  lines.push('(Los mensajes a continuación ya OCURRIERON. Úsalos para mantener coherencia y evitar repetirte.)');
+  for (const h of history) {
+    const who = h.direction === 'inbound' ? 'Cliente' : 'Tú (asistente)';
+    let content = h.body ?? `(${h.kind})`;
+    if (content.length > 200) content = content.slice(0, 197) + '…';
+    lines.push(`[${who}] ${content}`);
+  }
+  return lines.join('\n');
 }

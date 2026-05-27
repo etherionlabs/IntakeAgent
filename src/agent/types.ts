@@ -29,6 +29,19 @@ export interface TurnContext {
   otherOpenJobs: OpenJobSummary[];
   /** Hora actual ISO 8601 (inyectable para tests). */
   now: string;
+  /**
+   * Historial reciente del job (mensajes inbound + outbound previos al batch actual,
+   * ordenados cronológicamente). El agente lo ve para mantener coherencia conversacional.
+   * Opcional para retro-compatibilidad con tests existentes.
+   */
+  recentHistory?: HistoryEntry[];
+}
+
+export interface HistoryEntry {
+  direction: 'inbound' | 'outbound';
+  kind: 'text' | 'image' | 'audio' | 'sticker' | 'location' | 'other';
+  body: string | null;
+  createdAt: string;
 }
 
 /** Dependencias externas inyectables (DB, notifier, factory del SDK). */

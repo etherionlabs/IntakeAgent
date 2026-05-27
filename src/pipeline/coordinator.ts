@@ -89,6 +89,17 @@ export class InboundCoordinator {
         businessDomain: this.deps.profile.intakeSchema.$businessDomain,
       });
       await this.deps.sender.sendText(contactRes.contact.phoneE164, welcome);
+      // Persistirlo como mensaje outbound: el agente lo verá en el historial
+      // reciente y evitará saludar de nuevo.
+      await this.deps.prisma.message.create({
+        data: {
+          jobId: jobRes.job.id,
+          contactId: contactRes.contact.id,
+          direction: 'outbound',
+          kind: 'text',
+          body: welcome,
+        },
+      });
     }
 
     this.debouncer.enqueue(contactRes.contact.id, message.id);
@@ -128,6 +139,25 @@ export class InboundCoordinator {
 
     const intake = parseJobIntake(job);
 
+    // Cargar últimos 12 mensajes del job EXCLUYENDO los del batch actual,
+    // ordenados cronológicamente. Le da al agente contexto de la conversación
+    // (incluyendo welcome y respuestas previas) para evitar incoherencias.
+    const batchIds = new Set(messageIds);
+    const historyRaw = await this.deps.prisma.message.findMany({
+      where: { jobId, id: { notIn: messageIds } },
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+    });
+    const recentHistory = historyRaw
+      .reverse()
+      .filter((m) => !batchIds.has(m.id))
+      .map((m) => ({
+        direction: m.direction as 'inbound' | 'outbound',
+        kind: m.kind as 'text' | 'image' | 'audio' | 'sticker' | 'location' | 'other',
+        body: m.body,
+        createdAt: m.createdAt.toISOString(),
+      }));
+
     const result = await runAgentTurn(
       {
         job,
@@ -140,6 +170,7 @@ export class InboundCoordinator {
           openedAt: j.openedAt,
         })),
         now: this.deps.now().toISOString(),
+        recentHistory,
       },
       {
         prisma: this.deps.prisma,

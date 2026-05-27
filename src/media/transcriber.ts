@@ -29,7 +29,6 @@ export class WhisperTranscriber implements Transcriber {
     if (!this.apiKey) return null;
     try {
       const form = new FormData();
-      // Convert Buffer to Uint8Array for Blob constructor
       const uint8 = new Uint8Array(buffer);
       const blob = new Blob([uint8], { type: mimetype });
       form.append('file', blob, `audio.${extFromMime(mimetype)}`);
@@ -41,10 +40,20 @@ export class WhisperTranscriber implements Transcriber {
         headers: { Authorization: `Bearer ${this.apiKey}` },
         body: form,
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        // Log a stderr para diagnóstico — no usar pino aquí para evitar dep ciclo.
+        console.warn(
+          `[WhisperTranscriber] fallo (${res.status}) en ${this.baseUrl}: ${body.slice(0, 200)}`,
+        );
+        return null;
+      }
       const text = await res.text();
       return text.trim() || null;
-    } catch {
+    } catch (e) {
+      console.warn(
+        `[WhisperTranscriber] excepción: ${e instanceof Error ? e.message : String(e)}`,
+      );
       return null;
     }
   }

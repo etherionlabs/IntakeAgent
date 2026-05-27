@@ -1,7 +1,9 @@
 node_modules
 dist
 data/
-media/
+# Directorio raíz de media (archivos descargados de WhatsApp) — NO el código
+# fuente en src/media/.
+/media/
 .env
 .env.local
 *.log

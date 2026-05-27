@@ -26,7 +26,7 @@
   "media": {
     "storeDir": "./media",
     "transcribeAudio": true,
-    "whisperModel": "openai/whisper-1"
+    "whisperModel": "whisper-1"
   },
   "limits": {
     "monthlyCostUsd": 50,

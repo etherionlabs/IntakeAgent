@@ -40,6 +40,7 @@ export async function runAgentTurn(
     jobStatus: ctx.job.status,
     otherOpenJobs: ctx.otherOpenJobs,
     now: new Date(ctx.now),
+    recentHistory: ctx.recentHistory,
   });
   const userMessage = renderUserMessage(ctx.batchMessages);
 
