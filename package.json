@@ -17,6 +17,7 @@
     "cli:show-intake": "tsx src/cli/show-intake.ts",
     "cli:run-turn": "tsx src/cli/run-turn.ts",
     "cli:inbound-demo": "tsx src/cli/inbound-demo.ts",
+    "cli:chat": "tsx src/cli/chat.ts",
     "db:inspect": "tsx src/cli/db-inspect.ts"
   },
   "keywords": [],
