@@ -36,23 +36,17 @@ async function main() {
 
   const mediaStore = new FilesystemMediaStore(config.media.storeDir);
 
-  // Whisper: OpenRouter NO ofrece modelos de transcripción de audio. Usamos
-  // OpenAI directo si hay OPENAI_API_KEY. Sin ella, se desactiva la
-  // transcripción (los audios llegan al agente con body=null; el agente
-  // entonces pide al cliente que escriba el mensaje en texto).
-  const openaiKey = process.env.OPENAI_API_KEY ?? '';
+  // Whisper STT vía OpenRouter (endpoint /audio/transcriptions del SDK).
+  // Modelo configurable en config.media.whisperModel (ej. "openai/whisper-1").
+  const apiKey = process.env.OPENROUTER_API_KEY ?? '';
   const transcriber: Transcriber =
-    config.media.transcribeAudio && openaiKey
-      ? new WhisperTranscriber(
-          openaiKey,
-          config.media.whisperModel || 'whisper-1',
-          'https://api.openai.com/v1',
-        )
+    config.media.transcribeAudio && apiKey
+      ? new WhisperTranscriber(apiKey, config.media.whisperModel)
       : new NoopTranscriber();
-  if (config.media.transcribeAudio && !openaiKey) {
+  if (config.media.transcribeAudio && !apiKey) {
     logger.warn(
-      'transcribeAudio=true pero OPENAI_API_KEY no está configurada. ' +
-        'OpenRouter no provee Whisper. Los audios no se transcribirán.',
+      'transcribeAudio=true pero OPENROUTER_API_KEY no está configurada. ' +
+        'Los audios no se transcribirán.',
     );
   }
 

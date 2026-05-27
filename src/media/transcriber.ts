@@ -18,39 +18,39 @@ export class ScriptedTranscriber implements Transcriber {
   }
 }
 
+/**
+ * Transcriber que usa el endpoint STT de OpenRouter vía `@openrouter/sdk`.
+ *
+ * Modelos soportados: cualquier modelo de transcripción listado por OpenRouter.
+ * Ejemplos comunes: `openai/whisper-1`, `openai/whisper-large-v3`.
+ *
+ * El SDK es ESM-only — usamos `await import` perezoso.
+ */
 export class WhisperTranscriber implements Transcriber {
   constructor(
     private readonly apiKey: string,
     private readonly model: string,
-    private readonly baseUrl: string = 'https://openrouter.ai/api/v1',
   ) {}
 
   async transcribe(buffer: Buffer, mimetype: string): Promise<string | null> {
     if (!this.apiKey) return null;
     try {
-      const form = new FormData();
-      const uint8 = new Uint8Array(buffer);
-      const blob = new Blob([uint8], { type: mimetype });
-      form.append('file', blob, `audio.${extFromMime(mimetype)}`);
-      form.append('model', this.model);
-      form.append('response_format', 'text');
-
-      const res = await fetch(`${this.baseUrl}/audio/transcriptions`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-        body: form,
+      const { OpenRouter } = await import('@openrouter/sdk');
+      const sdk = new OpenRouter({ apiKey: this.apiKey });
+      const response = await sdk.stt.createTranscription({
+        sttRequest: {
+          inputAudio: {
+            data: buffer.toString('base64'),
+            format: formatFromMime(mimetype),
+          },
+          model: this.model,
+        },
       });
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        // Log a stderr para diagnóstico — no usar pino aquí para evitar dep ciclo.
-        console.warn(
-          `[WhisperTranscriber] fallo (${res.status}) en ${this.baseUrl}: ${body.slice(0, 200)}`,
-        );
-        return null;
-      }
-      const text = await res.text();
-      return text.trim() || null;
+      const text = response.text?.trim();
+      return text ? text : null;
     } catch (e) {
+      // Log a stderr para diagnóstico — no usamos pino aquí para evitar
+      // dependencia cruzada con el logger.
       console.warn(
         `[WhisperTranscriber] excepción: ${e instanceof Error ? e.message : String(e)}`,
       );
@@ -59,11 +59,19 @@ export class WhisperTranscriber implements Transcriber {
   }
 }
 
-function extFromMime(mimetype: string): string {
-  if (mimetype.includes('ogg')) return 'ogg';
-  if (mimetype.includes('mpeg') || mimetype.includes('mp3')) return 'mp3';
-  if (mimetype.includes('mp4') || mimetype.includes('m4a')) return 'm4a';
-  if (mimetype.includes('wav')) return 'wav';
-  if (mimetype.includes('opus')) return 'opus';
-  return 'bin';
+/**
+ * Mapea un mimetype a uno de los formatos aceptados por el SDK
+ * (`wav | mp3 | flac | m4a | ogg | webm | aac`).
+ */
+function formatFromMime(mimetype: string): string {
+  const m = mimetype.toLowerCase();
+  if (m.includes('ogg') || m.includes('opus')) return 'ogg';
+  if (m.includes('mpeg') || m.includes('mp3')) return 'mp3';
+  if (m.includes('mp4') || m.includes('m4a')) return 'm4a';
+  if (m.includes('wav')) return 'wav';
+  if (m.includes('webm')) return 'webm';
+  if (m.includes('flac')) return 'flac';
+  if (m.includes('aac')) return 'aac';
+  // Default razonable para WhatsApp (notas de voz son OGG/opus).
+  return 'ogg';
 }
