@@ -1,0 +1,41 @@
+<h1 class="text-2xl font-bold mb-4">Estado de WhatsApp</h1>
+
+<section class="bg-white rounded shadow p-4 mb-4"
+         hx-get="/panel/api/whatsapp/state"
+         hx-trigger="every 5s"
+         hx-target="#wa-status-text"
+         hx-swap="textContent">
+  <div class="flex items-center gap-3 mb-3">
+    <span class="text-sm text-gray-600">Estado:</span>
+    <span id="wa-status-text" class="font-semibold {{#if (eq adapter.status "connected")}}text-emerald-700{{else}}text-amber-700{{/if}}">
+      {{adapter.status}}
+    </span>
+  </div>
+  {{#if adapter.lastConnectedAt}}
+    <div class="text-sm text-gray-600">Última conexión: {{date adapter.lastConnectedAt}}</div>
+  {{/if}}
+  {{#if adapter.lastError}}
+    <div class="text-sm text-red-600 mt-2">Último error: {{adapter.lastError}}</div>
+  {{/if}}
+</section>
+
+{{#if (eq adapter.status "qr_required")}}
+<section class="bg-white rounded shadow p-4">
+  <h2 class="font-semibold mb-3">Escanea el QR</h2>
+  {{#if adapter.qr}}
+    <p class="text-sm text-gray-600 mb-3">Abre WhatsApp → Ajustes → Dispositivos vinculados → Vincular un dispositivo.</p>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{adapter.qr}}" alt="QR" class="border rounded">
+  {{else}}
+    <div class="text-sm text-gray-500">QR no disponible. Revisa la terminal del proceso.</div>
+  {{/if}}
+</section>
+{{/if}}
+
+{{#if (eq adapter.status "logged_out")}}
+<section class="bg-amber-50 border border-amber-200 rounded p-4">
+  <p class="text-sm text-amber-800">
+    La sesión fue cerrada desde el teléfono. Borra <code>./data/baileys-session/</code>
+    y reinicia el proceso para emparejar de nuevo.
+  </p>
+</section>
+{{/if}}
