@@ -6,6 +6,9 @@ import { hashPassword, COOKIE_NAME } from '../../src/panel/auth';
 import { NullConnectionStateProvider } from '../../src/panel/adapter-state';
 import type { Profile, Config } from '../../src/config/schema';
 import type { FastifyInstance } from 'fastify';
+import { upsertContactByPhone } from '../../src/services/contact';
+import { openJob } from '../../src/services/job';
+import { createEmptyIntakeFromSchema } from '../../src/services/intake';
 
 const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
 const prisma = new PrismaClient({ adapter });
@@ -117,5 +120,37 @@ describe('panel server', () => {
     });
     expect([302, 303]).toContain(res.statusCode);
     expect(res.headers.location).toBe('/panel/dashboard');
+  });
+});
+
+describe('panel job detail', () => {
+  it('GET /panel/jobs/:id muestra la conversación', async () => {
+    const c = await upsertContactByPhone(prisma, '+5219999');
+    const j = await openJob(prisma, c.id, createEmptyIntakeFromSchema(profile.intakeSchema));
+    await prisma.message.create({
+      data: {
+        contactId: c.id,
+        jobId: j.id,
+        direction: 'inbound',
+        kind: 'text',
+        body: 'Hola test',
+        whatsappMsgId: `t_${Date.now()}`,
+      },
+    });
+    const login = await server.inject({
+      method: 'POST',
+      url: '/panel/login',
+      payload: 'username=duenio&password=secret',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    });
+    const cookie = login.headers['set-cookie'] as string;
+    const res = await server.inject({
+      method: 'GET',
+      url: `/panel/jobs/${j.id}`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('Hola test');
+    expect(res.body).toContain(c.phoneE164);
   });
 });

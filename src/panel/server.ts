@@ -17,6 +17,7 @@ import {
 import { handlebarsHelpers } from './helpers';
 import type { ConnectionStateProvider } from './adapter-state';
 import { registerDashboardRoute } from './routes/dashboard';
+import { registerJobRoutes } from './routes/jobs';
 
 export interface PanelServerDeps {
   prisma: PrismaClient;
@@ -150,6 +151,7 @@ export async function createPanelServer(
   });
 
   registerDashboardRoute(app, deps.prisma, deps.adapterState);
+  registerJobRoutes(app, { prisma: deps.prisma, profile: deps.profile });
 
   return app;
 }

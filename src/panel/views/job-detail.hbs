@@ -1,0 +1,84 @@
+{{#if notFound}}
+  <div class="bg-white p-8 rounded shadow text-center">
+    <p class="text-gray-700">No se encontró ese job.</p>
+    <a href="/panel/dashboard" class="text-blue-600 hover:underline">← volver al dashboard</a>
+  </div>
+{{else}}
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <a href="/panel/dashboard" class="text-sm text-blue-600 hover:underline">← dashboard</a>
+    <h1 class="text-xl font-bold mt-1">
+      {{#if intake.client.name.value}}{{intake.client.name.value}}{{else}}{{contact.phoneE164}}{{/if}}
+    </h1>
+    <div class="text-sm text-gray-500">
+      {{contact.phoneE164}} ·
+      <span class="px-2 py-0.5 rounded text-xs {{statusClass job.status}}">{{statusLabel job.status}}</span>
+      · abierto {{ago job.openedAt}}
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+  <section class="lg:col-span-3 bg-white rounded shadow p-4">
+    <h2 class="font-semibold mb-3">Conversación ({{messages.length}})</h2>
+    <div class="space-y-2 max-h-[600px] overflow-y-auto">
+      {{#each messages}}
+        <div class="flex {{#if (eq this.direction "outbound")}}justify-end{{/if}}">
+          <div class="max-w-md px-3 py-2 rounded {{#if (eq this.direction "outbound")}}bg-blue-50 text-blue-900{{else}}bg-gray-100{{/if}}">
+            <div class="text-xs text-gray-500 mb-0.5">
+              {{#if (eq this.direction "outbound")}}bot{{else}}cliente{{/if}} · {{date this.createdAt}}
+            </div>
+            {{#if this.body}}
+              <div class="whitespace-pre-wrap text-sm">{{this.body}}</div>
+            {{else}}
+              <div class="text-sm text-gray-500 italic">({{this.kind}})</div>
+            {{/if}}
+            {{#if this.mediaPath}}
+              <div class="text-xs text-gray-500 mt-1">📎 {{this.mediaPath}}</div>
+            {{/if}}
+          </div>
+        </div>
+      {{/each}}
+    </div>
+  </section>
+
+  <aside class="lg:col-span-2 space-y-4">
+    <section class="bg-white rounded shadow p-4">
+      <h2 class="font-semibold mb-3">Datos del intake</h2>
+      <div class="text-sm text-gray-600 italic">Formulario editable: ver Task 7.</div>
+      <pre class="text-xs bg-gray-50 p-2 rounded overflow-x-auto mt-2">{{json intake}}</pre>
+    </section>
+    <section class="bg-white rounded shadow p-4">
+      <h2 class="font-semibold mb-3">Otros jobs del contacto</h2>
+      {{#if otherJobs.length}}
+        <ul class="text-sm space-y-1">
+          {{#each otherJobs}}
+            <li>
+              <a href="/panel/jobs/{{this.id}}" class="text-blue-600 hover:underline">
+                {{statusLabel this.status}} · {{ago this.openedAt}}
+              </a>
+            </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <div class="text-sm text-gray-500">Sin otros jobs.</div>
+      {{/if}}
+    </section>
+    {{#if agentRuns.length}}
+    <section class="bg-white rounded shadow p-4">
+      <h2 class="font-semibold mb-3">Últimos agent runs</h2>
+      <ul class="text-xs space-y-1 text-gray-700">
+        {{#each agentRuns}}
+          <li>
+            {{date this.createdAt}} · {{this.model}} · tokens {{this.inputTokens}}/{{this.outputTokens}}
+            {{#if this.error}}<span class="text-red-600">· {{truncate this.error 60}}</span>{{/if}}
+          </li>
+        {{/each}}
+      </ul>
+    </section>
+    {{/if}}
+  </aside>
+</div>
+
+{{/if}}
