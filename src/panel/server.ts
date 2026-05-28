@@ -21,6 +21,7 @@ import { registerJobRoutes } from './routes/jobs';
 import { registerContactRoutes } from './routes/contacts';
 import { registerWhatsappRoutes } from './routes/whatsapp';
 import { registerUsageRoutes } from './routes/usage';
+import { registerConfigRoutes } from './routes/config';
 
 export interface PanelServerDeps {
   prisma: PrismaClient;
@@ -158,6 +159,7 @@ export async function createPanelServer(
   registerContactRoutes(app, deps.prisma);
   registerWhatsappRoutes(app, deps.adapterState);
   registerUsageRoutes(app, deps.prisma);
+  registerConfigRoutes(app, deps.config, deps.profile);
 
   return app;
 }

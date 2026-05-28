@@ -1,0 +1,31 @@
+<h1 class="text-2xl font-bold mb-4">Configuración (solo lectura)</h1>
+
+<p class="text-sm text-gray-600 mb-4">
+  Edita los archivos en disco (<code>config.json</code> y <code>profiles/.../</code>) y reinicia
+  el proceso para aplicar cambios.
+</p>
+
+<details class="bg-white rounded shadow p-4 mb-4" open>
+  <summary class="font-semibold cursor-pointer">config.json</summary>
+  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json config}}</pre>
+</details>
+
+<details class="bg-white rounded shadow p-4 mb-4">
+  <summary class="font-semibold cursor-pointer">intake-schema.json ({{schema.$businessName}})</summary>
+  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json schema}}</pre>
+</details>
+
+<details class="bg-white rounded shadow p-4 mb-4">
+  <summary class="font-semibold cursor-pointer">prompt-vars.json</summary>
+  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json promptVars}}</pre>
+</details>
+
+<details class="bg-white rounded shadow p-4 mb-4">
+  <summary class="font-semibold cursor-pointer">business-facts.json</summary>
+  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json facts}}</pre>
+</details>
+
+<details class="bg-white rounded shadow p-4 mb-4">
+  <summary class="font-semibold cursor-pointer">welcome.txt</summary>
+  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 whitespace-pre-wrap">{{welcome}}</pre>
+</details>
