@@ -231,12 +231,27 @@ async function main() {
           },
         });
       }
-      // 8. Mostrar tool calls de forma compacta
+      // 8. Mostrar tool calls. Si alguna falló, muestra args + error para debug.
       if (result.toolCalls.length > 0) {
+        const hasFailures = result.toolCalls.some((t) => t.error);
         const summary = result.toolCalls
           .map((t) => `${t.name}${t.error ? '✗' : '✓'}`)
           .join(' · ');
-        console.log(c('dim', `[tools] ${summary} · tokens ${result.inputTokens}/${result.outputTokens}`));
+        console.log(
+          c('dim', `[tools] ${summary} · tokens ${result.inputTokens}/${result.outputTokens}`),
+        );
+        if (hasFailures) {
+          for (const t of result.toolCalls) {
+            if (t.error) {
+              const argsStr = JSON.stringify(t.args).slice(0, 200);
+              console.log(c('red', `  ✗ ${t.name}: ${t.error}`));
+              console.log(c('dim', `    args: ${argsStr}`));
+            }
+          }
+        }
+      }
+      if (!result.responseText) {
+        console.log(c('yellow', '(agente terminó sin responder texto)'));
       }
     } catch (err) {
       console.log(c('red', `excepción: ${err instanceof Error ? err.message : String(err)}`));

@@ -162,11 +162,15 @@ export function buildHistoryBlock(history: import('./types').HistoryEntry[]): st
   if (history.length === 0) return '';
   const lines: string[] = [];
   lines.push('=== HISTORIAL RECIENTE DE LA CONVERSACIÓN ===');
-  lines.push('(Los mensajes a continuación ya OCURRIERON. Úsalos para mantener coherencia y evitar repetirte.)');
+  lines.push(
+    'IMPORTANTE: los mensajes a continuación YA OCURRIERON en este chat. ' +
+      'NO los repitas. Si ya saludaste, NO saludes de nuevo — continúa donde quedaste. ' +
+      'Si ya preguntaste algo, NO lo vuelvas a preguntar.',
+  );
   for (const h of history) {
     const who = h.direction === 'inbound' ? 'Cliente' : 'Tú (asistente)';
     let content = h.body ?? `(${h.kind})`;
-    if (content.length > 200) content = content.slice(0, 197) + '…';
+    if (content.length > 400) content = content.slice(0, 397) + '…';
     lines.push(`[${who}] ${content}`);
   }
   return lines.join('\n');
