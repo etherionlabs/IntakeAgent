@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} · {{businessName}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <nav class="bg-white border-b sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+      <a href="/panel/dashboard" class="font-bold text-lg">{{businessName}}</a>
+      <a href="/panel/dashboard" class="text-sm text-gray-700 hover:text-gray-900">Dashboard</a>
+      <a href="/panel/contacts" class="text-sm text-gray-700 hover:text-gray-900">Contactos</a>
+      <a href="/panel/whatsapp" class="text-sm text-gray-700 hover:text-gray-900">WhatsApp</a>
+      <a href="/panel/usage" class="text-sm text-gray-700 hover:text-gray-900">Costos</a>
+      <a href="/panel/config" class="text-sm text-gray-700 hover:text-gray-900">Config</a>
+      <div class="ml-auto flex items-center gap-3 text-sm">
+        <span class="text-gray-600">{{username}}</span>
+        <form method="POST" action="/panel/logout" class="m-0">
+          <button class="text-gray-700 hover:text-red-600">Salir</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    {{{body}}}
+  </main>
+</body>
+</html>
