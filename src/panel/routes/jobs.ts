@@ -94,4 +94,34 @@ export function registerJobRoutes(app: FastifyInstance, deps: JobDetailDeps): vo
       return '';
     },
   );
+
+  app.post<{ Params: { id: string }; Body: { status: string } }>(
+    '/panel/api/jobs/:id/status',
+    async (req, reply) => {
+      if (!(req as any).panelUser) {
+        reply.code(401);
+        return { error: 'unauthorized' };
+      }
+      const job = await deps.prisma.job.findUnique({ where: { id: req.params.id } });
+      if (!job) {
+        reply.code(404);
+        return { error: 'not_found' };
+      }
+      const allowed = ['OPEN_INTAKE', 'READY_FOR_REVIEW', 'IN_PROGRESS', 'CLOSED'];
+      const target = req.body?.status;
+      if (!target || !allowed.includes(target)) {
+        reply.code(400);
+        return { error: 'invalid_status' };
+      }
+      const update: any = { status: target };
+      if (target === 'CLOSED') update.closedAt = new Date();
+      if (target === 'OPEN_INTAKE') {
+        update.closedAt = null;
+        update.readyAt = null;
+      }
+      await deps.prisma.job.update({ where: { id: job.id }, data: update });
+      reply.header('HX-Redirect', `/panel/jobs/${job.id}`);
+      return '';
+    },
+  );
 }

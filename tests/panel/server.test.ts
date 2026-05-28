@@ -178,3 +178,27 @@ describe('panel patch intake', () => {
     expect(intake.client.name.value).toBe('Edited Owner');
   });
 });
+
+describe('panel job status', () => {
+  it('POST /panel/api/jobs/:id/status cambia el estado', async () => {
+    const c = await upsertContactByPhone(prisma, '+5217777');
+    const j = await openJob(prisma, c.id, createEmptyIntakeFromSchema(profile.intakeSchema));
+    const login = await server.inject({
+      method: 'POST',
+      url: '/panel/login',
+      payload: 'username=duenio&password=secret',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    });
+    const cookie = login.headers['set-cookie'] as string;
+    const res = await server.inject({
+      method: 'POST',
+      url: `/panel/api/jobs/${j.id}/status`,
+      headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+      payload: 'status=CLOSED',
+    });
+    expect(res.statusCode).toBe(200);
+    const reload = await prisma.job.findUnique({ where: { id: j.id } });
+    expect(reload!.status).toBe('CLOSED');
+    expect(reload!.closedAt).not.toBeNull();
+  });
+});
