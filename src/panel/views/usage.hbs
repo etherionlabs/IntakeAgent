@@ -1,0 +1,46 @@
+<h1 class="text-2xl font-bold mb-4">Costos y uso</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded shadow p-4">
+    <div class="text-xs text-gray-500">Este mes</div>
+    <div class="text-2xl font-bold mt-1">${{month.costUsd}}</div>
+    <div class="text-xs text-gray-600 mt-1">{{month.runs}} runs · {{month.inputTokens}} in / {{month.outputTokens}} out</div>
+  </div>
+  <div class="bg-white rounded shadow p-4">
+    <div class="text-xs text-gray-500">Hoy</div>
+    <div class="text-2xl font-bold mt-1">${{today.costUsd}}</div>
+    <div class="text-xs text-gray-600 mt-1">{{today.runs}} runs · {{today.inputTokens}} in / {{today.outputTokens}} out</div>
+  </div>
+  <div class="bg-white rounded shadow p-4">
+    <div class="text-xs text-gray-500">Errores del mes</div>
+    <div class="text-2xl font-bold mt-1 {{#if errorsThisMonth}}text-red-600{{/if}}">{{errorsThisMonth}}</div>
+  </div>
+</div>
+
+<section class="bg-white rounded shadow p-4">
+  <h2 class="font-semibold mb-3">Últimos 30 agent runs</h2>
+  <table class="w-full text-sm">
+    <thead class="text-left text-gray-500">
+      <tr>
+        <th class="py-1">Hora</th>
+        <th class="py-1">Contacto</th>
+        <th class="py-1">Modelo</th>
+        <th class="py-1 text-right">Tokens</th>
+        <th class="py-1 text-right">Costo</th>
+        <th class="py-1">Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each recent}}
+        <tr class="border-t">
+          <td class="py-1 text-xs text-gray-600">{{date this.createdAt}}</td>
+          <td class="py-1"><a href="/panel/jobs/{{this.jobId}}" class="text-blue-600 hover:underline">{{this.job.contact.phoneE164}}</a></td>
+          <td class="py-1 text-xs text-gray-600">{{this.model}}</td>
+          <td class="py-1 text-right text-xs text-gray-600">{{this.inputTokens}}/{{this.outputTokens}}</td>
+          <td class="py-1 text-right text-xs text-gray-600">{{#if this.costUsd}}${{this.costUsd}}{{else}}—{{/if}}</td>
+          <td class="py-1 text-xs {{#if this.error}}text-red-600{{/if}}">{{truncate this.error 50}}</td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</section>
