@@ -1,6 +1,6 @@
 {
   "profile": "./profiles/tapiceria",
-  "model": "anthropic/claude-sonnet-4.6",
+  "model": "openai/gpt-4o-mini",
   "maxSteps": 6,
   "temperature": 0.4,
   "debounceMs": 5000,
@@ -26,7 +26,7 @@
   "media": {
     "storeDir": "./media",
     "transcribeAudio": true,
-    "whisperModel": "openai/whisper-1"
+    "whisperModel": "openai/gpt-4o-mini-transcribe"
   },
   "limits": {
     "monthlyCostUsd": 50,

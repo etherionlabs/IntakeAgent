@@ -13,7 +13,9 @@
       "Bash(ls \"C:/Users/yasse/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development/\")",
       "Bash(npm --version)",
       "Bash(git --version)",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(rm -rf data/baileys-session/*)",
+      "Bash(npm run *)"
     ]
   }
 }
