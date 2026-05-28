@@ -16,6 +16,7 @@ import {
 } from './auth';
 import { handlebarsHelpers } from './helpers';
 import type { ConnectionStateProvider } from './adapter-state';
+import { registerDashboardRoute } from './routes/dashboard';
 
 export interface PanelServerDeps {
   prisma: PrismaClient;
@@ -45,6 +46,46 @@ export async function createPanelServer(
   for (const [name, fn] of Object.entries(handlebarsHelpers)) {
     Handlebars.registerHelper(name, fn as Handlebars.HelperDelegate);
   }
+
+  Handlebars.registerPartial(
+    'jobsTable',
+    `
+<section class="bg-white rounded shadow p-4 mb-6">
+  <h2 class="font-semibold mb-3">{{title}}</h2>
+  {{#if rows.length}}
+    <table class="w-full text-sm">
+      <thead class="text-left text-gray-500">
+        <tr>
+          <th class="py-1">Cliente</th>
+          <th class="py-1">Estado</th>
+          <th class="py-1">Resumen</th>
+          <th class="py-1 text-right">Hace</th>
+          <th class="py-1"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each rows}}
+        <tr class="border-t hover:bg-gray-50">
+          <td class="py-2">
+            <div class="font-medium">{{#if this.clientNameFromIntake}}{{this.clientNameFromIntake}}{{else}}<span class="text-gray-500">{{this.contactPhone}}</span>{{/if}}</div>
+            <div class="text-xs text-gray-500">{{this.contactPhone}} · {{this.messageCount}} msgs</div>
+          </td>
+          <td class="py-2"><span class="px-2 py-0.5 rounded text-xs {{statusClass this.status}}">{{statusLabel this.status}}</span></td>
+          <td class="py-2 text-gray-700">{{truncate this.summary 80}}</td>
+          <td class="py-2 text-right text-gray-500">{{ago this.openedAt}}</td>
+          <td class="py-2 text-right">
+            <a href="/panel/jobs/{{this.id}}" class="text-blue-600 hover:underline">abrir →</a>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="text-gray-500 text-sm">{{emptyMessage}}</div>
+  {{/if}}
+</section>
+    `,
+  );
 
   const app = Fastify({ logger: false });
 
@@ -108,18 +149,7 @@ export async function createPanelServer(
     reply.redirect('/panel/login', 303);
   });
 
-  app.get('/panel/dashboard', async (req, reply) => {
-    if (!requireAuth(req, reply)) return;
-    return reply.view('dashboard.hbs', {
-      title: 'Dashboard',
-      username: (req as any).panelUser,
-      ready: [],
-      open: [],
-      inProgress: [],
-      closed: [],
-      adapterStatus: deps.adapterState.state().status,
-    });
-  });
+  registerDashboardRoute(app, deps.prisma, deps.adapterState);
 
   return app;
 }
