@@ -19,7 +19,8 @@
     "cli:inbound-demo": "tsx src/cli/inbound-demo.ts",
     "cli:chat": "tsx src/cli/chat.ts",
     "cli:smoke": "tsx src/cli/smoke-test.ts",
-    "db:inspect": "tsx src/cli/db-inspect.ts"
+    "db:inspect": "tsx src/cli/db-inspect.ts",
+    "panel:hash": "tsx src/cli/panel-hash.ts"
   },
   "keywords": [],
   "author": "",
