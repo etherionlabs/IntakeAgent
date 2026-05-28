@@ -1,0 +1,48 @@
+<h1 class="text-2xl font-bold mb-4">Contactos ({{contacts.length}})</h1>
+
+<section class="bg-white rounded shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-left text-gray-600">
+      <tr>
+        <th class="px-3 py-2">Teléfono</th>
+        <th class="px-3 py-2">Nombre</th>
+        <th class="px-3 py-2">Job actual</th>
+        <th class="px-3 py-2 text-center">Jobs</th>
+        <th class="px-3 py-2 text-center">Msgs</th>
+        <th class="px-3 py-2 text-center">Estado</th>
+        <th class="px-3 py-2 text-right">Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each contacts}}
+        {{#with (attentionMode this.botActive this.flaggedNonIntake (lookup (lookup this.jobs 0) "status"))}}
+        <tr class="border-t">
+          <td class="px-3 py-2"><code class="text-gray-700">{{../this.phoneE164}}</code></td>
+          <td class="px-3 py-2">{{#if ../this.displayName}}{{../this.displayName}}{{else}}<span class="text-gray-400">—</span>{{/if}}</td>
+          <td class="px-3 py-2">
+            {{#if ../this.jobs.length}}
+              <span class="text-xs px-1.5 py-0.5 rounded {{statusClass (lookup (lookup ../this.jobs 0) "status")}}">
+                {{statusLabel (lookup (lookup ../this.jobs 0) "status")}}
+              </span>
+            {{else}}
+              <span class="text-gray-400 text-xs">sin job activo</span>
+            {{/if}}
+          </td>
+          <td class="px-3 py-2 text-center">{{../this._count.jobs}}</td>
+          <td class="px-3 py-2 text-center">{{../this._count.messages}}</td>
+          <td class="px-3 py-2 text-center">
+            <span class="text-xs px-2 py-0.5 rounded {{this.cls}}">{{this.icon}} {{this.label}}</span>
+          </td>
+          <td class="px-3 py-2 text-right">
+            <form hx-post="/panel/api/contacts/{{../this.id}}/bot-toggle" hx-swap="none" class="inline m-0">
+              <button class="text-xs text-blue-600 hover:underline">
+                {{#if ../this.botActive}}pausar{{else}}reanudar{{/if}}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {{/with}}
+      {{/each}}
+    </tbody>
+  </table>
+</section>
