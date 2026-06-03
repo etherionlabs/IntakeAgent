@@ -20,7 +20,7 @@
   },
   "panel": {
     "users": [
-      { "username": "duenio", "passwordHashEnv": "PANEL_PASSWORD_HASH" }
+      { "username": "admin", "passwordHashEnv": "PANEL_PASSWORD_HASH" }
     ]
   },
   "media": {

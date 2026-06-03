@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+import 'dotenv/config';
 /**
  * Punto de entrada del proceso Intake.
  *
