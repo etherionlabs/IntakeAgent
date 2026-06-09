@@ -206,7 +206,7 @@ export async function createPanelServer(
   await app.register(cookie);
   await app.register(formbody);
   await app.register(staticPlugin, {
-    root: join(__dirname, '../design'),
+    root: join(__dirname, 'design'),
     prefix: '/panel/static/',
   });
   await app.register(view, {
