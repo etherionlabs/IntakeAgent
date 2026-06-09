@@ -14,11 +14,18 @@ export function registerInboxRoute(
       return;
     }
     const data = await loadDashboardData(prisma);
+    const username = (req as any).panelUser;
+    const userInitials = username
+      .split(/\s+/)
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'YM';
     return reply.view('inbox.hbs', {
       title: 'Inbox',
-      username: (req as any).panelUser,
+      username,
       currentPage: 'inbox',
-      userInitials: 'YM',
+      userInitials,
       ...data,
       adapter: adapterState.state(),
     }, { layout: 'layouts/base.handlebars' });

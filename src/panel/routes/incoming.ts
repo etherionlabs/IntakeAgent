@@ -14,11 +14,18 @@ export function registerIncomingRoute(
       return;
     }
     const data = await loadDashboardData(prisma);
+    const username = (req as any).panelUser;
+    const userInitials = username
+      .split(/\s+/)
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'YM';
     return reply.view('incoming.hbs', {
       title: 'Incoming',
-      username: (req as any).panelUser,
+      username,
       currentPage: 'incoming',
-      userInitials: 'YM',
+      userInitials,
       ...data,
       adapter: adapterState.state(),
     }, { layout: 'layouts/base.handlebars' });

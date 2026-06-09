@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyReply }
 import view from '@fastify/view';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
+import staticPlugin from '@fastify/static';
 import Handlebars from 'handlebars';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -99,6 +100,10 @@ export async function createPanelServer(
 
   await app.register(cookie);
   await app.register(formbody);
+  await app.register(staticPlugin, {
+    root: join(__dirname, '../design'),
+    prefix: '/panel/static/',
+  });
   await app.register(view, {
     engine: { handlebars: Handlebars },
     root: join(__dirname, 'views'),

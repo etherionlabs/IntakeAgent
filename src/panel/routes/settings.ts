@@ -15,11 +15,18 @@ export function registerSettingsRoute(
       reply.redirect('/panel/login', 303);
       return;
     }
+    const username = (req as any).panelUser;
+    const userInitials = username
+      .split(/\s+/)
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'YM';
     return reply.view('settings.hbs', {
       title: 'Settings',
-      username: (req as any).panelUser,
+      username,
       currentPage: 'settings',
-      userInitials: 'YM',
+      userInitials,
       adapter: adapterState.state(),
     }, { layout: 'layouts/base.handlebars' });
   });
