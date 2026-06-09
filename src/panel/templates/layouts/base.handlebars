@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} · {{businessName}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="/panel/static/layout.css">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8f9fa;
+      --bg-tertiary: #e9ecef;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --border-color: #e0e0e0;
+      --brand-primary: #3b82f6;
+      --brand-secondary: #0ea5e9;
+      --accent: #f97316;
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 12px;
+      --spacing-lg: 16px;
+      --spacing-xl: 20px;
+      --spacing-2xl: 24px;
+      --spacing-3xl: 32px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font-weight-semibold: 600;
+      --font-weight-bold: 700;
+      --transition-normal: all 0.2s ease-in-out;
+    }
+
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="sidebar-logo" title="Home">◆</div>
+      <nav class="sidebar-nav">
+        <a href="/panel/inbox" class="nav-item {{#if (eq currentPage 'inbox')}}active{{/if}}" title="Inbox">📥</a>
+        <a href="/panel/incoming" class="nav-item {{#if (eq currentPage 'incoming')}}active{{/if}}" title="Incoming">📊</a>
+        <a href="/panel/settings" class="nav-item {{#if (eq currentPage 'settings')}}active{{/if}}" title="Settings">⚙️</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="avatar" title="User menu">{{userInitials}}</div>
+      </div>
+    </aside>
+    <main class="main-content">
+      {{{body}}}
+    </main>
+  </div>
+</body>
+</html>
