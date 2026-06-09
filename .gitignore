@@ -12,3 +12,9 @@ data/
 # Baileys session
 data/baileys-session/
 *.qr.png
+
+# Local dev artifacts / design scratch (not part of the package)
+.claude/
+mockups.html
+mockups-v2.html
+profiles.zip
