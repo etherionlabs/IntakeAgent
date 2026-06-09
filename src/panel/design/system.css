@@ -78,6 +78,7 @@
   --transition-fast: all 0.15s ease;
   --transition-normal: all 0.2s ease;
   --transition-slow: all 0.3s ease;
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.1);
 
   /* ─────────────────────────────────────────────────────────────────────
      BORDER RADIUS
@@ -158,7 +159,7 @@ html, body {
   outline: none;
   border-color: var(--accent);
   background: var(--bg-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: var(--focus-ring);
 }
 
 /* Cards */
@@ -173,6 +174,35 @@ html, body {
 .card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-light);
+}
+
+/* Button disabled state */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button active/focus state */
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Input disabled state */
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-tertiary);
+}
+
+/* Input invalid state */
+.input:invalid {
+  border-color: var(--accent-danger);
+}
+
+/* Input placeholder styling */
+.input::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 /* Text utilities */

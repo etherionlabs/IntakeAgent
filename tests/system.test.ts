@@ -37,4 +37,27 @@ describe('Design System', () => {
   it('should define shadow utilities', () => {
     expect(systemCSS).toContain('--shadow-');
   });
+
+  it('should define focus ring variable', () => {
+    expect(systemCSS).toContain('--focus-ring:');
+  });
+
+  it('should define all component classes', () => {
+    const components = ['.btn', '.btn-primary', '.btn-secondary', '.input', '.card'];
+    components.forEach((comp) => {
+      expect(systemCSS).toContain(comp);
+    });
+  });
+
+  it('should define component states', () => {
+    expect(systemCSS).toContain('.btn:disabled');
+    expect(systemCSS).toContain('.input:disabled');
+    expect(systemCSS).toContain('.input::placeholder');
+  });
+
+  it('should use CSS variables, not hardcoded colors in components', () => {
+    // Check that component styles use var() for colors
+    expect(systemCSS).toMatch(/\.input:focus[\s\S]*?var\(/);
+    expect(systemCSS).not.toMatch(/\.input:focus[\s\S]*?rgba\(37, 99, 235/);
+  });
 });
