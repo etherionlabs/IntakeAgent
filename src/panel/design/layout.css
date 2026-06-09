@@ -248,6 +248,7 @@
   }
 
   .sidebar {
+    position: relative;  /* Override sticky for mobile horizontal layout */
     flex-direction: row;
     height: auto;
     border-right: none;
