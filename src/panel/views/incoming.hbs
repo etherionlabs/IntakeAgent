@@ -1,38 +1,217 @@
-<div class="incoming-container p-6">
-  <h1 class="text-3xl font-bold mb-6">Incoming</h1>
+<style>
+  .incoming-container {
+    padding: var(--spacing-2xl);
+  }
 
-  <div class="grid grid-cols-1 gap-6">
-    {{#if inProgress.length}}
-    <section class="bg-white rounded shadow p-4">
-      <h2 class="font-semibold mb-3 text-green-600">🔄 En curso ({{inProgress.length}})</h2>
-      <table class="w-full text-sm">
-        <thead class="text-left text-gray-500">
-          <tr>
-            <th class="py-1">Cliente</th>
-            <th class="py-1">Estado</th>
-            <th class="py-1">Resumen</th>
-            <th class="py-1 text-right">Hace</th>
-            <th class="py-1"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each inProgress}}
-          <tr class="border-t hover:bg-gray-50">
-            <td class="py-2">
-              <div class="font-medium">{{#if this.clientNameFromIntake}}{{this.clientNameFromIntake}}{{else}}<span class="text-gray-500">{{this.contactPhone}}</span>{{/if}}</div>
-              <div class="text-xs text-gray-500">{{this.contactPhone}} · {{this.messageCount}} msgs</div>
-            </td>
-            <td class="py-2"><span class="px-2 py-0.5 rounded text-xs {{statusClass this.status}}">{{statusLabel this.status}}</span></td>
-            <td class="py-2 text-gray-700">{{truncate this.summary 80}}</td>
-            <td class="py-2 text-right text-gray-500">{{ago this.openedAt}}</td>
-            <td class="py-2 text-right">
-              <a href="/panel/jobs/{{this.id}}" class="text-blue-600 hover:underline">abrir →</a>
-            </td>
-          </tr>
+  .incoming-title {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-3xl);
+  }
+
+  .kanban-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: var(--spacing-2xl);
+    overflow-x: auto;
+  }
+
+  .kanban-column {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
+  .column-header {
+    padding: var(--spacing-lg) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  .column-title {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .column-count {
+    font-size: var(--font-size-small);
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+  }
+
+  .column-cards {
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    flex: 1;
+  }
+
+  .kanban-card-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .kanban-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    transition: var(--transition-normal);
+    cursor: pointer;
+  }
+
+  .kanban-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .card-vehicle {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .urgency-badge {
+    font-size: var(--font-size-tiny);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .urgency-badge.urgency-danger {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--accent-danger);
+  }
+
+  .urgency-badge.urgency-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-warning);
+  }
+
+  .urgency-badge.urgency-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-success);
+  }
+
+  .card-client {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-xs) 0;
+  }
+
+  .card-work {
+    font-size: var(--font-size-small);
+    color: var(--text-tertiary);
+    margin: 0 0 var(--spacing-md) 0;
+  }
+
+  .card-meta {
+    display: flex;
+    gap: var(--spacing-md);
+    font-size: var(--font-size-tiny);
+    color: var(--text-tertiary);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-light);
+  }
+
+  .meta-photos,
+  .meta-time {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .column-empty {
+    font-size: var(--font-size-small);
+    color: var(--text-tertiary);
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    margin: 0;
+  }
+
+  @media (max-width: 1200px) {
+    .kanban-board {
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+  }
+
+  @media (max-width: 768px) {
+    .incoming-container {
+      padding: var(--spacing-lg);
+    }
+
+    .kanban-board {
+      grid-template-columns: 1fr;
+      gap: var(--spacing-lg);
+    }
+
+    .kanban-column {
+      max-height: auto;
+    }
+  }
+</style>
+
+<div class="incoming-container">
+  <h1 class="incoming-title">Incoming - Pipeline Kanban</h1>
+
+  <div class="kanban-board">
+    {{#each kanbanColumns}}
+      <div class="kanban-column">
+        <div class="column-header">
+          <h3 class="column-title">{{this.title}}</h3>
+          <span class="column-count">{{this.count}}</span>
+        </div>
+        <div class="column-cards">
+          {{#each this.jobs}}
+            <a href="/panel/jobs/{{this.id}}" class="kanban-card-link">
+              <div class="kanban-card">
+                <div class="card-header">
+                  <p class="card-vehicle">{{this.vehicleMake}} {{this.vehicleModel}}</p>
+                  <span class="urgency-badge urgency-{{this.urgency.color}}">
+                    {{this.urgency.icon}} {{this.urgency.label}}
+                  </span>
+                </div>
+                <p class="card-client">{{this.clientName}}</p>
+                <p class="card-work">{{this.workType}}</p>
+                <div class="card-meta">
+                  <span class="meta-photos">📸 {{this.photoCount}}</span>
+                  <span class="meta-time">{{this.hoursAgo}}h ago</span>
+                </div>
+              </div>
+            </a>
+          {{else}}
+            <p class="column-empty">No jobs</p>
           {{/each}}
-        </tbody>
-      </table>
-    </section>
-    {{/if}}
+        </div>
+      </div>
+    {{/each}}
   </div>
 </div>

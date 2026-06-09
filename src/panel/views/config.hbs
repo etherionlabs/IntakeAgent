@@ -1,31 +1,99 @@
-<h1 class="text-2xl font-bold mb-4">Configuración (solo lectura)</h1>
+<style>
+  .config-container {
+    padding: var(--spacing-2xl);
+  }
 
-<p class="text-sm text-gray-600 mb-4">
-  Edita los archivos en disco (<code>config.json</code> y <code>profiles/.../</code>) y reinicia
-  el proceso para aplicar cambios.
-</p>
+  .config-title {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+  }
 
-<details class="bg-white rounded shadow p-4 mb-4" open>
-  <summary class="font-semibold cursor-pointer">config.json</summary>
-  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json config}}</pre>
-</details>
+  .config-note {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-2xl);
+    padding: var(--spacing-lg);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+  }
 
-<details class="bg-white rounded shadow p-4 mb-4">
-  <summary class="font-semibold cursor-pointer">intake-schema.json ({{schema.$businessName}})</summary>
-  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json schema}}</pre>
-</details>
+  .config-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-2xl);
+  }
 
-<details class="bg-white rounded shadow p-4 mb-4">
-  <summary class="font-semibold cursor-pointer">prompt-vars.json</summary>
-  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json promptVars}}</pre>
-</details>
+  .config-details {
+    padding: var(--spacing-lg);
+  }
 
-<details class="bg-white rounded shadow p-4 mb-4">
-  <summary class="font-semibold cursor-pointer">business-facts.json</summary>
-  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto">{{json facts}}</pre>
-</details>
+  .config-details summary {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: var(--spacing-md);
+    margin: calc(var(--spacing-lg) * -1);
+    margin-bottom: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    transition: var(--transition-normal);
+    user-select: none;
+  }
 
-<details class="bg-white rounded shadow p-4 mb-4">
-  <summary class="font-semibold cursor-pointer">welcome.txt</summary>
-  <pre class="text-xs bg-gray-50 p-3 rounded mt-2 whitespace-pre-wrap">{{welcome}}</pre>
-</details>
+  .config-details summary:hover {
+    background: var(--bg-secondary);
+  }
+
+  .config-details summary::-webkit-details-marker {
+    color: var(--accent);
+  }
+
+  .config-json {
+    font-size: var(--font-size-tiny);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-md);
+    overflow-x: auto;
+    border: 1px solid var(--border-light);
+    font-family: 'Courier New', monospace;
+    line-height: var(--line-height-tight);
+  }
+</style>
+
+<div class="config-container">
+  <h1 class="config-title">Configuración (solo lectura)</h1>
+
+  <p class="config-note">
+    Edita los archivos en disco (<code>config.json</code> y <code>profiles/.../</code>) y reinicia
+    el proceso para aplicar cambios.
+  </p>
+
+  <details class="config-section" open>
+    <summary>config.json</summary>
+    <pre class="config-json">{{json config}}</pre>
+  </details>
+
+  <details class="config-section">
+    <summary>intake-schema.json ({{schema.$businessName}})</summary>
+    <pre class="config-json">{{json schema}}</pre>
+  </details>
+
+  <details class="config-section">
+    <summary>prompt-vars.json</summary>
+    <pre class="config-json">{{json promptVars}}</pre>
+  </details>
+
+  <details class="config-section">
+    <summary>business-facts.json</summary>
+    <pre class="config-json">{{json facts}}</pre>
+  </details>
+
+  <details class="config-section">
+    <summary>welcome.txt</summary>
+    <pre class="config-json">{{welcome}}</pre>
+  </details>
+</div>

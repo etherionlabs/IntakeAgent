@@ -112,4 +112,28 @@ export const handlebarsHelpers = {
   or(a: unknown, b: unknown, _opts: HelperOptions): unknown {
     return a || b;
   },
+
+  /** Get CSS class for conversation group status. */
+  conversationStatusClass(status: string): string {
+    switch (status) {
+      case 'OPEN_INTAKE':
+        return 'in-attention';
+      case 'READY_FOR_REVIEW':
+        return 'waiting-client';
+      default:
+        return 'attention-required';
+    }
+  },
+
+  /** Human-readable status label for conversation. */
+  conversationStatusLabel(status: string): string {
+    switch (status) {
+      case 'OPEN_INTAKE':
+        return 'Siendo procesada';
+      case 'READY_FOR_REVIEW':
+        return 'Listo para revisar';
+      default:
+        return 'Esperando respuesta';
+    }
+  },
 };

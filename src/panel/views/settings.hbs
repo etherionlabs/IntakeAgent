@@ -1,14 +1,187 @@
-<div class="settings-container p-6">
-  <h1 class="text-3xl font-bold mb-6">Settings</h1>
+<style>
+  .settings-container {
+    padding: var(--spacing-2xl);
+  }
 
-  <div class="bg-white rounded shadow p-6">
-    <h2 class="font-semibold mb-4">Panel Settings</h2>
-    <p class="text-gray-600 mb-4">Manage your panel preferences and configuration here.</p>
+  .settings-header {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-3xl);
+  }
 
-    <form method="POST" action="/panel/logout" class="mt-6">
-      <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-        Logout
-      </button>
+  .settings-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .settings-section-title {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .settings-form label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    font-size: var(--font-size-small);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .settings-form input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+  }
+
+  .settings-form input[type="time"] {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-small);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: var(--transition-normal);
+  }
+
+  .settings-form input[type="time"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-primary);
+    box-shadow: var(--focus-ring);
+  }
+
+  .time-range-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  .time-label {
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+  }
+
+  .time-separator {
+    color: var(--text-tertiary);
+    font-size: var(--font-size-small);
+  }
+
+  .settings-note {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .settings-form button {
+    align-self: flex-start;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .settings-form .btn-primary {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    color: white;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .settings-form .btn-primary:hover {
+    box-shadow: var(--shadow-lg);
+    opacity: 0.95;
+  }
+
+  .settings-form .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+  }
+
+  .settings-form .btn-secondary:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-tertiary);
+  }
+</style>
+
+<div class="settings-container">
+  <h1 class="settings-header">Settings</h1>
+
+  <section class="settings-section">
+    <h2 class="settings-section-title">Operating Hours</h2>
+    <form class="settings-form" hx-post="/panel/api/settings/operating-hours" hx-target="this" hx-swap="outerHTML">
+      <label>
+        <input type="checkbox" name="autoReplyEnabled" {{#if settings.autoReplyEnabled}}checked{{/if}}>
+        <span>Enable auto-reply when offline</span>
+      </label>
+      <label class="time-range-label">
+        <span class="time-label">Business hours:</span>
+        <input type="time" name="businessHoursStart" value="{{settings.businessHoursStart}}" placeholder="Start time">
+        <span class="time-separator">to</span>
+        <input type="time" name="businessHoursEnd" value="{{settings.businessHoursEnd}}" placeholder="End time">
+      </label>
+      <button type="submit" class="btn-primary">Save</button>
     </form>
-  </div>
+  </section>
+
+  <section class="settings-section">
+    <h2 class="settings-section-title">Data Collection</h2>
+    <form class="settings-form" hx-post="/panel/api/settings/data-collection" hx-target="this" hx-swap="outerHTML">
+      <label>
+        <input type="checkbox" name="captureVehicleInfo" {{#if settings.captureVehicleInfo}}checked{{/if}}>
+        <span>Capture vehicle information</span>
+      </label>
+      <label>
+        <input type="checkbox" name="captureContactInfo" {{#if settings.captureContactInfo}}checked{{/if}}>
+        <span>Capture contact information</span>
+      </label>
+      <label>
+        <input type="checkbox" name="requestPhotos" {{#if settings.requestPhotos}}checked{{/if}}>
+        <span>Request photos automatically</span>
+      </label>
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+  </section>
+
+  <section class="settings-section">
+    <h2 class="settings-section-title">Automations</h2>
+    <form class="settings-form" hx-post="/panel/api/settings/automations" hx-target="this" hx-swap="outerHTML">
+      <label>
+        <input type="checkbox" name="autoCloseCompleted" {{#if settings.autoCloseCompleted}}checked{{/if}}>
+        <span>Auto-close completed jobs</span>
+      </label>
+      <label>
+        <input type="checkbox" name="sendBudgetReminder" {{#if settings.sendBudgetReminder}}checked{{/if}}>
+        <span>Send budget reminders</span>
+      </label>
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+  </section>
+
+  <section class="settings-section">
+    <h2 class="settings-section-title">Account</h2>
+    <form method="POST" action="/panel/logout" class="settings-form">
+      <p class="settings-note">Logged in as <strong>{{username}}</strong></p>
+      <button type="submit" class="btn-secondary">Logout</button>
+    </form>
+  </section>
 </div>

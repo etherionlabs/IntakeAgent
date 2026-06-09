@@ -59,38 +59,143 @@ export async function createPanelServer(
   Handlebars.registerPartial(
     'jobsTable',
     `
-<section class="bg-white rounded shadow p-4 mb-6">
-  <h2 class="font-semibold mb-3">{{title}}</h2>
+<style>
+  .jobs-table-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .jobs-table-title {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-body);
+  }
+
+  .jobs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-small);
+  }
+
+  .jobs-table thead {
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .jobs-table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    font-size: var(--font-size-tiny);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .jobs-table th.text-right {
+    text-align: right;
+  }
+
+  .jobs-table tbody tr {
+    border-top: 1px solid var(--border-light);
+    transition: var(--transition-normal);
+  }
+
+  .jobs-table tbody tr:hover {
+    background: var(--bg-secondary);
+  }
+
+  .jobs-table td {
+    padding: var(--spacing-md);
+    color: var(--text-primary);
+  }
+
+  .jobs-table td.text-right {
+    text-align: right;
+  }
+
+  .jobs-table-client-name {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+  }
+
+  .jobs-table-client-meta {
+    font-size: var(--font-size-tiny);
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
+  }
+
+  .jobs-table-status-badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-tiny);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .jobs-table-summary {
+    color: var(--text-secondary);
+  }
+
+  .jobs-table-time {
+    color: var(--text-tertiary);
+    font-size: var(--font-size-tiny);
+  }
+
+  .jobs-table-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: var(--font-weight-semibold);
+    transition: var(--transition-normal);
+  }
+
+  .jobs-table-link:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+
+  .jobs-table-empty {
+    color: var(--text-tertiary);
+    font-size: var(--font-size-small);
+    padding: var(--spacing-lg);
+    text-align: center;
+  }
+</style>
+<section class="jobs-table-section">
+  <h2 class="jobs-table-title">{{title}}</h2>
   {{#if rows.length}}
-    <table class="w-full text-sm">
-      <thead class="text-left text-gray-500">
+    <table class="jobs-table">
+      <thead>
         <tr>
-          <th class="py-1">Cliente</th>
-          <th class="py-1">Estado</th>
-          <th class="py-1">Resumen</th>
-          <th class="py-1 text-right">Hace</th>
-          <th class="py-1"></th>
+          <th>Cliente</th>
+          <th>Estado</th>
+          <th>Resumen</th>
+          <th class="text-right">Hace</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {{#each rows}}
-        <tr class="border-t hover:bg-gray-50">
-          <td class="py-2">
-            <div class="font-medium">{{#if this.clientNameFromIntake}}{{this.clientNameFromIntake}}{{else}}<span class="text-gray-500">{{this.contactPhone}}</span>{{/if}}</div>
-            <div class="text-xs text-gray-500">{{this.contactPhone}} · {{this.messageCount}} msgs</div>
+        <tr>
+          <td>
+            <div class="jobs-table-client-name">{{#if this.clientNameFromIntake}}{{this.clientNameFromIntake}}{{else}}<span style="color: var(--text-tertiary);">{{this.contactPhone}}</span>{{/if}}</div>
+            <div class="jobs-table-client-meta">{{this.contactPhone}} · {{this.messageCount}} msgs</div>
           </td>
-          <td class="py-2"><span class="px-2 py-0.5 rounded text-xs {{statusClass this.status}}">{{statusLabel this.status}}</span></td>
-          <td class="py-2 text-gray-700">{{truncate this.summary 80}}</td>
-          <td class="py-2 text-right text-gray-500">{{ago this.openedAt}}</td>
-          <td class="py-2 text-right">
-            <a href="/panel/jobs/{{this.id}}" class="text-blue-600 hover:underline">abrir →</a>
+          <td><span class="jobs-table-status-badge {{statusClass this.status}}">{{statusLabel this.status}}</span></td>
+          <td class="jobs-table-summary">{{truncate this.summary 80}}</td>
+          <td class="jobs-table-time text-right">{{ago this.openedAt}}</td>
+          <td class="text-right">
+            <a href="/panel/jobs/{{this.id}}" class="jobs-table-link">abrir →</a>
           </td>
         </tr>
         {{/each}}
       </tbody>
     </table>
   {{else}}
-    <div class="text-gray-500 text-sm">{{emptyMessage}}</div>
+    <div class="jobs-table-empty">{{emptyMessage}}</div>
   {{/if}}
 </section>
     `,

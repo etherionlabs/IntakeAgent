@@ -1,48 +1,161 @@
-<h1 class="text-2xl font-bold mb-4">Contactos ({{contacts.length}})</h1>
+<style>
+  .contacts-container {
+    padding: var(--spacing-2xl);
+  }
 
-<section class="bg-white rounded shadow overflow-hidden">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-50 text-left text-gray-600">
-      <tr>
-        <th class="px-3 py-2">Teléfono</th>
-        <th class="px-3 py-2">Nombre</th>
-        <th class="px-3 py-2">Job actual</th>
-        <th class="px-3 py-2 text-center">Jobs</th>
-        <th class="px-3 py-2 text-center">Msgs</th>
-        <th class="px-3 py-2 text-center">Estado</th>
-        <th class="px-3 py-2 text-right">Acción</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each contacts}}
-        {{#with (attentionMode this.botActive this.flaggedNonIntake (lookup (lookup this.jobs 0) "status"))}}
-        <tr class="border-t">
-          <td class="px-3 py-2"><code class="text-gray-700">{{../this.phoneE164}}</code></td>
-          <td class="px-3 py-2">{{#if ../this.displayName}}{{../this.displayName}}{{else}}<span class="text-gray-400">—</span>{{/if}}</td>
-          <td class="px-3 py-2">
-            {{#if ../this.jobs.length}}
-              <span class="text-xs px-1.5 py-0.5 rounded {{statusClass (lookup (lookup ../this.jobs 0) "status")}}">
-                {{statusLabel (lookup (lookup ../this.jobs 0) "status")}}
-              </span>
-            {{else}}
-              <span class="text-gray-400 text-xs">sin job activo</span>
-            {{/if}}
-          </td>
-          <td class="px-3 py-2 text-center">{{../this._count.jobs}}</td>
-          <td class="px-3 py-2 text-center">{{../this._count.messages}}</td>
-          <td class="px-3 py-2 text-center">
-            <span class="text-xs px-2 py-0.5 rounded {{this.cls}}">{{this.icon}} {{this.label}}</span>
-          </td>
-          <td class="px-3 py-2 text-right">
-            <form hx-post="/panel/api/contacts/{{../this.id}}/bot-toggle" hx-swap="none" class="inline m-0">
-              <button class="text-xs text-blue-600 hover:underline">
-                {{#if ../this.botActive}}pausar{{else}}reanudar{{/if}}
-              </button>
-            </form>
-          </td>
+  .contacts-title {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .contacts-table-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .contacts-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .contacts-table thead {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .contacts-table th {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .contacts-table th.text-center {
+    text-align: center;
+  }
+
+  .contacts-table th.text-right {
+    text-align: right;
+  }
+
+  .contacts-table tbody tr {
+    border-top: 1px solid var(--border-light);
+    transition: var(--transition-normal);
+  }
+
+  .contacts-table tbody tr:hover {
+    background: var(--bg-secondary);
+  }
+
+  .contacts-table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-small);
+    color: var(--text-primary);
+  }
+
+  .contacts-table td.text-center {
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .contacts-table td.text-right {
+    text-align: right;
+  }
+
+  .phone-code {
+    font-family: 'Courier New', monospace;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+  }
+
+  .contact-name-empty {
+    color: var(--text-tertiary);
+  }
+
+  .status-badge {
+    display: inline-block;
+    font-size: var(--font-size-tiny);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .bot-action-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: var(--font-size-tiny);
+    font-weight: var(--font-weight-semibold);
+    transition: var(--transition-normal);
+    cursor: pointer;
+  }
+
+  .bot-action-link:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+
+  .bot-action-form {
+    display: inline;
+    margin: 0;
+  }
+</style>
+
+<div class="contacts-container">
+  <h1 class="contacts-title">Contactos ({{contacts.length}})</h1>
+
+  <section class="contacts-table-section">
+    <table class="contacts-table">
+      <thead>
+        <tr>
+          <th>Teléfono</th>
+          <th>Nombre</th>
+          <th>Job actual</th>
+          <th class="text-center">Jobs</th>
+          <th class="text-center">Msgs</th>
+          <th class="text-center">Estado</th>
+          <th class="text-right">Acción</th>
         </tr>
-        {{/with}}
-      {{/each}}
-    </tbody>
-  </table>
-</section>
+      </thead>
+      <tbody>
+        {{#each contacts}}
+          {{#with (attentionMode this.botActive this.flaggedNonIntake (lookup (lookup this.jobs 0) "status"))}}
+          <tr>
+            <td><code class="phone-code">{{../this.phoneE164}}</code></td>
+            <td>{{#if ../this.displayName}}{{../this.displayName}}{{else}}<span class="contact-name-empty">—</span>{{/if}}</td>
+            <td>
+              {{#if ../this.jobs.length}}
+                <span class="status-badge {{statusClass (lookup (lookup ../this.jobs 0) "status")}}">
+                  {{statusLabel (lookup (lookup ../this.jobs 0) "status")}}
+                </span>
+              {{else}}
+                <span style="color: var(--text-tertiary); font-size: var(--font-size-tiny);">sin job activo</span>
+              {{/if}}
+            </td>
+            <td class="text-center">{{../this._count.jobs}}</td>
+            <td class="text-center">{{../this._count.messages}}</td>
+            <td class="text-center">
+              <span class="status-badge {{this.cls}}">{{this.icon}} {{this.label}}</span>
+            </td>
+            <td class="text-right">
+              <form hx-post="/panel/api/contacts/{{../this.id}}/bot-toggle" hx-swap="none" class="bot-action-form">
+                <button type="submit" class="bot-action-link">
+                  {{#if ../this.botActive}}pausar{{else}}reanudar{{/if}}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {{/with}}
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+</div>

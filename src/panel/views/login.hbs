@@ -2,20 +2,130 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login · {{businessName}}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/panel/static/system.css">
+  <link rel="stylesheet" href="/panel/static/animations.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg-secondary);
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 400px;
+      padding: var(--spacing-2xl);
+    }
+
+    .login-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-3xl);
+      box-shadow: var(--shadow-md);
+    }
+
+    .login-title {
+      font-size: var(--font-size-h1);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-2xl);
+      text-align: center;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-lg);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .form-label {
+      font-size: var(--font-size-small);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+    }
+
+    .form-input {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-body);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transition: var(--transition-normal);
+      font-family: inherit;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--bg-primary);
+      box-shadow: var(--focus-ring);
+    }
+
+    .login-button {
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+      transition: var(--transition-normal);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: var(--spacing-md);
+    }
+
+    .login-button:hover {
+      box-shadow: var(--shadow-lg);
+      opacity: 0.95;
+    }
+
+    .login-button:active {
+      transform: scale(0.98);
+    }
+
+    .error-message {
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: rgba(220, 38, 38, 0.05);
+      color: var(--accent-danger);
+      border: 1px solid var(--accent-danger);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-small);
+    }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <form method="POST" action="/panel/login" class="bg-white p-8 rounded shadow w-full max-w-sm">
-    <h1 class="text-xl font-bold mb-6">{{businessName}}</h1>
-    {{#if error}}
-      <div class="bg-red-50 text-red-700 px-3 py-2 rounded text-sm mb-4">{{error}}</div>
-    {{/if}}
-    <label class="block text-sm mb-1">Usuario</label>
-    <input name="username" required class="w-full border rounded px-3 py-2 mb-4" autofocus>
-    <label class="block text-sm mb-1">Contraseña</label>
-    <input name="password" type="password" required class="w-full border rounded px-3 py-2 mb-6">
-    <button class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Entrar</button>
-  </form>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <h1 class="login-title">{{businessName}}</h1>
+      {{#if error}}
+        <div class="error-message">{{error}}</div>
+      {{/if}}
+      <form method="POST" action="/panel/login" class="login-form">
+        <div class="form-group">
+          <label class="form-label">Usuario</label>
+          <input name="username" type="text" required class="form-input" autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input name="password" type="password" required class="form-input">
+        </div>
+        <button type="submit" class="login-button">Entrar</button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

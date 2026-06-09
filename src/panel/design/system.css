@@ -120,6 +120,10 @@ html, body {
   transition: var(--transition-normal);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary {

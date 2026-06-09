@@ -1,10 +1,109 @@
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Dashboard</h1>
-  <div class="flex items-center gap-2 text-sm">
-    <span class="px-2 py-1 rounded {{#if (eq adapter.status "connected")}}bg-emerald-100 text-emerald-800{{else}}bg-amber-100 text-amber-800{{/if}}">
+<style>
+  .dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3xl);
+    padding: 0 var(--spacing-2xl);
+  }
+
+  .dashboard-title {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+  }
+
+  .status-badge {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .status-badge.connected {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-success);
+  }
+
+  .status-badge.disconnected {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-warning);
+  }
+
+  .dashboard-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  .dashboard-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    transition: var(--transition-normal);
+  }
+
+  .dashboard-link:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+
+  .non-intake-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .non-intake-title {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-body);
+  }
+
+  .non-intake-list {
+    list-style: none;
+    font-size: var(--font-size-small);
+  }
+
+  .non-intake-item {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .non-intake-item:last-child {
+    border-bottom: none;
+  }
+
+  .non-intake-phone {
+    color: var(--text-secondary);
+    font-family: monospace;
+    flex-shrink: 0;
+  }
+
+  .non-intake-reason {
+    color: var(--text-tertiary);
+    flex: 1;
+  }
+
+  .non-intake-count {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+</style>
+
+<div class="dashboard-header">
+  <h1 class="dashboard-title">Dashboard</h1>
+  <div class="dashboard-header-actions">
+    <span class="status-badge {{#if (eq adapter.status "connected")}}connected{{else}}disconnected{{/if}}">
       WhatsApp: {{adapter.status}}
     </span>
-    <a href="/panel/whatsapp" class="text-blue-600 hover:underline">detalles</a>
+    <a href="/panel/whatsapp" class="dashboard-link">detalles</a>
   </div>
 </div>
 
@@ -14,14 +113,14 @@
 {{#> jobsTable title="✅ Cerrados (últimos 20)" rows=closed emptyMessage="Sin cierres aún."}}{{/jobsTable}}
 
 {{#if nonIntake.length}}
-<section class="bg-white rounded shadow p-4 mb-6">
-  <h2 class="font-semibold mb-3">⚠️ Marcados como NO intake</h2>
-  <ul class="text-sm">
+<section class="non-intake-section">
+  <h2 class="non-intake-title">⚠️ Marcados como NO intake</h2>
+  <ul class="non-intake-list">
     {{#each nonIntake}}
-      <li class="flex gap-3 py-1 border-b last:border-b-0">
-        <code class="text-gray-700">{{this.phone}}</code>
-        <span class="text-gray-500">{{this.reason}}</span>
-        <span class="ml-auto text-gray-400">{{this.count}} msgs</span>
+      <li class="non-intake-item">
+        <code class="non-intake-phone">{{this.phone}}</code>
+        <span class="non-intake-reason">{{this.reason}}</span>
+        <span class="non-intake-count">{{this.count}} msgs</span>
       </li>
     {{/each}}
   </ul>

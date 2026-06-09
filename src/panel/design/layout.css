@@ -7,6 +7,8 @@
   grid-template-columns: 64px 1fr;
   min-height: 100vh;
   background: var(--bg-secondary);
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* SIDEBAR */
@@ -52,6 +54,8 @@
 .nav-item {
   width: 40px;
   height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-md);
   background: transparent;
   border: none;
@@ -85,8 +89,10 @@
 .avatar {
   width: 40px;
   height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #ec4899 0%, #f97316 100%);
+  background: linear-gradient(135deg, var(--brand-secondary) 0%, var(--brand-primary) 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -171,6 +177,8 @@
   flex: 1;
   overflow: hidden;
   background: var(--bg-secondary);
+  width: 100%;
+  max-width: 100%;
 }
 
 .panel {
@@ -255,12 +263,25 @@
     border-bottom: 1px solid var(--border-color);
     padding: var(--spacing-md) var(--spacing-lg);
     gap: var(--spacing-lg);
+    align-items: center;
+    min-height: 56px;
+  }
+
+  .sidebar-logo {
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    gap: var(--spacing-md);
   }
 
   .sidebar-bottom {
     margin-left: auto;
     margin-top: 0;
     flex-direction: row;
+    gap: var(--spacing-md);
+    align-items: center;
   }
 
   .page-layout {
