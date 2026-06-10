@@ -19,7 +19,8 @@
         { "key": "item_type", "label": "Mueble", "type": "string", "required": true, "hint": "sillón 3 plazas, silla de comedor, cabecera, etc." },
         { "key": "service_type", "label": "Tipo de trabajo", "type": "enum", "required": true, "options": ["retapizar", "reparar", "fabricar", "otro"] },
         { "key": "quantity", "label": "Cantidad", "type": "integer", "required": true, "min": 1 },
-        { "key": "current_state", "label": "Estado actual", "type": "text", "required": false }
+        { "key": "current_state", "label": "Estado actual", "type": "text", "required": false },
+        { "key": "photos", "label": "Fotos del mueble", "type": "boolean", "required": false, "hint": "¿el cliente puede enviar fotos? si dice que no tiene o no quiere, declina este campo con update_intake declined=true para dejar de pedirlas" }
       ]
     },
     {
