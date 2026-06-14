@@ -6,6 +6,35 @@ datasource db {
   provider = "postgresql"
 }
 
+model Tenant {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  industry    String
+  profileDir  String
+  createdAt   DateTime @default(now())
+
+  panelUsers    PanelUser[]
+  contacts      Contact[]
+  jobs          Job[]
+  messages      Message[]
+  agentRuns     AgentRun[]
+  notifications Notification[]
+}
+
+model PanelUser {
+  id           String   @id @default(uuid())
+  tenantId     String
+  username     String
+  passwordHash String
+  role         String   // 'admin' | 'viewer'
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, username])
+}
+
 model Contact {
   id                String   @id @default(uuid())
   phoneE164         String   @unique
@@ -15,6 +44,9 @@ model Contact {
   flaggedReason     String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
 
   jobs              Job[]
   messages          Message[]
@@ -30,6 +62,9 @@ model Job {
   openedAt        DateTime  @default(now())
   readyAt         DateTime?
   closedAt        DateTime?
+
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
 
   contact         Contact   @relation(fields: [contactId], references: [id])
   messages        Message[]
@@ -51,6 +86,9 @@ model Message {
   raw             String?  // JSON serializado
   createdAt       DateTime @default(now())
 
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+
   job             Job?     @relation(fields: [jobId], references: [id])
   contact         Contact  @relation(fields: [contactId], references: [id])
 
@@ -71,6 +109,9 @@ model AgentRun {
   error               String?
   createdAt           DateTime @default(now())
 
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+
   job                 Job      @relation(fields: [jobId], references: [id])
 }
 
@@ -80,6 +121,9 @@ model Notification {
   kind        String   // 'owner_ready' | 'disconnect_alert' | 'cost_alert'
   sentVia     String   // 'whatsapp' | 'panel_only'
   sentAt      DateTime @default(now())
+
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
 
   job         Job      @relation(fields: [jobId], references: [id])
 }
