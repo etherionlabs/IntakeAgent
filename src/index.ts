@@ -75,24 +75,11 @@ async function main() {
     notifier,
   });
 
-  // Panel web (Plan 5)
-  const { createPanelServer } = await import('./panel/server');
-  const panelServer = await createPanelServer({
-    prisma,
-    config,
-    profile,
-    adapterState: { state: () => adapter!.state() },
-  });
-  const panelPort = Number(process.env.PANEL_PORT ?? 3000);
-  await panelServer.listen({ port: panelPort, host: '0.0.0.0' });
-  logger.info({ port: panelPort, url: config.owner.panelUrl }, 'panel.listening');
-
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'bootstrap.shutdown');
-    await panelServer.close();
     await adapter?.stop();
     await disconnectPrisma();
     process.exit(0);
