@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: intake
+      POSTGRES_USER: intake
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intake -d intake"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # sin `ports:` — solo accesible en la red interna de Docker
+
+  worker-tapiceria:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      DATABASE_URL: postgres://intake:${POSTGRES_PASSWORD}@postgres:5432/intake
+      TENANT_ID: ${TENANT_TAPICERIA_ID}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      INTERNAL_PORT: 3002
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+    volumes:
+      - baileys-tapiceria:/app/data/baileys-session
+      - media-tapiceria:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    # sin `ports:` — la API (Plan 2) lo alcanza por nombre de servicio en la red interna
+
+volumes:
+  pgdata:
+  baileys-tapiceria:
+  media-tapiceria:
