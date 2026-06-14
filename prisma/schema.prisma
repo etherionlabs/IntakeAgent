@@ -37,7 +37,7 @@ model PanelUser {
 
 model Contact {
   id                String   @id @default(uuid())
-  phoneE164         String   @unique
+  phoneE164         String
   displayName       String?
   botActive         Boolean  @default(true)
   flaggedNonIntake  Boolean  @default(false)
@@ -45,11 +45,13 @@ model Contact {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   jobs              Job[]
   messages          Message[]
+
+  @@unique([tenantId, phoneE164])
 }
 
 model Job {
@@ -63,8 +65,8 @@ model Job {
   readyAt         DateTime?
   closedAt        DateTime?
 
-  tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   contact         Contact   @relation(fields: [contactId], references: [id])
   messages        Message[]
@@ -82,16 +84,17 @@ model Message {
   kind            String   // 'text' | 'image' | 'audio' | 'sticker' | 'location' | 'other'
   body            String?
   mediaPath       String?
-  whatsappMsgId   String?  @unique
+  whatsappMsgId   String?
   raw             String?  // JSON serializado
   createdAt       DateTime @default(now())
 
-  tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   job             Job?     @relation(fields: [jobId], references: [id])
   contact         Contact  @relation(fields: [contactId], references: [id])
 
+  @@unique([tenantId, whatsappMsgId])
   @@index([contactId, createdAt])
 }
 
@@ -109,8 +112,8 @@ model AgentRun {
   error               String?
   createdAt           DateTime @default(now())
 
-  tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   job                 Job      @relation(fields: [jobId], references: [id])
 }
@@ -122,8 +125,8 @@ model Notification {
   sentVia     String   // 'whatsapp' | 'panel_only'
   sentAt      DateTime @default(now())
 
-  tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   job         Job      @relation(fields: [jobId], references: [id])
 }
