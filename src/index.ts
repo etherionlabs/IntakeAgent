@@ -29,11 +29,19 @@ import { defaultAgentFactory } from './agent/sdk-factory';
 import { logger } from './lib/logger';
 
 async function main() {
+  const tenantId = process.env.TENANT_ID;
+  if (!tenantId) {
+    throw new Error(
+      'TENANT_ID no está definido. Cada worker atiende exactamente un tenant; ' +
+        'define TENANT_ID=<uuid del Tenant> en el entorno del contenedor.',
+    );
+  }
+
   const config = await loadConfig('./config.json');
   const profile = await loadProfile(config.profile);
   const prisma = getPrisma();
 
-  logger.info({ profile: config.profile }, 'bootstrap.config_loaded');
+  logger.info({ tenantId, profile: config.profile }, 'bootstrap.config_loaded');
 
   const mediaStore = new FilesystemMediaStore(config.media.storeDir);
 
@@ -59,6 +67,7 @@ async function main() {
 
   const coordinator = new InboundCoordinator({
     prisma,
+    tenantId,
     config,
     profile,
     notifier,

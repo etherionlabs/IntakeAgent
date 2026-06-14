@@ -15,6 +15,7 @@ import { InboundCoordinator } from '../pipeline/coordinator';
 import { parseJobIntake } from '../services/job';
 import type { AgentFactory, AgentLike } from '../agent/types';
 import type { RawInboundMessage } from '../pipeline/types';
+import { ensureDevTenant } from './dev-tenant';
 
 const stubFactory: AgentFactory = (cfg) => {
   const tools = cfg.tools as any[];
@@ -58,10 +59,12 @@ async function main() {
   const config = await loadConfig('./config.json');
   const profile = await loadProfile(config.profile);
   const prisma = getPrisma();
+  const tenantId = await ensureDevTenant(prisma);
   const sender = new MemorySender();
 
   const coord = new InboundCoordinator({
     prisma,
+    tenantId,
     config,
     profile,
     notifier: new NoopNotifier(),
@@ -85,9 +88,9 @@ async function main() {
     console.log(`→ ${s.to}: ${s.text}`);
   }
 
-  const contact = await prisma.contact.findUnique({ where: { phoneE164: '+5210000000088' } });
+  const contact = await prisma.contact.findFirst({ where: { tenantId, phoneE164: '+5210000000088' } });
   if (contact) {
-    const job = await prisma.job.findFirst({ where: { contactId: contact.id } });
+    const job = await prisma.job.findFirst({ where: { tenantId, contactId: contact.id } });
     if (job) {
       console.log('\n=== Intake final ===');
       console.log(JSON.stringify(parseJobIntake(job), null, 2).slice(0, 500), '...');
