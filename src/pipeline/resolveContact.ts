@@ -7,9 +7,10 @@ export type ContactResolution =
 
 export async function resolveContact(
   prisma: PrismaClient,
+  tenantId: string,
   fromPhoneE164: string,
 ): Promise<ContactResolution> {
-  const contact = await upsertContactByPhone(prisma, fromPhoneE164);
+  const contact = await upsertContactByPhone(prisma, tenantId, fromPhoneE164);
   if (!contact.botActive) {
     return { shouldRespond: false, contact, reason: 'bot_paused' };
   }
