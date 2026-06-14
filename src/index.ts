@@ -26,6 +26,7 @@ import { WhatsAppSender } from './adapters/whatsapp/sender';
 import { WhatsAppNotifier } from './adapters/whatsapp/notifier';
 import { BaileysAdapter } from './adapters/whatsapp/adapter';
 import { defaultAgentFactory } from './agent/sdk-factory';
+import { startInternalServer } from './internal/server';
 import { logger } from './lib/logger';
 
 async function main() {
@@ -84,11 +85,29 @@ async function main() {
     notifier,
   });
 
+  // Endpoint interno de status (solo red Docker, protegido con INTERNAL_API_TOKEN).
+  // El adapter expone `AdapterStateSnapshot` ({ status, qr, lastError,
+  // lastConnectedAt }); aquí lo mapeamos a la forma `{ connected, qr, phone }`
+  // que consume el proxy wa-status de la API central, sin tocar el adapter.
+  const internalServer = await startInternalServer({
+    adapterState: {
+      state: () => {
+        const snap = adapter!.state();
+        return {
+          connected: snap.status === 'connected',
+          qr: snap.qr,
+          phone: '',
+        };
+      },
+    },
+  });
+
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'bootstrap.shutdown');
+    await internalServer.close();
     await adapter?.stop();
     await disconnectPrisma();
     process.exit(0);
