@@ -11,10 +11,11 @@ export function prefilter(msg: RawInboundMessage): PrefilterResult {
 
 export async function alreadySeen(
   prisma: PrismaClient,
+  tenantId: string,
   whatsappMsgId: string,
 ): Promise<boolean> {
-  const existing = await prisma.message.findUnique({
-    where: { whatsappMsgId },
+  const existing = await prisma.message.findFirst({
+    where: { tenantId, whatsappMsgId },
     select: { id: true },
   });
   return existing !== null;
