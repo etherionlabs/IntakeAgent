@@ -1,6 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma } from '../helpers/db';
 import { upsertContactByPhone } from '../../src/services/contact';
 import { openJob } from '../../src/services/job';
 import {
@@ -11,9 +10,6 @@ import {
 import { buildUpdateIntakeTool, buildMarkReadyTool } from '../../src/agent/tools';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
 
 const schema: IntakeSchema = {
   $businessName: 'X',

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma, cleanupDb as cleanup } from '../helpers/db';
 import { upsertContactByPhone } from '../../src/services/contact';
 import {
   openJob,
@@ -12,9 +11,6 @@ import {
 } from '../../src/services/job';
 import { createEmptyIntakeFromSchema } from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
 
 const schema: IntakeSchema = {
   $businessName: 'X',
@@ -28,14 +24,6 @@ const schema: IntakeSchema = {
     },
   ],
 };
-
-async function cleanup() {
-  await prisma.message.deleteMany();
-  await prisma.agentRun.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.contact.deleteMany();
-}
 
 describe('job service', () => {
   beforeEach(cleanup);

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma, cleanupDb as cleanup } from '../helpers/db';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { setTimeout as realDelay } from 'node:timers/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FilesystemMediaStore } from '../../src/media/store';
@@ -14,9 +14,6 @@ import type { AgentFactory, AgentLike } from '../../src/agent/types';
 import type { Config, Profile } from '../../src/config/schema';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { parseJobIntake } from '../../src/services/job';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
 
 const schema: IntakeSchema = {
   $businessName: 'Tapicería',
@@ -56,14 +53,6 @@ const config: Config = {
 
 let mediaRoot: string;
 
-async function cleanup() {
-  await prisma.message.deleteMany();
-  await prisma.agentRun.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.contact.deleteMany();
-}
-
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {
     whatsappMsgId: 'wa_' + Math.random().toString(36).slice(2),
@@ -77,6 +66,23 @@ function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
     receivedAt: '2026-05-25T10:00:00Z',
     ...overrides,
   };
+}
+
+/**
+ * El debouncer dispara `flushBatch` con fire-and-forget (`void this.flush(...)`),
+ * así que avanzar los timers falsos no espera el I/O async de Postgres. Tras
+ * avanzar el reloj, drenamos varias rondas del event loop real (`setImmediate`
+ * sigue siendo real) para que el flush —y sus round-trips a pg— terminen antes
+ * de las aserciones. Con better-sqlite3 esto era innecesario porque las queries
+ * resolvían de forma síncrona en microtasks.
+ */
+async function flushAsyncIO(rounds = 20): Promise<void> {
+  for (let i = 0; i < rounds; i++) {
+    // `node:timers/promises.setTimeout` usa el timer REAL (no lo falsea vitest),
+    // a diferencia del `setTimeout` global. Cada ronda espera tiempo de reloj
+    // real para que el round-trip de socket de pg (fase poll) pueda completar.
+    await realDelay(5);
+  }
 }
 
 const stubFactory = (responseText: string): AgentFactory => () => {
@@ -109,7 +115,10 @@ async function makeDeps(extra: Partial<PipelineDeps> = {}): Promise<PipelineDeps
 describe('InboundCoordinator', () => {
   beforeEach(async () => {
     await cleanup();
-    vi.useFakeTimers();
+    // Solo falsear los timers del debounce. `setImmediate`/`nextTick` deben
+    // quedar reales para que el driver async de Postgres (pg) complete su I/O
+    // de socket entre los avances de reloj (con better-sqlite3 esto era síncrono).
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
   });
   afterEach(async () => {
     vi.useRealTimers();
@@ -122,6 +131,7 @@ describe('InboundCoordinator', () => {
     await coord.handleInbound(rawMsg({ text: 'Hola, tengo un sillón' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
+    await flushAsyncIO();
     const sender = deps.sender as MemorySender;
     expect(sender.sent.length).toBeGreaterThanOrEqual(2);
     expect(sender.sent[0].text).toContain('Hola');
@@ -146,6 +156,7 @@ describe('InboundCoordinator', () => {
     await coord.handleInbound(msg);
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
+    await flushAsyncIO();
     const count = await prisma.message.count({ where: { whatsappMsgId: 'wa_dup' } });
     expect(count).toBe(1);
   });
@@ -156,11 +167,13 @@ describe('InboundCoordinator', () => {
     await coord.handleInbound(rawMsg({ whatsappMsgId: 'wa1', text: 'hola' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
+    await flushAsyncIO();
     await prisma.contact.updateMany({ data: { botActive: false } });
     (deps.sender as MemorySender).clear();
     await coord.handleInbound(rawMsg({ whatsappMsgId: 'wa2', text: 'sigues ahí?' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
+    await flushAsyncIO();
     const sender = deps.sender as MemorySender;
     expect(sender.sent).toHaveLength(0);
     const count = await prisma.message.count({ where: { whatsappMsgId: 'wa2' } });
@@ -179,6 +192,7 @@ describe('InboundCoordinator', () => {
     );
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
+    await flushAsyncIO();
     const job = await prisma.job.findFirst();
     const intake = parseJobIntake(job!);
     expect(intake.media.audio_count).toBe(1);
@@ -200,6 +214,7 @@ describe('InboundCoordinator', () => {
     await coord.handleInbound(rawMsg({ whatsappMsgId: 'c', text: 'tres' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
+    await flushAsyncIO();
     expect(calls).toBe(1);
   });
 });

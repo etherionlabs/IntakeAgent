@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma } from '../helpers/db';
 import { createPanelServer } from '../../src/panel/server';
 import { hashPassword, COOKIE_NAME } from '../../src/panel/auth';
 import { NullConnectionStateProvider } from '../../src/panel/adapter-state';
@@ -9,9 +8,6 @@ import type { FastifyInstance } from 'fastify';
 import { upsertContactByPhone } from '../../src/services/contact';
 import { openJob } from '../../src/services/job';
 import { createEmptyIntakeFromSchema } from '../../src/services/intake';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
 
 const profile: Profile = {
   intakeSchema: {

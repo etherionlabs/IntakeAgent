@@ -1,15 +1,22 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 let _client: PrismaClient | null = null;
 
 function getDatabaseUrl(): string {
-  return process.env.DATABASE_URL ?? 'file:./data/intake.db';
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL no está definida. El worker requiere una conexión PostgreSQL ' +
+        '(ej. postgres://intake:***@postgres:5432/intake).',
+    );
+  }
+  return url;
 }
 
 export function getPrisma(): PrismaClient {
   if (!_client) {
-    const adapter = new PrismaBetterSqlite3({ url: getDatabaseUrl() });
+    const adapter = new PrismaPg({ connectionString: getDatabaseUrl() });
     _client = new PrismaClient({ adapter });
   }
   return _client;

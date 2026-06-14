@@ -1,20 +1,8 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma, cleanupDb as cleanup } from '../helpers/db';
 import { upsertContactByPhone } from '../../src/services/contact';
 import { prefilter, alreadySeen } from '../../src/pipeline/idempotency';
 import type { RawInboundMessage } from '../../src/pipeline/types';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
-
-async function cleanup() {
-  await prisma.message.deleteMany();
-  await prisma.agentRun.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.contact.deleteMany();
-}
 
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {

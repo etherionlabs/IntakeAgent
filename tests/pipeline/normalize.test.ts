@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma, cleanupDb as cleanup } from '../helpers/db';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,18 +9,7 @@ import { FilesystemMediaStore } from '../../src/media/store';
 import { NoopTranscriber, ScriptedTranscriber } from '../../src/media/transcriber';
 import type { RawInboundMessage } from '../../src/pipeline/types';
 
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
-
 let mediaRoot: string;
-
-async function cleanup() {
-  await prisma.message.deleteMany();
-  await prisma.agentRun.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.contact.deleteMany();
-}
 
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {
