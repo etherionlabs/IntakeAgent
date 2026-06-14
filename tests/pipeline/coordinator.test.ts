@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { testPrisma as prisma, cleanupDb as cleanup } from '../helpers/db';
+import { testPrisma as prisma, cleanupDb as cleanup, seedTestTenant, TEST_TENANT_ID } from '../helpers/db';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { setTimeout as realDelay } from 'node:timers/promises';
 import { tmpdir } from 'node:os';
@@ -100,6 +100,7 @@ async function makeDeps(extra: Partial<PipelineDeps> = {}): Promise<PipelineDeps
   mediaRoot = await mkdtemp(join(tmpdir(), 'intake-coord-'));
   return {
     prisma,
+    tenantId: TEST_TENANT_ID,
     config,
     profile,
     notifier: new NoopNotifier(),
@@ -115,6 +116,7 @@ async function makeDeps(extra: Partial<PipelineDeps> = {}): Promise<PipelineDeps
 describe('InboundCoordinator', () => {
   beforeEach(async () => {
     await cleanup();
+    await seedTestTenant();
     // Solo falsear los timers del debounce. `setImmediate`/`nextTick` deben
     // quedar reales para que el driver async de Postgres (pg) complete su I/O
     // de socket entre los avances de reloj (con better-sqlite3 esto era síncrono).

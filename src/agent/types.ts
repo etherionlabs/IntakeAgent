@@ -47,6 +47,7 @@ export interface HistoryEntry {
 /** Dependencias externas inyectables (DB, notifier, factory del SDK). */
 export interface AgentDeps {
   prisma: PrismaClient;
+  tenantId: string;
   config: Config;
   profile: Profile;
   notifier: import('../services/notification').Notifier;

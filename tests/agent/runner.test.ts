@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { testPrisma as prisma } from '../helpers/db';
+import { testPrisma as prisma, seedTestTenant, TEST_TENANT_ID } from '../helpers/db';
 import { runAgentTurn } from '../../src/agent/runner';
 import { upsertContactByPhone } from '../../src/services/contact';
 import { openJob, parseJobIntake } from '../../src/services/job';
@@ -54,8 +54,9 @@ async function setupCtx(): Promise<TurnContext> {
   await prisma.notification.deleteMany();
   await prisma.job.deleteMany();
   await prisma.contact.deleteMany();
-  const c = await upsertContactByPhone(prisma, '+521');
-  const j = await openJob(prisma, c.id, createEmptyIntakeFromSchema(schema));
+  await seedTestTenant();
+  const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
+  const j = await openJob(prisma, TEST_TENANT_ID, c.id, createEmptyIntakeFromSchema(schema));
   return {
     job: j,
     contact: c,
@@ -98,6 +99,7 @@ describe('runAgentTurn', () => {
     }));
     const result = await runAgentTurn(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       config,
       profile,
       notifier: new NoopNotifier(),
@@ -120,6 +122,7 @@ describe('runAgentTurn', () => {
     });
     const result = await runAgentTurn(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       config,
       profile,
       notifier: new NoopNotifier(),
@@ -141,6 +144,7 @@ describe('runAgentTurn', () => {
     });
     const result = await runAgentTurn(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       config,
       profile,
       notifier: new NoopNotifier(),

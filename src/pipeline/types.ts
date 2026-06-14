@@ -20,6 +20,7 @@ export interface RawInboundMessage {
 
 export interface PipelineDeps {
   prisma: PrismaClient;
+  tenantId: string;
   config: Config;
   profile: Profile;
   notifier: Notifier;
