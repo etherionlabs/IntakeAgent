@@ -11,11 +11,13 @@ export const JOB_STATUS = {
 
 export async function openJob(
   prisma: PrismaClient,
+  tenantId: string,
   contactId: string,
   initialIntake: IntakeState,
 ): Promise<Job> {
   return prisma.job.create({
     data: {
+      tenantId,
       contactId,
       status: JOB_STATUS.OPEN,
       intake: JSON.stringify(initialIntake),
@@ -25,10 +27,11 @@ export async function openJob(
 
 export async function markReadyForReview(
   prisma: PrismaClient,
+  tenantId: string,
   jobId: string,
   summary: string,
 ): Promise<Job> {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
   if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
   if (job.status !== JOB_STATUS.OPEN) {
     throw new ServiceError(
@@ -37,7 +40,7 @@ export async function markReadyForReview(
     );
   }
   return prisma.job.update({
-    where: { id: jobId },
+    where: { id: jobId, tenantId },
     data: {
       status: JOB_STATUS.READY,
       summary,
@@ -47,8 +50,12 @@ export async function markReadyForReview(
   });
 }
 
-export async function markInProgress(prisma: PrismaClient, jobId: string): Promise<Job> {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
+export async function markInProgress(
+  prisma: PrismaClient,
+  tenantId: string,
+  jobId: string,
+): Promise<Job> {
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
   if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
   if (job.status !== JOB_STATUS.READY) {
     throw new ServiceError(
@@ -57,13 +64,17 @@ export async function markInProgress(prisma: PrismaClient, jobId: string): Promi
     );
   }
   return prisma.job.update({
-    where: { id: jobId },
+    where: { id: jobId, tenantId },
     data: { status: JOB_STATUS.IN_PROGRESS },
   });
 }
 
-export async function closeJob(prisma: PrismaClient, jobId: string): Promise<Job> {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
+export async function closeJob(
+  prisma: PrismaClient,
+  tenantId: string,
+  jobId: string,
+): Promise<Job> {
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
   if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
   if (job.status !== JOB_STATUS.OPEN && job.status !== JOB_STATUS.READY) {
     throw new ServiceError(
@@ -72,13 +83,17 @@ export async function closeJob(prisma: PrismaClient, jobId: string): Promise<Job
     );
   }
   return prisma.job.update({
-    where: { id: jobId },
+    where: { id: jobId, tenantId },
     data: { status: JOB_STATUS.CLOSED, closedAt: new Date() },
   });
 }
 
-export async function reopenJob(prisma: PrismaClient, jobId: string): Promise<Job> {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
+export async function reopenJob(
+  prisma: PrismaClient,
+  tenantId: string,
+  jobId: string,
+): Promise<Job> {
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
   if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
   if (job.status !== JOB_STATUS.CLOSED && job.status !== JOB_STATUS.IN_PROGRESS) {
     throw new ServiceError(
@@ -87,17 +102,19 @@ export async function reopenJob(prisma: PrismaClient, jobId: string): Promise<Jo
     );
   }
   return prisma.job.update({
-    where: { id: jobId },
+    where: { id: jobId, tenantId },
     data: { status: JOB_STATUS.OPEN, closedAt: null, readyAt: null },
   });
 }
 
 export async function findOpenJobsForContact(
   prisma: PrismaClient,
+  tenantId: string,
   contactId: string,
 ): Promise<Job[]> {
   return prisma.job.findMany({
     where: {
+      tenantId,
       contactId,
       status: { in: [JOB_STATUS.OPEN, JOB_STATUS.READY] },
     },
@@ -107,11 +124,12 @@ export async function findOpenJobsForContact(
 
 export async function updateJobIntake(
   prisma: PrismaClient,
+  tenantId: string,
   jobId: string,
   intake: IntakeState,
 ): Promise<Job> {
   return prisma.job.update({
-    where: { id: jobId },
+    where: { id: jobId, tenantId },
     data: { intake: JSON.stringify(intake) },
   });
 }
