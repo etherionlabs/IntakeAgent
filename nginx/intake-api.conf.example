@@ -1,0 +1,49 @@
+# nginx (en el HOST del VPS, fuera de docker-compose) — TLS termination + reverse proxy a la API.
+# La API es la ÚNICA superficie pública del backend. Postgres y workers nunca exponen puerto.
+#
+# Instalación (Ubuntu/Debian):
+#   sudo cp nginx/intake-api.conf.example /etc/nginx/sites-available/intake-api.conf
+#   sudo ln -s /etc/nginx/sites-available/intake-api.conf /etc/nginx/sites-enabled/
+#   # Emitir el certificado (instala certbot + plugin nginx primero):
+#   sudo certbot --nginx -d api.etherionlabs.com
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Ajusta el server_name al dominio real de la API.
+
+server {
+    listen 80;
+    server_name api.etherionlabs.com;
+
+    # Reto ACME de Let's Encrypt (certbot lo gestiona).
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name api.etherionlabs.com;
+
+    # certbot rellena estas rutas al emitir el certificado.
+    ssl_certificate     /etc/letsencrypt/live/api.etherionlabs.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.etherionlabs.com/privkey.pem;
+
+    # Endurecimiento básico.
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    client_max_body_size 5m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;   # puerto publicado por el servicio `api` de compose
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+    }
+}
