@@ -1,7 +1,7 @@
 [build]
   base = "spa"
   command = "npm run build"
-  publish = "spa/dist"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"
