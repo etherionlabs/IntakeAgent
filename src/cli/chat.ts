@@ -37,6 +37,7 @@ import { runAgentTurn } from '../agent/runner';
 import { defaultAgentFactory } from '../agent/sdk-factory';
 import { renderIntakeForModel } from '../services/intake';
 import { upsertContactByPhone } from '../services/contact';
+import { ensureDevTenant } from './dev-tenant';
 
 const COLORS = {
   reset: '\x1b[0m',
@@ -55,6 +56,7 @@ async function main() {
   const cache = new ConfigCache('./config.json', { warn: (m) => console.warn(m) });
   let { config, profile } = await cache.refresh();
   const prisma = getPrisma();
+  const tenantId = await ensureDevTenant(prisma);
 
   const mediaStore = new FilesystemMediaStore(config.media.storeDir);
   const transcriber = new NoopTranscriber();
@@ -97,15 +99,15 @@ async function main() {
       continue;
     }
     if (userText === '/state') {
-      await showState(prisma, phone, profile);
+      await showState(prisma, tenantId, phone, profile);
       continue;
     }
     if (userText === '/history') {
-      await showHistory(prisma, phone);
+      await showHistory(prisma, tenantId, phone);
       continue;
     }
     if (userText === '/reset') {
-      await resetContact(prisma, phone);
+      await resetContact(prisma, tenantId, phone);
       welcomeSent = false;
       console.log(c('yellow', '✓ jobs abiertos cerrados — empezando de cero'));
       continue;
@@ -120,13 +122,14 @@ async function main() {
 
     try {
       // 1. Resolver contacto + job
-      const contactRes = await resolveContact(prisma, phone);
+      const contactRes = await resolveContact(prisma, tenantId, phone);
       if (!contactRes.shouldRespond) {
         console.log(c('red', `bot pausado/flagged (${(contactRes as any).reason}). Usa /reset.`));
         continue;
       }
       const jobRes = await resolveJobForMessage(
         prisma,
+        tenantId,
         profile.intakeSchema,
         contactRes.contact.id,
         'cli',
@@ -135,6 +138,7 @@ async function main() {
       // 2. Persistir el mensaje inbound
       const message = await prisma.message.create({
         data: {
+          tenantId,
           contactId: contactRes.contact.id,
           jobId: jobRes.job.id,
           direction: 'inbound',
@@ -154,6 +158,7 @@ async function main() {
         console.log(c('magenta', `bot: `) + welcome);
         await prisma.message.create({
           data: {
+            tenantId,
             jobId: jobRes.job.id,
             contactId: contactRes.contact.id,
             direction: 'outbound',
@@ -180,6 +185,7 @@ async function main() {
       // 5. Listar otros jobs abiertos (para multi-job)
       const allOpen = await prisma.job.findMany({
         where: {
+          tenantId,
           contactId: contactRes.contact.id,
           status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] },
           NOT: { id: jobRes.job.id },
@@ -207,6 +213,7 @@ async function main() {
         },
         {
           prisma,
+          tenantId,
           config,
           profile,
           notifier,
@@ -223,6 +230,7 @@ async function main() {
         console.log(c('magenta', `bot: `) + result.responseText);
         await prisma.message.create({
           data: {
+            tenantId,
             jobId: jobRes.job.id,
             contactId: contactRes.contact.id,
             direction: 'outbound',
@@ -263,16 +271,17 @@ async function main() {
 
 async function showState(
   prisma: ReturnType<typeof getPrisma>,
+  tenantId: string,
   phone: string,
   profile: Awaited<ReturnType<typeof loadProfile>>,
 ): Promise<void> {
-  const contact = await prisma.contact.findUnique({ where: { phoneE164: phone } });
+  const contact = await prisma.contact.findFirst({ where: { tenantId, phoneE164: phone } });
   if (!contact) {
     console.log(c('dim', 'sin contacto aún'));
     return;
   }
   const job = await prisma.job.findFirst({
-    where: { contactId: contact.id, status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] } },
+    where: { tenantId, contactId: contact.id, status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] } },
     orderBy: { openedAt: 'desc' },
   });
   if (!job) {
@@ -292,15 +301,16 @@ async function showState(
 
 async function showHistory(
   prisma: ReturnType<typeof getPrisma>,
+  tenantId: string,
   phone: string,
 ): Promise<void> {
-  const contact = await prisma.contact.findUnique({ where: { phoneE164: phone } });
+  const contact = await prisma.contact.findFirst({ where: { tenantId, phoneE164: phone } });
   if (!contact) {
     console.log(c('dim', 'sin contacto aún'));
     return;
   }
   const msgs = await prisma.message.findMany({
-    where: { contactId: contact.id },
+    where: { tenantId, contactId: contact.id },
     orderBy: { createdAt: 'desc' },
     take: 10,
   });
@@ -312,20 +322,21 @@ async function showHistory(
 
 async function resetContact(
   prisma: ReturnType<typeof getPrisma>,
+  tenantId: string,
   phone: string,
 ): Promise<void> {
-  const contact = await upsertContactByPhone(prisma, phone);
-  const open = await findOpenJobsForContact(prisma, contact.id);
+  const contact = await upsertContactByPhone(prisma, tenantId, phone);
+  const open = await findOpenJobsForContact(prisma, tenantId, contact.id);
   for (const j of open) {
     try {
-      await closeJob(prisma, j.id);
+      await closeJob(prisma, tenantId, j.id);
     } catch {
       // Job en estado IN_PROGRESS — no se puede cerrar desde aquí, lo dejamos.
     }
   }
   // Reactivar bot si estaba pausado o flagged.
   await prisma.contact.update({
-    where: { id: contact.id },
+    where: { id: contact.id, tenantId },
     data: { botActive: true, flaggedNonIntake: false, flaggedReason: null },
   });
 }

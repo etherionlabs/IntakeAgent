@@ -12,16 +12,17 @@ export interface JobResolution {
 
 export async function resolveJobForMessage(
   prisma: PrismaClient,
+  tenantId: string,
   schema: IntakeSchema,
   contactId: string,
   _messageId: string,
 ): Promise<JobResolution> {
-  const open = await findOpenJobsForContact(prisma, contactId);
+  const open = await findOpenJobsForContact(prisma, tenantId, contactId);
 
   if (open.length === 0) {
-    const totalJobs = await prisma.job.count({ where: { contactId } });
+    const totalJobs = await prisma.job.count({ where: { tenantId, contactId } });
     const isFirstMessage = totalJobs === 0;
-    const job = await openJob(prisma, contactId, createEmptyIntakeFromSchema(schema));
+    const job = await openJob(prisma, tenantId, contactId, createEmptyIntakeFromSchema(schema));
     return { job, isFirstMessage, otherOpenJobs: [] };
   }
 

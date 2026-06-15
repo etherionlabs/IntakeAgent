@@ -16,10 +16,12 @@ export interface AgentRunInput {
 
 export async function recordAgentRun(
   prisma: PrismaClient,
+  tenantId: string,
   input: AgentRunInput,
 ): Promise<AgentRun> {
   return prisma.agentRun.create({
     data: {
+      tenantId,
       jobId: input.jobId,
       triggerMessageIds: JSON.stringify(input.triggerMessageIds),
       model: input.model,

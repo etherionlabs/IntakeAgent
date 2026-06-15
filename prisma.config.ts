@@ -15,6 +15,6 @@ export default defineConfig({
     path: path.join('prisma', 'migrations'),
   },
   datasource: {
-    url: process.env.DATABASE_URL ?? 'file:./data/intake.db',
+    url: process.env.DATABASE_URL ?? 'postgres://intake:intake@localhost:5432/intake',
   },
 });

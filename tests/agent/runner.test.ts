@@ -1,6 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma, seedTestTenant, TEST_TENANT_ID } from '../helpers/db';
 import { runAgentTurn } from '../../src/agent/runner';
 import { upsertContactByPhone } from '../../src/services/contact';
 import { openJob, parseJobIntake } from '../../src/services/job';
@@ -9,9 +8,6 @@ import { NoopNotifier } from '../../src/services/notification';
 import type { AgentFactory, AgentLike, TurnContext } from '../../src/agent/types';
 import type { Profile, Config } from '../../src/config/schema';
 import type { IntakeSchema } from '../../src/config/intake-schema';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
 
 const schema: IntakeSchema = {
   $businessName: 'Tapicería Demo',
@@ -58,8 +54,9 @@ async function setupCtx(): Promise<TurnContext> {
   await prisma.notification.deleteMany();
   await prisma.job.deleteMany();
   await prisma.contact.deleteMany();
-  const c = await upsertContactByPhone(prisma, '+521');
-  const j = await openJob(prisma, c.id, createEmptyIntakeFromSchema(schema));
+  await seedTestTenant();
+  const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
+  const j = await openJob(prisma, TEST_TENANT_ID, c.id, createEmptyIntakeFromSchema(schema));
   return {
     job: j,
     contact: c,
@@ -102,6 +99,7 @@ describe('runAgentTurn', () => {
     }));
     const result = await runAgentTurn(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       config,
       profile,
       notifier: new NoopNotifier(),
@@ -124,6 +122,7 @@ describe('runAgentTurn', () => {
     });
     const result = await runAgentTurn(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       config,
       profile,
       notifier: new NoopNotifier(),
@@ -145,6 +144,7 @@ describe('runAgentTurn', () => {
     });
     const result = await runAgentTurn(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       config,
       profile,
       notifier: new NoopNotifier(),

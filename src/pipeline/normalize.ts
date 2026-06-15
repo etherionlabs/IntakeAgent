@@ -5,6 +5,7 @@ import type { Transcriber } from '../media/transcriber';
 
 export async function normalizeAndPersistMessage(
   prisma: PrismaClient,
+  tenantId: string,
   mediaStore: MediaStore,
   transcriber: Transcriber,
   raw: RawInboundMessage,
@@ -12,6 +13,7 @@ export async function normalizeAndPersistMessage(
 ): Promise<Message> {
   const message = await prisma.message.create({
     data: {
+      tenantId,
       contactId,
       direction: 'inbound',
       kind: raw.kind,
@@ -40,7 +42,7 @@ export async function normalizeAndPersistMessage(
   }
 
   return prisma.message.update({
-    where: { id: message.id },
+    where: { id: message.id, tenantId },
     data: { mediaPath, body },
   });
 }

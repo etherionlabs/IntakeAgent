@@ -24,6 +24,7 @@ import { upsertContactByPhone } from '../services/contact';
 import { runAgentTurn } from '../agent/runner';
 import { defaultAgentFactory } from '../agent/sdk-factory';
 import { renderIntakeForModel } from '../services/intake';
+import { ensureDevTenant } from './dev-tenant';
 
 interface Scenario {
   name: string;
@@ -120,17 +121,17 @@ interface ScenarioResult {
   durationMs: number;
 }
 
-async function resetContact(prisma: any, phone: string): Promise<void> {
-  const contact = await upsertContactByPhone(prisma, phone);
-  const open = await findOpenJobsForContact(prisma, contact.id);
+async function resetContact(prisma: any, tenantId: string, phone: string): Promise<void> {
+  const contact = await upsertContactByPhone(prisma, tenantId, phone);
+  const open = await findOpenJobsForContact(prisma, tenantId, contact.id);
   for (const j of open) {
     try {
-      await closeJob(prisma, j.id);
+      await closeJob(prisma, tenantId, j.id);
     } catch {}
   }
-  await prisma.message.deleteMany({ where: { contactId: contact.id } });
+  await prisma.message.deleteMany({ where: { tenantId, contactId: contact.id } });
   await prisma.contact.update({
-    where: { id: contact.id },
+    where: { id: contact.id, tenantId },
     data: { botActive: true, flaggedNonIntake: false, flaggedReason: null },
   });
 }
@@ -138,13 +139,14 @@ async function resetContact(prisma: any, phone: string): Promise<void> {
 async function runScenario(
   scenario: Scenario,
   prisma: any,
+  tenantId: string,
   config: any,
   profile: any,
 ): Promise<ScenarioResult> {
   const start = Date.now();
   console.log(c('cyan', `\n━━━ Escenario: ${scenario.name} (${scenario.phone}) ━━━`));
 
-  await resetContact(prisma, scenario.phone);
+  await resetContact(prisma, tenantId, scenario.phone);
 
   let responsesReceived = 0;
   let toolCallsTotal = 0;
@@ -158,7 +160,7 @@ async function runScenario(
     console.log(c('green', `[${i + 1}] cliente: `) + userText);
 
     try {
-      const contactRes = await resolveContact(prisma, scenario.phone);
+      const contactRes = await resolveContact(prisma, tenantId, scenario.phone);
       if (!contactRes.shouldRespond) {
         console.log(
           c('yellow', `  (bot pausado/flagged: ${(contactRes as any).reason}) — fin del escenario`),
@@ -167,6 +169,7 @@ async function runScenario(
       }
       const jobRes = await resolveJobForMessage(
         prisma,
+        tenantId,
         profile.intakeSchema,
         contactRes.contact.id,
         'smoke',
@@ -174,6 +177,7 @@ async function runScenario(
 
       const message = await prisma.message.create({
         data: {
+          tenantId,
           contactId: contactRes.contact.id,
           jobId: jobRes.job.id,
           direction: 'inbound',
@@ -192,6 +196,7 @@ async function runScenario(
         console.log(c('magenta', '  bot (welcome): ') + welcome.slice(0, 120));
         await prisma.message.create({
           data: {
+            tenantId,
             jobId: jobRes.job.id,
             contactId: contactRes.contact.id,
             direction: 'outbound',
@@ -216,6 +221,7 @@ async function runScenario(
 
       const allOpen = await prisma.job.findMany({
         where: {
+          tenantId,
           contactId: contactRes.contact.id,
           status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] },
           NOT: { id: jobRes.job.id },
@@ -240,6 +246,7 @@ async function runScenario(
         },
         {
           prisma,
+          tenantId,
           config,
           profile,
           notifier: new NoopNotifier(),
@@ -298,11 +305,11 @@ async function runScenario(
   }
 
   // Estado final
-  const contact = await prisma.contact.findUnique({
-    where: { phoneE164: scenario.phone },
+  const contact = await prisma.contact.findFirst({
+    where: { tenantId, phoneE164: scenario.phone },
   });
   const job = await prisma.job.findFirst({
-    where: { contactId: contact?.id },
+    where: { tenantId, contactId: contact?.id },
     orderBy: { openedAt: 'desc' },
   });
   const finalStatus = job?.status ?? 'NO_JOB';
@@ -339,6 +346,7 @@ async function main() {
   const config = await loadConfig('./config.json');
   const profile = await loadProfile(config.profile);
   const prisma = getPrisma();
+  const tenantId = await ensureDevTenant(prisma);
 
   console.log(c('bold', `\n╔══ Smoke test profundo ══╗`));
   console.log(c('dim', `Modelo: ${config.model}`));
@@ -348,7 +356,7 @@ async function main() {
 
   const results: ScenarioResult[] = [];
   for (const scenario of SCENARIOS) {
-    const r = await runScenario(scenario, prisma, config, profile);
+    const r = await runScenario(scenario, prisma, tenantId, config, profile);
     results.push(r);
   }
 
@@ -392,11 +400,11 @@ async function main() {
   // Estado final de los intakes
   console.log(c('bold', '\n\n╔══ INTAKES FINALES ══╗\n'));
   for (const r of results) {
-    const contact = await prisma.contact.findUnique({
-      where: { phoneE164: r.phone },
+    const contact = await prisma.contact.findFirst({
+      where: { tenantId, phoneE164: r.phone },
     });
     const job = await prisma.job.findFirst({
-      where: { contactId: contact?.id },
+      where: { tenantId, contactId: contact?.id },
       orderBy: { openedAt: 'desc' },
     });
     if (job) {

@@ -1,6 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { testPrisma as prisma, seedTestTenant, TEST_TENANT_ID } from '../helpers/db';
 import { upsertContactByPhone } from '../../src/services/contact';
 import { openJob } from '../../src/services/job';
 import {
@@ -11,9 +10,6 @@ import {
 import { buildUpdateIntakeTool, buildMarkReadyTool } from '../../src/agent/tools';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
-
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
 
 const schema: IntakeSchema = {
   $businessName: 'X',
@@ -37,8 +33,9 @@ async function setupCtx() {
   await prisma.notification.deleteMany();
   await prisma.job.deleteMany();
   await prisma.contact.deleteMany();
-  const c = await upsertContactByPhone(prisma, '+521');
-  const j = await openJob(prisma, c.id, createEmptyIntakeFromSchema(schema));
+  await seedTestTenant();
+  const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
+  const j = await openJob(prisma, TEST_TENANT_ID, c.id, createEmptyIntakeFromSchema(schema));
   const intake: IntakeState = createEmptyIntakeFromSchema(schema);
   const ctx: import('../../src/agent/types').TurnContext = {
     job: j,
@@ -63,7 +60,7 @@ describe('tool update_intake', () => {
   it('actualiza un campo válido y persiste en la DB', async () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema } as any;
-    const tool = buildUpdateIntakeTool(ctx, { prisma, profile, notifier: new NoopNotifier() } as any);
+    const tool = buildUpdateIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier: new NoopNotifier() } as any);
     const out = await tool.execute({ fields: [{ path: 'client.name', value: 'María' }] });
     expect(out.ok).toBe(true);
     const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
@@ -75,7 +72,7 @@ describe('tool update_intake', () => {
   it('agrega notas libres', async () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema } as any;
-    const tool = buildUpdateIntakeTool(ctx, { prisma, profile, notifier: new NoopNotifier() } as any);
+    const tool = buildUpdateIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier: new NoopNotifier() } as any);
     const out = await tool.execute({
       fields: [{ path: 'client.name', value: 'X' }],
       notes_to_add: ['cliente vive en zona alta'],
@@ -90,7 +87,7 @@ describe('tool update_intake', () => {
   it('retorna error sin persistir si el path es inválido', async () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema } as any;
-    const tool = buildUpdateIntakeTool(ctx, { prisma, profile, notifier: new NoopNotifier() } as any);
+    const tool = buildUpdateIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier: new NoopNotifier() } as any);
     const out = await tool.execute({ fields: [{ path: 'nope.x', value: 'y' }] });
     expect(out.ok).toBe(false);
     if (out.ok) return;
@@ -103,7 +100,7 @@ describe('tool update_intake', () => {
   it('acepta declined con motivo', async () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema } as any;
-    const tool = buildUpdateIntakeTool(ctx, { prisma, profile, notifier: new NoopNotifier() } as any);
+    const tool = buildUpdateIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier: new NoopNotifier() } as any);
     const out = await tool.execute({
       fields: [{ path: 'client.phone', declined: true, declined_reason: 'no tiene fijo' }],
     });
@@ -119,7 +116,7 @@ describe('tool mark_ready_for_review', () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema, hash: 'h' } as any;
     const notifier = new NoopNotifier();
-    const tool = buildMarkReadyTool(ctx, { prisma, profile, notifier, config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' } } } as any);
+    const tool = buildMarkReadyTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier, config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' } } } as any);
     const out = await tool.execute({ summary: 'Trabajo de retapizado para sillón' });
     expect(out.ok).toBe(false);
     if (out.ok) return;
@@ -141,6 +138,7 @@ describe('tool mark_ready_for_review', () => {
     const notifier = new NoopNotifier();
     const tool = buildMarkReadyTool(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       profile,
       notifier,
       config: {
@@ -160,7 +158,7 @@ describe('tool mark_ready_for_review', () => {
   it('rechaza summary demasiado corto', async () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema, hash: 'h' } as any;
-    const tool = buildMarkReadyTool(ctx, { prisma, profile, notifier: new NoopNotifier(), config: { owner: { phoneE164: '+5215', notifyOnReady: false, notifyOnDisconnect: false, panelUrl: 'x' } } } as any);
+    const tool = buildMarkReadyTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier: new NoopNotifier(), config: { owner: { phoneE164: '+5215', notifyOnReady: false, notifyOnDisconnect: false, panelUrl: 'x' } } } as any);
     const out = await tool.execute({ summary: 'corto' });
     expect(out.ok).toBe(false);
   });
@@ -175,7 +173,7 @@ describe('tool mark_ready_for_review', () => {
 
     const notifier = new NoopNotifier();
     const tool = buildMarkReadyTool(ctx, {
-      prisma, profile, notifier,
+      prisma, tenantId: TEST_TENANT_ID, profile, notifier,
       config: { owner: { phoneE164: '+5215', notifyOnReady: false, notifyOnDisconnect: true, panelUrl: 'x' } },
     } as any);
 
@@ -190,7 +188,7 @@ import { buildCloseJobTool, buildFlagNonIntakeTool, buildRequestPhotoTool } from
 describe('tool close_job', () => {
   it('cierra desde OPEN_INTAKE', async () => {
     const ctx = await setupCtx();
-    const tool = buildCloseJobTool(ctx, { prisma } as any);
+    const tool = buildCloseJobTool(ctx, { prisma, tenantId: TEST_TENANT_ID } as any);
     const out = await tool.execute({});
     expect(out.ok).toBe(true);
     const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
@@ -201,7 +199,7 @@ describe('tool close_job', () => {
     const ctx = await setupCtx();
     await prisma.job.update({ where: { id: ctx.job.id }, data: { status: 'IN_PROGRESS' } });
     ctx.job.status = 'IN_PROGRESS';
-    const tool = buildCloseJobTool(ctx, { prisma } as any);
+    const tool = buildCloseJobTool(ctx, { prisma, tenantId: TEST_TENANT_ID } as any);
     const out = await tool.execute({});
     expect(out.ok).toBe(false);
   });
@@ -210,7 +208,7 @@ describe('tool close_job', () => {
 describe('tool flag_non_intake', () => {
   it('marca el contacto y devuelve ok', async () => {
     const ctx = await setupCtx();
-    const tool = buildFlagNonIntakeTool(ctx, { prisma } as any);
+    const tool = buildFlagNonIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID } as any);
     const out = await tool.execute({ reason: 'cliente sólo manda promociones' });
     expect(out.ok).toBe(true);
     const reload = await prisma.contact.findUnique({ where: { id: ctx.contact.id } });
@@ -220,7 +218,7 @@ describe('tool flag_non_intake', () => {
 
   it('rechaza reason demasiado corto', async () => {
     const ctx = await setupCtx();
-    const tool = buildFlagNonIntakeTool(ctx, { prisma } as any);
+    const tool = buildFlagNonIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID } as any);
     const out = await tool.execute({ reason: 'x' });
     expect(out.ok).toBe(false);
   });
@@ -289,6 +287,7 @@ describe('buildTools', () => {
     const ctx = await setupCtx();
     const tools = buildTools(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       profile: { intakeSchema: schema, hash: 'h' } as any,
       notifier: new NoopNotifier(),
       config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'x' } } as any,
@@ -311,6 +310,7 @@ describe('buildTools', () => {
     ];
     const tools = buildTools(ctx, {
       prisma,
+      tenantId: TEST_TENANT_ID,
       profile: { intakeSchema: schema, hash: 'h' } as any,
       notifier: new NoopNotifier(),
       config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'x' } } as any,

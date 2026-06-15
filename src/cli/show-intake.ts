@@ -8,20 +8,23 @@ import {
 } from '../services/intake';
 import { upsertContactByPhone } from '../services/contact';
 import { openJob } from '../services/job';
+import { ensureDevTenant } from './dev-tenant';
 
 async function main() {
   const arg = process.argv[2];
   const config = await loadConfig('./config.json');
   const profile = await loadProfile(config.profile);
   const prisma = getPrisma();
+  const tenantId = await ensureDevTenant(prisma);
 
   let jobId: string;
   let status: string;
 
   if (arg === 'demo') {
-    const contact = await upsertContactByPhone(prisma, '+521000000000');
+    const contact = await upsertContactByPhone(prisma, tenantId, '+521000000000');
     const job = await openJob(
       prisma,
+      tenantId,
       contact.id,
       createEmptyIntakeFromSchema(profile.intakeSchema),
     );

@@ -39,15 +39,18 @@ export class InboundCoordinator {
       return;
     }
 
-    if (await alreadySeen(this.deps.prisma, raw.whatsappMsgId)) {
+    const tenantId = this.deps.tenantId;
+
+    if (await alreadySeen(this.deps.prisma, tenantId, raw.whatsappMsgId)) {
       logger.info({ whatsappMsgId: raw.whatsappMsgId }, 'inbound.duplicate');
       return;
     }
 
-    const contactRes = await resolveContact(this.deps.prisma, raw.fromPhoneE164);
+    const contactRes = await resolveContact(this.deps.prisma, tenantId, raw.fromPhoneE164);
 
     const jobRes = await resolveJobForMessage(
       this.deps.prisma,
+      tenantId,
       this.deps.profile.intakeSchema,
       contactRes.contact.id,
       raw.whatsappMsgId,
@@ -55,13 +58,14 @@ export class InboundCoordinator {
 
     const messageWithoutJob = await normalizeAndPersistMessage(
       this.deps.prisma,
+      tenantId,
       this.deps.mediaStore,
       this.deps.transcriber,
       raw,
       contactRes.contact.id,
     );
     const message = await this.deps.prisma.message.update({
-      where: { id: messageWithoutJob.id },
+      where: { id: messageWithoutJob.id, tenantId },
       data: { jobId: jobRes.job.id },
     });
 
@@ -70,7 +74,7 @@ export class InboundCoordinator {
       if (message.kind === 'image') intake.media.photo_count += 1;
       else intake.media.audio_count += 1;
       await this.deps.prisma.job.update({
-        where: { id: jobRes.job.id },
+        where: { id: jobRes.job.id, tenantId },
         data: { intake: JSON.stringify(intake) },
       });
     }
@@ -93,6 +97,7 @@ export class InboundCoordinator {
       // reciente y evitará saludar de nuevo.
       await this.deps.prisma.message.create({
         data: {
+          tenantId,
           jobId: jobRes.job.id,
           contactId: contactRes.contact.id,
           direction: 'outbound',
@@ -107,23 +112,25 @@ export class InboundCoordinator {
 
   private async flushBatch(contactId: string, messageIds: string[]): Promise<void> {
     logger.debug({ contactId, count: messageIds.length }, 'inbound.flush');
-    const contact = await this.deps.prisma.contact.findUnique({ where: { id: contactId } });
+    const tenantId = this.deps.tenantId;
+    const contact = await this.deps.prisma.contact.findFirst({ where: { id: contactId, tenantId } });
     if (!contact) return;
     if (!contact.botActive || contact.flaggedNonIntake) return;
 
     const messages = await this.deps.prisma.message.findMany({
-      where: { id: { in: messageIds } },
+      where: { id: { in: messageIds }, tenantId },
       orderBy: { createdAt: 'asc' },
     });
     if (messages.length === 0) return;
     const jobId = messages[messages.length - 1].jobId;
     if (!jobId) return;
-    const job = await this.deps.prisma.job.findUnique({ where: { id: jobId } });
+    const job = await this.deps.prisma.job.findFirst({ where: { id: jobId, tenantId } });
     if (!job) return;
 
     const allOpen = await this.deps.prisma.job.findMany({
       where: {
         contactId,
+        tenantId,
         status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] },
         NOT: { id: jobId },
       },
@@ -144,7 +151,7 @@ export class InboundCoordinator {
     // (incluyendo welcome y respuestas previas) para evitar incoherencias.
     const batchIds = new Set(messageIds);
     const historyRaw = await this.deps.prisma.message.findMany({
-      where: { jobId, id: { notIn: messageIds } },
+      where: { jobId, tenantId, id: { notIn: messageIds } },
       orderBy: { createdAt: 'desc' },
       take: 12,
     });
@@ -174,6 +181,7 @@ export class InboundCoordinator {
       },
       {
         prisma: this.deps.prisma,
+        tenantId,
         config: this.deps.config,
         profile: this.deps.profile,
         notifier: this.deps.notifier,
@@ -185,6 +193,7 @@ export class InboundCoordinator {
       await this.deps.sender.sendText(contact.phoneE164, result.responseText);
       await this.deps.prisma.message.create({
         data: {
+          tenantId,
           jobId: job.id,
           contactId: contact.id,
           direction: 'outbound',

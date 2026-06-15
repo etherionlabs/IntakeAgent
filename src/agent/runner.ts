@@ -69,7 +69,7 @@ export async function runAgentTurn(
     responseText = deps.config.fallbackOnError;
   }
 
-  await recordAgentRun(deps.prisma, {
+  await recordAgentRun(deps.prisma, deps.tenantId, {
     jobId: ctx.job.id,
     triggerMessageIds,
     model: deps.config.model,

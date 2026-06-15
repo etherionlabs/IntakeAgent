@@ -26,14 +26,23 @@ import { WhatsAppSender } from './adapters/whatsapp/sender';
 import { WhatsAppNotifier } from './adapters/whatsapp/notifier';
 import { BaileysAdapter } from './adapters/whatsapp/adapter';
 import { defaultAgentFactory } from './agent/sdk-factory';
+import { startInternalServer } from './internal/server';
 import { logger } from './lib/logger';
 
 async function main() {
+  const tenantId = process.env.TENANT_ID;
+  if (!tenantId) {
+    throw new Error(
+      'TENANT_ID no está definido. Cada worker atiende exactamente un tenant; ' +
+        'define TENANT_ID=<uuid del Tenant> en el entorno del contenedor.',
+    );
+  }
+
   const config = await loadConfig('./config.json');
   const profile = await loadProfile(config.profile);
   const prisma = getPrisma();
 
-  logger.info({ profile: config.profile }, 'bootstrap.config_loaded');
+  logger.info({ tenantId, profile: config.profile }, 'bootstrap.config_loaded');
 
   const mediaStore = new FilesystemMediaStore(config.media.storeDir);
 
@@ -59,6 +68,7 @@ async function main() {
 
   const coordinator = new InboundCoordinator({
     prisma,
+    tenantId,
     config,
     profile,
     notifier,
@@ -75,24 +85,29 @@ async function main() {
     notifier,
   });
 
-  // Panel web (Plan 5)
-  const { createPanelServer } = await import('./panel/server');
-  const panelServer = await createPanelServer({
-    prisma,
-    config,
-    profile,
-    adapterState: { state: () => adapter!.state() },
+  // Endpoint interno de status (solo red Docker, protegido con INTERNAL_API_TOKEN).
+  // El adapter expone `AdapterStateSnapshot` ({ status, qr, lastError,
+  // lastConnectedAt }); aquí lo mapeamos a la forma `{ connected, qr, phone }`
+  // que consume el proxy wa-status de la API central, sin tocar el adapter.
+  const internalServer = await startInternalServer({
+    adapterState: {
+      state: () => {
+        const snap = adapter!.state();
+        return {
+          connected: snap.status === 'connected',
+          qr: snap.qr,
+          phone: '',
+        };
+      },
+    },
   });
-  const panelPort = Number(process.env.PANEL_PORT ?? 3000);
-  await panelServer.listen({ port: panelPort, host: '0.0.0.0' });
-  logger.info({ port: panelPort, url: config.owner.panelUrl }, 'panel.listening');
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'bootstrap.shutdown');
-    await panelServer.close();
+    await internalServer.close();
     await adapter?.stop();
     await disconnectPrisma();
     process.exit(0);

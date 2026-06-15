@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import {
+  testPrisma as prisma,
+  cleanupDb as cleanup,
+  seedTestTenant,
+  TEST_TENANT_ID,
+} from '../helpers/db';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,18 +14,7 @@ import { FilesystemMediaStore } from '../../src/media/store';
 import { NoopTranscriber, ScriptedTranscriber } from '../../src/media/transcriber';
 import type { RawInboundMessage } from '../../src/pipeline/types';
 
-const adapter = new PrismaBetterSqlite3({ url: 'file:./data/intake.db' });
-const prisma = new PrismaClient({ adapter });
-
 let mediaRoot: string;
-
-async function cleanup() {
-  await prisma.message.deleteMany();
-  await prisma.agentRun.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.contact.deleteMany();
-}
 
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {
@@ -41,6 +34,7 @@ function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
 describe('normalizeAndPersistMessage', () => {
   beforeEach(async () => {
     await cleanup();
+    await seedTestTenant();
     mediaRoot = await mkdtemp(join(tmpdir(), 'intake-norm-'));
   });
 
@@ -51,10 +45,11 @@ describe('normalizeAndPersistMessage', () => {
   });
 
   it('persiste texto plano sin tocar filesystem', async () => {
-    const c = await upsertContactByPhone(prisma, '+521');
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const msg = await normalizeAndPersistMessage(
       prisma,
+      TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
       rawMsg({ kind: 'text', text: 'Hola, tengo un sillón' }),
@@ -68,10 +63,11 @@ describe('normalizeAndPersistMessage', () => {
   });
 
   it('persiste imagen al filesystem y guarda mediaPath', async () => {
-    const c = await upsertContactByPhone(prisma, '+521');
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const msg = await normalizeAndPersistMessage(
       prisma,
+      TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
       rawMsg({
@@ -88,11 +84,12 @@ describe('normalizeAndPersistMessage', () => {
   });
 
   it('persiste audio + transcribe (transcriber devuelve cadena)', async () => {
-    const c = await upsertContactByPhone(prisma, '+521');
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const transcriber = new ScriptedTranscriber(['me llamo Juan']);
     const msg = await normalizeAndPersistMessage(
       prisma,
+      TEST_TENANT_ID,
       store,
       transcriber,
       rawMsg({
@@ -109,10 +106,11 @@ describe('normalizeAndPersistMessage', () => {
   });
 
   it('audio sin transcripción guarda body=null', async () => {
-    const c = await upsertContactByPhone(prisma, '+521');
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const msg = await normalizeAndPersistMessage(
       prisma,
+      TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
       rawMsg({
@@ -128,10 +126,11 @@ describe('normalizeAndPersistMessage', () => {
   });
 
   it('sticker/location/other se persisten con kind correspondiente y body null', async () => {
-    const c = await upsertContactByPhone(prisma, '+521');
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const msg = await normalizeAndPersistMessage(
       prisma,
+      TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
       rawMsg({ whatsappMsgId: 'wa_sticker', kind: 'sticker', text: null, media: null }),
@@ -143,10 +142,11 @@ describe('normalizeAndPersistMessage', () => {
   });
 
   it('guarda raw payload serializado para auditoría', async () => {
-    const c = await upsertContactByPhone(prisma, '+521');
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const msg = await normalizeAndPersistMessage(
       prisma,
+      TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
       rawMsg({ raw: { weird: 'payload', n: 42 } }),

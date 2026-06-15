@@ -37,7 +37,7 @@ export type UpdateIntakeArgs = z.infer<typeof UpdateIntakeArgsZ>;
 
 export function buildUpdateIntakeTool(
   ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma' | 'profile'>,
+  deps: Pick<AgentDeps, 'prisma' | 'tenantId' | 'profile'>,
 ): AgentTool {
   return {
     name: 'update_intake',
@@ -64,7 +64,7 @@ export function buildUpdateIntakeTool(
         }
       }
 
-      await updateJobIntake(deps.prisma, ctx.job.id, nextIntake);
+      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
       ctx.intake = nextIntake;
       return { ok: true, updated_fields: args.fields.length };
     },
@@ -77,6 +77,7 @@ const MarkReadyArgsZ = z.object({
 
 export interface MarkReadyDeps {
   prisma: AgentDeps['prisma'];
+  tenantId: string;
   profile: Profile;
   notifier: Notifier;
   config: Config;
@@ -110,7 +111,7 @@ export function buildMarkReadyTool(
       }
 
       const summary = parse.data.summary;
-      const updated = await markReadyForReview(deps.prisma, ctx.job.id, summary);
+      const updated = await markReadyForReview(deps.prisma, deps.tenantId, ctx.job.id, summary);
 
       if (deps.config.owner.notifyOnReady) {
         await deps.notifier.notifyOwnerReady({
@@ -134,7 +135,7 @@ const CloseJobArgsZ = z.object({});
 
 export function buildCloseJobTool(
   ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma'>,
+  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
 ): AgentTool {
   return {
     name: 'close_job',
@@ -148,7 +149,7 @@ export function buildCloseJobTool(
           error: `close_job requiere OPEN_INTAKE o READY_FOR_REVIEW, actual=${ctx.job.status}`,
         };
       }
-      const updated = await closeJob(deps.prisma, ctx.job.id);
+      const updated = await closeJob(deps.prisma, deps.tenantId, ctx.job.id);
       ctx.job.status = updated.status;
       return { ok: true, status: 'CLOSED' };
     },
@@ -161,7 +162,7 @@ const FlagNonIntakeArgsZ = z.object({
 
 export function buildFlagNonIntakeTool(
   ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma'>,
+  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
 ): AgentTool {
   return {
     name: 'flag_non_intake',
@@ -171,7 +172,7 @@ export function buildFlagNonIntakeTool(
     execute: async (rawArgs) => {
       const parse = FlagNonIntakeArgsZ.safeParse(rawArgs);
       if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
-      await flagNonIntake(deps.prisma, ctx.contact.id, parse.data.reason);
+      await flagNonIntake(deps.prisma, deps.tenantId, ctx.contact.id, parse.data.reason);
       ctx.contact.flaggedNonIntake = true;
       ctx.contact.flaggedReason = parse.data.reason;
       return { ok: true };

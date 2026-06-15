@@ -17,6 +17,7 @@ import { createEmptyIntakeFromSchema } from '../services/intake';
 import { NoopNotifier } from '../services/notification';
 import { runAgentTurn } from '../agent/runner';
 import type { AgentFactory, AgentLike } from '../agent/types';
+import { ensureDevTenant } from './dev-tenant';
 
 const stubFactory: AgentFactory = (cfg) => {
   const tools = cfg.tools as any[];
@@ -48,9 +49,10 @@ async function main() {
   const config = await loadConfig('./config.json');
   const profile = await loadProfile(config.profile);
   const prisma = getPrisma();
+  const tenantId = await ensureDevTenant(prisma);
 
-  const contact = await upsertContactByPhone(prisma, '+5210000000099');
-  const job = await openJob(prisma, contact.id, createEmptyIntakeFromSchema(profile.intakeSchema));
+  const contact = await upsertContactByPhone(prisma, tenantId, '+5210000000099');
+  const job = await openJob(prisma, tenantId, contact.id, createEmptyIntakeFromSchema(profile.intakeSchema));
 
   console.log(`Job demo creado: ${job.id}`);
 
@@ -71,6 +73,7 @@ async function main() {
     },
     {
       prisma,
+      tenantId,
       config,
       profile,
       notifier: new NoopNotifier(),
