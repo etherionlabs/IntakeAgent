@@ -5,6 +5,7 @@ import { CORS_ORIGIN, requireEnv } from './env';
 import { authRoutes } from './routes/auth';
 import { profileRoutes } from './routes/profile';
 import { jobsRoutes } from './routes/jobs';
+import { contactsRoutes } from './routes/contacts';
 
 export interface BuildOptions {
   jwtSecret?: string;
@@ -32,8 +33,9 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(authRoutes);
   await app.register(profileRoutes);
   await app.register(jobsRoutes);
+  await app.register(contactsRoutes);
 
-  // Las rutas se registran en tasks siguientes: contacts, usage, etc.
+  // Las rutas se registran en tasks siguientes: usage, etc.
 
   return app;
 }
