@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import JobDetail from './pages/JobDetail';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/jobs/:id" element={<JobDetail />} />
             <Route path="/contacts" element={<div>Contactos</div>} />
             <Route path="/usage" element={<div>Uso</div>} />
             <Route path="/whatsapp" element={<div>WhatsApp</div>} />

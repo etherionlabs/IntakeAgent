@@ -193,3 +193,144 @@ a {
 .badge-CLOSED {
   background: rgba(127, 140, 141, 0.25);
 }
+
+/* --- Job detail (Task 6) --- */
+.job-detail-head {
+  margin-bottom: 1rem;
+}
+.back-link {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+.job-detail-sub {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+.job-detail-phone {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+.job-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 760px) {
+  .job-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.intake-section {
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem 1rem 1rem;
+  margin-bottom: 1rem;
+}
+.intake-section legend {
+  font-weight: 600;
+  padding: 0 0.4rem;
+}
+.intake-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.85rem;
+}
+.intake-field label {
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+.intake-field input,
+.intake-field textarea,
+.intake-field select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.intake-field-declined {
+  opacity: 0.55;
+}
+.required {
+  color: #e74c3c;
+  margin-left: 0.15rem;
+}
+.field-hint {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  margin-top: 0.15rem;
+}
+.field-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: #3498db;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.78rem;
+}
+.field-status {
+  opacity: 0.8;
+}
+.field-ok {
+  color: #2ecc71;
+}
+.declined-tag {
+  font-style: italic;
+  opacity: 0.7;
+}
+.actions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.actions-panel textarea {
+  min-height: 4.5rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.actions-buttons {
+  display: flex;
+  gap: 0.6rem;
+}
+.message-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.message {
+  max-width: 80%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+}
+.message-inbound {
+  align-self: flex-start;
+  background: rgba(52, 152, 219, 0.18);
+}
+.message-outbound {
+  align-self: flex-end;
+  background: rgba(46, 204, 113, 0.18);
+}
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  margin-top: 0.2rem;
+}
