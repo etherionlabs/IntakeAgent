@@ -113,6 +113,18 @@ describe('job mutations', () => {
     expect(res.statusCode).toBe(400);
   });
 
+  it('POST /jobs/:id/actions { action: mark_ready } con intake incompleto → 400', async () => {
+    // El job recién creado tiene intake vacío (campos requeridos sin satisfacer);
+    // aunque el summary sea largo, el guard de completitud debe rechazarlo.
+    const res = await app.inject({
+      method: 'POST',
+      url: `/jobs/${openJobId}/actions`,
+      headers: await authHeader(app, userId),
+      payload: { action: 'mark_ready', summary: 'Resumen largo pero el intake aún está incompleto del todo.' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('POST /jobs/:id/actions { action: mark_ready } con intake completo → 200 READY_FOR_REVIEW', async () => {
     const headers = await authHeader(app, userId);
     // Satisface los campos requeridos del schema tapicería vía PATCH.

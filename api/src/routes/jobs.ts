@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrisma } from '../db';
 import { parseJobIntake, updateJobIntake, markReadyForReview, closeJob } from '../../../src/services/job';
-import { bulkUpdate } from '../../../src/services/intake';
+import { bulkUpdate, isIntakeComplete } from '../../../src/services/intake';
 import { getTenantProfile } from '../lib/tenant-profile';
 
 const PatchIntakeZ = z.object({
@@ -67,6 +67,12 @@ export async function jobsRoutes(app: FastifyInstance) {
       }
       const summary = parse.data.summary ?? job.summary ?? '';
       if (summary.trim().length < 20) return reply.code(400).send({ error: 'mark_ready requiere summary de al menos 20 caracteres' });
+      // Guard de producción: no permitir marcar listo un intake incompleto
+      // (mismo invariante que aplica la tool del agente en buildMarkReadyTool).
+      const profile = await getTenantProfile(request.tenantId);
+      if (!isIntakeComplete(profile.intakeSchema, parseJobIntake(job))) {
+        return reply.code(400).send({ error: 'el intake tiene campos requeridos sin satisfacer (valor o declined)' });
+      }
       const updated = await markReadyForReview(prisma, request.tenantId, job.id, summary);
       return { ok: true, status: updated.status };
     } catch (e) {
