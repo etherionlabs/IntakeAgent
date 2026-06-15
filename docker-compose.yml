@@ -33,6 +33,23 @@ services:
     restart: unless-stopped
     # sin `ports:` — la API (Plan 2) lo alcanza por nombre de servicio en la red interna
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgres://intake:${POSTGRES_PASSWORD}@postgres:5432/intake
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      WORKER_INTERNAL_URL: http://worker-tapiceria:3002
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      API_PORT: 3001
+    ports: ["3001:3001"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   baileys-tapiceria:
