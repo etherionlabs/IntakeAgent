@@ -1,0 +1,466 @@
+:root {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.topbar .brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.topbar .nav {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.topbar .nav a {
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  opacity: 0.75;
+}
+
+.topbar .nav a.active {
+  opacity: 1;
+  font-weight: 600;
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.topbar .logout {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.content {
+  padding: 1.25rem;
+}
+
+.login-form {
+  max-width: 320px;
+  margin: 10vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.login-form input {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.login-form button {
+  padding: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.login-form .error {
+  color: #c0392b;
+  margin: 0;
+}
+
+.dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-head h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.dashboard-head button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.dashboard .error {
+  color: #c0392b;
+}
+
+.status-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.status-column h2 {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.7;
+  margin: 0 0 0.5rem;
+}
+
+.status-column .status-empty {
+  opacity: 0.4;
+  margin: 0;
+}
+
+.job-card {
+  display: block;
+  text-decoration: none;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.job-card:hover {
+  background: rgba(128, 128, 128, 0.08);
+}
+
+.job-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.job-card-name {
+  font-weight: 600;
+}
+
+.job-card-meta {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  margin-top: 0.25rem;
+}
+
+.job-card-summary {
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.badge-OPEN_INTAKE {
+  background: rgba(52, 152, 219, 0.25);
+}
+.badge-READY_FOR_REVIEW {
+  background: rgba(241, 196, 15, 0.3);
+}
+.badge-IN_PROGRESS {
+  background: rgba(155, 89, 182, 0.25);
+}
+.badge-CLOSED {
+  background: rgba(127, 140, 141, 0.25);
+}
+
+/* --- Job detail (Task 6) --- */
+.job-detail-head {
+  margin-bottom: 1rem;
+}
+.back-link {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+.job-detail-sub {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+.job-detail-phone {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+.job-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 760px) {
+  .job-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.intake-section {
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem 1rem 1rem;
+  margin-bottom: 1rem;
+}
+.intake-section legend {
+  font-weight: 600;
+  padding: 0 0.4rem;
+}
+.intake-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.85rem;
+}
+.intake-field label {
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+.intake-field input,
+.intake-field textarea,
+.intake-field select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.intake-field-declined {
+  opacity: 0.55;
+}
+.required {
+  color: #e74c3c;
+  margin-left: 0.15rem;
+}
+.field-hint {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  margin-top: 0.15rem;
+}
+.field-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: #3498db;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.78rem;
+}
+.field-status {
+  opacity: 0.8;
+}
+.field-ok {
+  color: #2ecc71;
+}
+.declined-tag {
+  font-style: italic;
+  opacity: 0.7;
+}
+.actions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.actions-panel textarea {
+  min-height: 4.5rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.actions-buttons {
+  display: flex;
+  gap: 0.6rem;
+}
+.message-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.message {
+  max-width: 80%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+}
+.message-inbound {
+  align-self: flex-start;
+  background: rgba(52, 152, 219, 0.18);
+}
+.message-outbound {
+  align-self: flex-end;
+  background: rgba(46, 204, 113, 0.18);
+}
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  margin-top: 0.2rem;
+}
+
+.contacts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.contacts-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+.contacts-table th,
+.contacts-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+.chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.chip-active {
+  background: rgba(46, 204, 113, 0.18);
+  color: #1e8449;
+}
+.chip-paused {
+  background: rgba(241, 196, 15, 0.2);
+  color: #9a7d0a;
+}
+.chip-nointake {
+  background: rgba(231, 76, 60, 0.18);
+  color: #c0392b;
+}
+
+/* --- Usage (Task 8) --- */
+.usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.usage-head h1 {
+  margin: 0;
+}
+.usage .error,
+.whatsapp .error {
+  color: #c0392b;
+}
+.usage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.usage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+.usage-card-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.65;
+}
+.usage-card-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.usage-recent-title {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.usage-table th,
+.usage-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+  font-size: 0.88rem;
+}
+.usage-error {
+  color: #c0392b;
+  font-weight: 600;
+}
+.usage-ok {
+  color: #1e8449;
+}
+
+/* --- WhatsApp (Task 8) --- */
+.wa-status {
+  font-size: 1.1rem;
+}
+.wa-connected {
+  color: #1e8449;
+  font-weight: 700;
+}
+.wa-disconnected {
+  color: #c0392b;
+  font-weight: 700;
+}
+.wa-phone {
+  opacity: 0.75;
+}
+.wa-qr {
+  margin-top: 1rem;
+}
+.wa-qr-note {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+.wa-qr pre {
+  display: inline-block;
+  padding: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  line-height: 1;
+  font-size: 0.6rem;
+  overflow-x: auto;
+}

@@ -1,0 +1,38 @@
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { vi, beforeEach, afterEach, test, expect } from 'vitest';
+import WhatsApp from './WhatsApp';
+
+vi.mock('../api/client', () => ({
+  api: {
+    getWaStatus: vi.fn(),
+  },
+}));
+
+import { api } from '../api/client';
+const mockGetWaStatus = api.getWaStatus as unknown as ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  mockGetWaStatus.mockReset();
+  mockGetWaStatus.mockResolvedValue({ connected: true, qr: null, phone: '+5215555555555' });
+});
+
+afterEach(() => {
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
+});
+
+test('shows "Conectado" when getWaStatus returns connected:true', async () => {
+  render(
+    <MemoryRouter>
+      <WhatsApp />
+    </MemoryRouter>,
+  );
+
+  // resolve the initial fetch promise without advancing the 5s interval
+  await vi.waitFor(() => {
+    expect(screen.getByText('Conectado')).toBeInTheDocument();
+  });
+  expect(screen.getByText(/\+5215555555555/)).toBeInTheDocument();
+});

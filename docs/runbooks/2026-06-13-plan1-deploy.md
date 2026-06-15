@@ -37,6 +37,18 @@
 - **nginx (host, fuera de compose):** TLS termination + proxy_pass a `http://localhost:3001`. La SPA en Netlify habla solo con esta API; `CORS_ORIGIN` debe ser la URL del sitio Netlify.
 - **Nota multi-tenant del login (deuda):** hoy el `username` debe ser globalmente único (el login no recibe tenant). Al escalar, incluir `tenantSlug` en el login.
 
+## SPA (Plan 3)
+- **Despliegue en Netlify** (habla solo con la API; nunca con Postgres/worker).
+1. Conectar el repo a Netlify (Git → seleccionar este repositorio).
+2. Configurar el build:
+   - **Base directory:** `spa`
+   - **Build command:** `npm run build`
+   - **Publish directory:** `spa/dist`
+   (Ya quedan fijados en `netlify.toml` en la raíz; el `_redirects` en `spa/public/` cubre el routing SPA `/* → /index.html 200`.)
+3. **Variable de entorno en Netlify:** `VITE_API_URL=https://api.etherionlabs.com` (build-time; no hardcodear la URL de prod en el código).
+4. **CORS:** poner el `CORS_ORIGIN` del contenedor de la API igual a la URL del sitio Netlify (ej. `https://intake.netlify.app`); reiniciar la API tras cambiarlo.
+- **Deuda técnica:** el JWT vive en `localStorage` (MVP). Migrar a cookie HttpOnly antes de escalar.
+
 ## Migraciones
 - `prisma migrate deploy` corre automáticamente en el entrypoint de la API y del worker. Nunca usar `migrate dev` en producción.
 - Alternativa: un servicio `migrate` de un solo uso en compose que corre `prisma migrate deploy` y termina, con api/workers en `depends_on`.
