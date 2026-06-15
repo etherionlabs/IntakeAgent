@@ -48,7 +48,10 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
   });
 
   const port = Number(process.env.INTERNAL_PORT ?? 3002);
-  await app.listen({ port, host: '0.0.0.0' });
+  // Railway enruta la red privada por IPv6 → set HOST=:: en el worker para que la
+  // API lo alcance vía <worker>.railway.internal. Local/Docker: 0.0.0.0.
+  const host = process.env.HOST ?? '0.0.0.0';
+  await app.listen({ port, host });
   const addr = app.server.address();
   const boundPort = typeof addr === 'object' && addr ? addr.port : port;
   logger.info({ port: boundPort }, 'internal.listening');
