@@ -17,6 +17,48 @@ a {
   color: inherit;
 }
 
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.topbar .brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.topbar .nav {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.topbar .nav a {
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  opacity: 0.75;
+}
+
+.topbar .nav a.active {
+  opacity: 1;
+  font-weight: 600;
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.topbar .logout {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.content {
+  padding: 1.25rem;
+}
+
 .login-form {
   max-width: 320px;
   margin: 10vh auto;
