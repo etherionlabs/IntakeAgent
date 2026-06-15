@@ -8,6 +8,7 @@
 
 ## Variables de entorno (host `.env`, copiar de `.env.example`)
 - `POSTGRES_PASSWORD`, `INTERNAL_API_TOKEN`, `OPENROUTER_API_KEY`, `TENANT_<NEGOCIO>_ID`.
+- **API (Plan 2):** `JWT_SECRET` (secreto fuerte; rotarlo invalida todas las sesiones), `CORS_ORIGIN` (URL del sitio Netlify, ej. `https://intake.netlify.app`).
 
 ## Primer despliegue
 1. Clonar el repo en el VPS (ej. `/opt/intake`).
@@ -23,9 +24,22 @@
 6. `docker compose up -d worker-tapiceria`. El entrypoint corre `prisma migrate deploy` antes de arrancar.
 7. Ver el QR de Baileys: `docker compose logs -f worker-tapiceria` (primera vez) o vía el endpoint interno cuando la API esté lista (Plan 2). Escanear desde WhatsApp.
 
+## API Central (Plan 2)
+- **Única superficie pública** del backend, en el puerto `3001` (mapea `3001:3001`). Detrás de nginx con TLS en el host (`api.etherionlabs.com → localhost:3001`). Postgres y workers nunca exponen puerto.
+- Arranque: `docker compose up -d api`. El entrypoint corre `prisma migrate deploy` antes de arrancar (es el lugar natural de las migraciones; el worker también lo corre de forma idempotente — Prisma usa advisory lock).
+- **Crear el primer usuario del panel** (tras sembrar el tenant en el paso 5):
+  ```bash
+  docker compose run --rm api npm run api:create-user -- <tenantSlug> <username> <password> [admin|viewer]
+  # ej: docker compose run --rm api npm run api:create-user -- tapiceria-demo admin 'unaClaveFuerte'
+  ```
+- **Verificar:** `curl -s https://api.etherionlabs.com/health` → `{"ok":true}`; `POST /auth/login {username,password}` → `{ token, user }`.
+- **Endpoints:** `POST /auth/login`, `GET /profile`, `GET /jobs[?status=]`, `GET /jobs/:id`, `PATCH /jobs/:id/intake`, `POST /jobs/:id/actions {mark_ready|close}`, `GET /contacts`, `PATCH /contacts/:id {botPaused}`, `GET /usage`, `GET /wa-status` (proxy al worker). Todos salvo `/health` y `/auth/login` exigen `Authorization: Bearer <JWT>` y filtran por el `tenantId` del token.
+- **nginx (host, fuera de compose):** TLS termination + proxy_pass a `http://localhost:3001`. La SPA en Netlify habla solo con esta API; `CORS_ORIGIN` debe ser la URL del sitio Netlify.
+- **Nota multi-tenant del login (deuda):** hoy el `username` debe ser globalmente único (el login no recibe tenant). Al escalar, incluir `tenantSlug` en el login.
+
 ## Migraciones
-- `prisma migrate deploy` corre automáticamente en el entrypoint del worker. Nunca usar `migrate dev` en producción.
-- Alternativa: un servicio `migrate` de un solo uso en compose que corre `prisma migrate deploy` y termina, con los workers en `depends_on`.
+- `prisma migrate deploy` corre automáticamente en el entrypoint de la API y del worker. Nunca usar `migrate dev` en producción.
+- Alternativa: un servicio `migrate` de un solo uso en compose que corre `prisma migrate deploy` y termina, con api/workers en `depends_on`.
 
 ## Backups
 - Configurar cron en el host: `0 3 * * * /opt/intake/scripts/backup-postgres.sh`.
