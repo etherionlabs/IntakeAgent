@@ -1,0 +1,24 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# Dependencias del sistema para Baileys (libssl) y healthchecks.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+# Genera el cliente Prisma dentro de la imagen.
+RUN npx prisma generate
+
+# Carpetas persistidas por volúmenes en compose.
+RUN mkdir -p /app/data/baileys-session /app/media
+
+COPY docker/worker-entrypoint.sh /usr/local/bin/worker-entrypoint.sh
+RUN chmod +x /usr/local/bin/worker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/worker-entrypoint.sh"]
+CMD ["npm", "start"]
