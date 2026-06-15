@@ -334,3 +334,40 @@ a {
   opacity: 0.6;
   margin-top: 0.2rem;
 }
+
+.contacts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.contacts-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+.contacts-table th,
+.contacts-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+.chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.chip-active {
+  background: rgba(46, 204, 113, 0.18);
+  color: #1e8449;
+}
+.chip-paused {
+  background: rgba(241, 196, 15, 0.2);
+  color: #9a7d0a;
+}
+.chip-nointake {
+  background: rgba(231, 76, 60, 0.18);
+  color: #c0392b;
+}
