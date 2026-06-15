@@ -2,11 +2,12 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
-test('renders the Intake placeholder', () => {
+test('visiting /login renders the login form', () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/login']}>
       <App />
     </MemoryRouter>,
   );
-  expect(screen.getByText('Intake')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /entrar/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument();
 });

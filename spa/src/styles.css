@@ -16,3 +16,35 @@ body {
 a {
   color: inherit;
 }
+
+.login-form {
+  max-width: 320px;
+  margin: 10vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.login-form input {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.login-form button {
+  padding: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.login-form .error {
+  color: #c0392b;
+  margin: 0;
+}
