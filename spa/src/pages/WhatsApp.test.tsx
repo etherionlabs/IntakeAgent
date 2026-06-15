@@ -3,6 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { vi, beforeEach, afterEach, test, expect } from 'vitest';
 import WhatsApp from './WhatsApp';
 
+vi.mock('qrcode', () => ({
+  default: {
+    toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,test-qr'),
+  },
+}));
+
 vi.mock('../api/client', () => ({
   api: {
     getWaStatus: vi.fn(),
@@ -35,4 +41,26 @@ test('shows "Conectado" when getWaStatus returns connected:true', async () => {
     expect(screen.getByText('Conectado')).toBeInTheDocument();
   });
   expect(screen.getByText(/\+5215555555555/)).toBeInTheDocument();
+});
+
+test('renders the WhatsApp QR value as an image when disconnected', async () => {
+  mockGetWaStatus.mockResolvedValue({
+    connected: false,
+    qr: 'whatsapp-qr-payload',
+    phone: '',
+  });
+
+  render(
+    <MemoryRouter>
+      <WhatsApp />
+    </MemoryRouter>,
+  );
+
+  await vi.waitFor(() => {
+    expect(
+      screen.getByRole('img', { name: /codigo qr para conectar whatsapp/i }),
+    ).toHaveAttribute('src', 'data:image/png;base64,test-qr');
+  });
+
+  expect(screen.queryByText('whatsapp-qr-payload')).not.toBeInTheDocument();
 });

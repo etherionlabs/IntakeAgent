@@ -455,12 +455,13 @@ a {
   font-size: 0.85rem;
   opacity: 0.75;
 }
-.wa-qr pre {
+.wa-qr img {
   display: inline-block;
+  width: 280px;
+  max-width: 100%;
+  height: auto;
   padding: 0.75rem;
+  background: #fff;
   border: 1px solid rgba(128, 128, 128, 0.3);
   border-radius: 8px;
-  line-height: 1;
-  font-size: 0.6rem;
-  overflow-x: auto;
 }
