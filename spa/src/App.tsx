@@ -6,6 +6,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import JobDetail from './pages/JobDetail';
 import Contacts from './pages/Contacts';
+import Usage from './pages/Usage';
+import WhatsApp from './pages/WhatsApp';
 
 export default function App() {
   return (
@@ -17,8 +19,8 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/jobs/:id" element={<JobDetail />} />
             <Route path="/contacts" element={<Contacts />} />
-            <Route path="/usage" element={<div>Uso</div>} />
-            <Route path="/whatsapp" element={<div>WhatsApp</div>} />
+            <Route path="/usage" element={<Usage />} />
+            <Route path="/whatsapp" element={<WhatsApp />} />
           </Route>
         </Route>
       </Routes>

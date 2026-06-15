@@ -371,3 +371,96 @@ a {
   background: rgba(231, 76, 60, 0.18);
   color: #c0392b;
 }
+
+/* --- Usage (Task 8) --- */
+.usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.usage-head h1 {
+  margin: 0;
+}
+.usage .error,
+.whatsapp .error {
+  color: #c0392b;
+}
+.usage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.usage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+.usage-card-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.65;
+}
+.usage-card-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.usage-recent-title {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.usage-table th,
+.usage-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+  font-size: 0.88rem;
+}
+.usage-error {
+  color: #c0392b;
+  font-weight: 600;
+}
+.usage-ok {
+  color: #1e8449;
+}
+
+/* --- WhatsApp (Task 8) --- */
+.wa-status {
+  font-size: 1.1rem;
+}
+.wa-connected {
+  color: #1e8449;
+  font-weight: 700;
+}
+.wa-disconnected {
+  color: #c0392b;
+  font-weight: 700;
+}
+.wa-phone {
+  opacity: 0.75;
+}
+.wa-qr {
+  margin-top: 1rem;
+}
+.wa-qr-note {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+.wa-qr pre {
+  display: inline-block;
+  padding: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  line-height: 1;
+  font-size: 0.6rem;
+  overflow-x: auto;
+}
