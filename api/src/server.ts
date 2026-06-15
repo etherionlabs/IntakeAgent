@@ -7,9 +7,11 @@ import { profileRoutes } from './routes/profile';
 import { jobsRoutes } from './routes/jobs';
 import { contactsRoutes } from './routes/contacts';
 import { usageRoutes } from './routes/usage';
+import { waStatusRoutes } from './routes/wa-status';
 
 export interface BuildOptions {
   jwtSecret?: string;
+  fetcher?: typeof fetch;
 }
 
 export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInstance> {
@@ -36,8 +38,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(jobsRoutes);
   await app.register(contactsRoutes);
   await app.register(usageRoutes);
-
-  // Las rutas se registran en tasks siguientes: wa-status, etc.
+  await app.register(waStatusRoutes, { fetcher: opts.fetcher });
 
   return app;
 }
