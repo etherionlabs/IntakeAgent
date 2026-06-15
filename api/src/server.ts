@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import { CORS_ORIGIN, requireEnv } from './env';
+import { authRoutes } from './routes/auth';
 
 export interface BuildOptions {
   jwtSecret?: string;
@@ -26,8 +27,10 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
 
   app.get('/health', async () => ({ ok: true }));
 
+  await app.register(authRoutes);
+
   // Las rutas se registran en tasks siguientes:
-  // await app.register(authRoutes); await app.register(jobsRoutes); etc.
+  // await app.register(jobsRoutes); etc.
 
   return app;
 }
