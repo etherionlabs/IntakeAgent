@@ -6,6 +6,8 @@ import { resolveContact } from './resolveContact';
 import { resolveJobForMessage } from './resolveJob';
 import { InboundDebouncer } from './debouncer';
 import { parseJobIntake } from '../services/job';
+import { buildDescribeContext } from './describe-context';
+import type { DescribeContext } from '../media/describer';
 import { runAgentTurn } from '../agent/runner';
 import { logger } from '../lib/logger';
 import type { BatchMessage } from '../agent/types';
@@ -56,6 +58,28 @@ export class InboundCoordinator {
       raw.whatsappMsgId,
     );
 
+    // Para imágenes, armamos el contexto de negocio + sesión para que el modelo
+    // de visión enfoque la descripción en lo relevante. Se hace antes de
+    // persistir el mensaje, así la "conversación reciente" no se incluye a sí
+    // misma. Solo para fotos: el resto de mensajes no pagan esta consulta.
+    let describeContext: DescribeContext | undefined;
+    if (raw.kind === 'image') {
+      const recent = await this.deps.prisma.message.findMany({
+        where: { jobId: jobRes.job.id, tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+      });
+      describeContext = buildDescribeContext({
+        schema: this.deps.profile.intakeSchema,
+        intake: parseJobIntake(jobRes.job),
+        businessFacts: this.deps.profile.businessFacts,
+        caption: raw.text,
+        recentMessages: recent
+          .reverse()
+          .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', body: m.body })),
+      });
+    }
+
     const messageWithoutJob = await normalizeAndPersistMessage(
       this.deps.prisma,
       tenantId,
@@ -64,6 +88,7 @@ export class InboundCoordinator {
       this.deps.describer,
       raw,
       contactRes.contact.id,
+      describeContext,
     );
     const message = await this.deps.prisma.message.update({
       where: { id: messageWithoutJob.id, tenantId },

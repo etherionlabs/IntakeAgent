@@ -2,7 +2,7 @@ import type { PrismaClient, Message } from '@prisma/client';
 import type { RawInboundMessage } from './types';
 import type { MediaStore } from '../media/store';
 import type { Transcriber } from '../media/transcriber';
-import type { Describer } from '../media/describer';
+import type { Describer, DescribeContext } from '../media/describer';
 
 export async function normalizeAndPersistMessage(
   prisma: PrismaClient,
@@ -12,6 +12,7 @@ export async function normalizeAndPersistMessage(
   describer: Describer,
   raw: RawInboundMessage,
   contactId: string,
+  describeContext?: DescribeContext,
 ): Promise<Message> {
   const message = await prisma.message.create({
     data: {
@@ -43,6 +44,7 @@ export async function normalizeAndPersistMessage(
     }
   } else if (raw.kind === 'image') {
     const description = await describer.describe(raw.media.buffer, raw.media.mimetype, {
+      ...(describeContext ?? {}),
       caption: raw.text,
     });
     if (description && description.length > 0) {

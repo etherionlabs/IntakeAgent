@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FilesystemMediaStore } from '../../src/media/store';
 import { NoopTranscriber, ScriptedTranscriber } from '../../src/media/transcriber';
-import { NoopDescriber } from '../../src/media/describer';
+import { NoopDescriber, type Describer, type DescribeContext } from '../../src/media/describer';
 import { NoopNotifier } from '../../src/services/notification';
 import { MemorySender } from '../../src/services/outbound';
 import { InboundCoordinator } from '../../src/pipeline/coordinator';
@@ -200,6 +200,35 @@ describe('InboundCoordinator', () => {
     const job = await prisma.job.findFirst();
     const intake = parseJobIntake(job!);
     expect(intake.media.audio_count).toBe(1);
+  });
+
+  it('describe imágenes con contexto de negocio y de la sesión', async () => {
+    const seen: DescribeContext[] = [];
+    const spy: Describer = {
+      describe: async (_buf, _mime, ctx) => {
+        seen.push(ctx ?? {});
+        return 'Sillón gris desgastado.';
+      },
+    };
+    const deps = await makeDeps({ describer: spy });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(
+      rawMsg({
+        kind: 'image',
+        text: 'mira el sillón',
+        media: { buffer: Buffer.from('JPG'), mimetype: 'image/jpeg' },
+      }),
+    );
+    // La descripción ocurre dentro de normalize (await) antes del debounce.
+    expect(seen).toHaveLength(1);
+    expect(seen[0].businessName).toBe('Tapicería');
+    expect(seen[0].collects).toContain('Nombre');
+    expect(seen[0].sessionState).toContain('aún falta — Nombre');
+    expect(seen[0].caption).toBe('mira el sillón');
+
+    // Y la descripción queda en el body del mensaje.
+    const msg = await prisma.message.findFirst({ where: { kind: 'image' } });
+    expect(msg?.body).toContain('Sillón gris');
   });
 
   it('múltiples mensajes consecutivos se agrupan en un solo agent run', async () => {

@@ -7,6 +7,28 @@
  * mensaje de texto, queda en el historial y se muestra en el panel — y solo
  * pagamos la llamada de visión una vez por foto.
  */
+/**
+ * Contexto que enfoca la descripción de la foto en lo importante para ESTE
+ * negocio y ESTA conversación. Todos los campos son opcionales: si no llegan,
+ * el describer usa un prompt genérico (retrocompatible).
+ */
+export interface DescribeContext {
+  /** Texto que el cliente mandó junto a la foto. */
+  caption?: string | null;
+  /** Nombre del negocio (ej. "Tapicería Demo"). */
+  businessName?: string;
+  /** Giro/dominio (ej. "tapicería de muebles"). */
+  businessDomain?: string;
+  /** Qué datos recoge el negocio de cada trabajo (enfoque del negocio). */
+  collects?: string;
+  /** Contexto libre del negocio (business-facts.freeContext). */
+  businessContext?: string;
+  /** Estado de la sesión: qué ya sabemos y qué falta del intake. */
+  sessionState?: string;
+  /** Conversación reciente para saber de qué se está hablando. */
+  recentConversation?: string;
+}
+
 export interface Describer {
   /**
    * Devuelve una descripción en español de la imagen, o null si no se pudo
@@ -15,7 +37,7 @@ export interface Describer {
   describe(
     buffer: Buffer,
     mimetype: string,
-    opts?: { caption?: string | null },
+    context?: DescribeContext,
   ): Promise<string | null>;
 }
 
@@ -36,16 +58,53 @@ export class ScriptedDescriber implements Describer {
 }
 
 /**
- * Prompt de sistema para el modelo de visión. Orientado a intake de taller:
- * pedimos una descripción objetiva y útil, sin inventar datos que no se ven.
+ * Construye las instrucciones (system prompt) del modelo de visión inyectando
+ * el contexto del negocio y de la sesión, para que se enfoque en las partes
+ * relevantes de la imagen. Es una función pura para poder testearla.
  */
-const SYSTEM_PROMPT =
-  'Eres un asistente que describe fotos enviadas por clientes de un taller. ' +
-  'Describe en español, en 1-3 frases, lo que se ve de forma objetiva y útil para ' +
-  'levantar un trabajo: tipo de objeto/mueble, material o tela aparente, color, ' +
-  'estado o daños visibles, y cantidad si se aprecia. No inventes datos que no ' +
-  'aparezcan en la imagen ni hagas suposiciones de precio o tiempos. Si la foto no ' +
-  'es relevante (p. ej. una captura de pantalla o un texto), dilo brevemente.';
+export function buildVisionInstructions(ctx?: DescribeContext): string {
+  const parts: string[] = [
+    'Eres un asistente que describe fotos enviadas por clientes de un negocio, ' +
+      'para ayudar a levantar un trabajo (intake).',
+  ];
+
+  if (ctx?.businessName) {
+    parts.push(
+      `Negocio: ${ctx.businessName}${ctx.businessDomain ? ` — ${ctx.businessDomain}` : ''}.`,
+    );
+  } else if (ctx?.businessDomain) {
+    parts.push(`Giro del negocio: ${ctx.businessDomain}.`);
+  }
+
+  if (ctx?.businessContext) {
+    parts.push(`Sobre el negocio: ${ctx.businessContext}`);
+  }
+
+  if (ctx?.collects) {
+    parts.push(
+      'El negocio recoge estos datos de cada trabajo; enfócate en lo que la foto ' +
+        `aporte para ellos:\n${ctx.collects}`,
+    );
+  }
+
+  if (ctx?.sessionState) {
+    parts.push(`Estado actual de este trabajo: ${ctx.sessionState}`);
+  }
+
+  if (ctx?.recentConversation) {
+    parts.push(`Conversación reciente: ${ctx.recentConversation}`);
+  }
+
+  parts.push(
+    'Describe en español, en 1-3 frases, de forma objetiva y útil. Prioriza los ' +
+      'aspectos relevantes para los datos anteriores (tipo de objeto/mueble, material ' +
+      'o tela aparente, color, estado o daños visibles, cantidad). No inventes datos ' +
+      'que no aparezcan en la imagen ni hagas suposiciones de precio o tiempos. Si la ' +
+      'foto no es relevante (p. ej. una captura de pantalla o un texto), dilo brevemente.',
+  );
+
+  return parts.join('\n\n');
+}
 
 /**
  * Describer que usa el endpoint de visión de OpenRouter vía `@openrouter/sdk`
@@ -62,14 +121,15 @@ export class OpenRouterImageDescriber implements Describer {
   async describe(
     buffer: Buffer,
     mimetype: string,
-    opts?: { caption?: string | null },
+    context?: DescribeContext,
   ): Promise<string | null> {
     if (!this.apiKey) return null;
     try {
       const { OpenRouter } = await import('@openrouter/sdk');
       const sdk = new OpenRouter({ apiKey: this.apiKey });
 
-      const caption = opts?.caption?.trim();
+      const instructions = buildVisionInstructions(context);
+      const caption = context?.caption?.trim();
       const userText = caption
         ? `El cliente envió esta foto con el texto: "${caption}". Descríbela.`
         : 'El cliente envió esta foto. Descríbela.';
@@ -89,7 +149,7 @@ export class OpenRouterImageDescriber implements Describer {
 
       const result = sdk.callModel({
         model: this.model,
-        instructions: SYSTEM_PROMPT,
+        instructions,
         input,
       });
       const text = (await result.getText())?.trim();
