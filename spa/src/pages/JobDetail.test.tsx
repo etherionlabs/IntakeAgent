@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { vi, beforeEach, test, expect } from 'vitest';
 import JobDetail from './JobDetail';
@@ -9,6 +9,8 @@ vi.mock('../api/client', () => ({
     getProfile: vi.fn(),
     patchIntake: vi.fn(),
     jobAction: vi.fn(),
+    archiveJob: vi.fn(),
+    deleteJob: vi.fn(),
   },
 }));
 
@@ -17,6 +19,8 @@ const mockGetJob = api.getJob as unknown as ReturnType<typeof vi.fn>;
 const mockGetProfile = api.getProfile as unknown as ReturnType<typeof vi.fn>;
 const mockPatchIntake = api.patchIntake as unknown as ReturnType<typeof vi.fn>;
 const mockJobAction = api.jobAction as unknown as ReturnType<typeof vi.fn>;
+const mockArchiveJob = api.archiveJob as unknown as ReturnType<typeof vi.fn>;
+const mockDeleteJob = api.deleteJob as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   mockGetJob.mockReset();
@@ -61,6 +65,8 @@ beforeEach(() => {
 
   mockPatchIntake.mockResolvedValue({ ok: true, intake: {} });
   mockJobAction.mockResolvedValue({ ok: true, status: 'CLOSED' });
+  mockArchiveJob.mockResolvedValue({ ok: true, job: {} });
+  mockDeleteJob.mockResolvedValue({ ok: true });
 });
 
 function renderDetail() {
@@ -95,4 +101,20 @@ test('clicking Cerrar calls jobAction with close', async () => {
   const closeBtn = await screen.findByRole('button', { name: 'Cerrar' });
   fireEvent.click(closeBtn);
   expect(mockJobAction).toHaveBeenCalledWith('job-1', 'close', undefined);
+});
+
+test('archivar pide confirmación y llama archiveJob', async () => {
+  renderDetail();
+  fireEvent.click(await screen.findByRole('button', { name: 'Archivar' }));
+  // El ConfirmDialog muestra su propio botón "Archivar"; tomamos el del diálogo.
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Archivar' }));
+  expect(mockArchiveJob).toHaveBeenCalledWith('job-1');
+});
+
+test('eliminar pide confirmación fuerte y llama deleteJob', async () => {
+  renderDetail();
+  fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Eliminar definitivamente' }));
+  expect(mockDeleteJob).toHaveBeenCalledWith('job-1');
 });
