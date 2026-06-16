@@ -8,7 +8,14 @@ configuración.
 
 - **Stack:** Node.js 20+, TypeScript (ejecutado con `tsx`, sin paso de build),
   Fastify + Handlebars + HTMX (panel), Prisma 7 + SQLite, Baileys (WhatsApp),
-  OpenRouter (LLM + transcripción de audios).
+  OpenRouter (LLM + transcripción de audios + descripción de imágenes).
+
+Cuando un cliente envía una **foto**, un modelo de visión genera una descripción
+textual (guiada por el contexto del negocio y la conversación) que el agente lee
+para razonar sobre ella. Si surge información nueva, el agente puede re-analizar
+la foto con otro foco. Se configura en `config.json` →
+`media.describeImages` y `media.visionModel`; el foco por vertical vive en
+`profiles/<perfil>/prompt-vars.json` (`vars.imageFocus`).
 
 ---
 

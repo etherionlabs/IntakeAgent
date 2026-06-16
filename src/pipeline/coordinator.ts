@@ -8,7 +8,12 @@ import { InboundDebouncer } from './debouncer';
 import { parseJobIntake } from '../services/job';
 import { runAgentTurn } from '../agent/runner';
 import { logger } from '../lib/logger';
-import type { BatchMessage } from '../agent/types';
+import type { BatchMessage, AvailablePhoto } from '../agent/types';
+import {
+  buildDescribeBaseContext,
+  ensureDescription,
+} from '../services/imageDescription';
+import { NoopDescriber } from '../media/describer';
 
 export class InboundCoordinator {
   private readonly debouncer: InboundDebouncer;
@@ -142,6 +147,7 @@ export class InboundCoordinator {
       kind: m.kind as BatchMessage['kind'],
       body: m.body,
       mediaPath: m.mediaPath,
+      description: m.mediaDescription,
     }));
 
     const intake = parseJobIntake(job);
@@ -165,6 +171,44 @@ export class InboundCoordinator {
         createdAt: m.createdAt.toISOString(),
       }));
 
+    // Describir (lazy) las imágenes del batch que aún no tengan descripción.
+    // El contexto incluye historial reciente + texto del batch actual para que
+    // el describer sepa en qué fijarse. Cacheamos en Message.mediaDescription.
+    const describer = this.deps.describer ?? new NoopDescriber();
+    const describeBase = buildDescribeBaseContext(
+      this.deps.profile,
+      recentHistory,
+      batchMessages,
+    );
+    for (const bm of batchMessages) {
+      if (bm.kind !== 'image' || bm.description) continue;
+      const src = messages.find((m) => m.id === bm.id);
+      if (!src) continue;
+      const desc = await ensureDescription(
+        this.deps.prisma,
+        tenantId,
+        this.deps.mediaStore,
+        describer,
+        src,
+        describeBase,
+      );
+      if (desc) bm.description = desc;
+    }
+
+    // Fotos del job (batch + turnos previos) que el agente puede re-analizar.
+    const jobImages = await this.deps.prisma.message.findMany({
+      where: { jobId, tenantId, kind: 'image' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const availablePhotos: AvailablePhoto[] = jobImages
+      .filter((m) => m.mediaPath)
+      .map((m) => ({
+        messageId: m.id,
+        caption: m.body,
+        description:
+          batchMessages.find((bm) => bm.id === m.id)?.description ?? m.mediaDescription,
+      }));
+
     const result = await runAgentTurn(
       {
         job,
@@ -178,6 +222,7 @@ export class InboundCoordinator {
         })),
         now: this.deps.now().toISOString(),
         recentHistory,
+        availablePhotos,
       },
       {
         prisma: this.deps.prisma,
@@ -186,6 +231,8 @@ export class InboundCoordinator {
         profile: this.deps.profile,
         notifier: this.deps.notifier,
         createAgent: this.deps.agentFactory,
+        mediaStore: this.deps.mediaStore,
+        describer,
       },
     );
 

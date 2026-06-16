@@ -280,6 +280,82 @@ describe('tool select_or_open_job', () => {
   });
 });
 
+import { buildReanalyzeImageTool } from '../../src/agent/tools';
+import { FilesystemMediaStore } from '../../src/media/store';
+import { ScriptedDescriber } from '../../src/media/describer';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+describe('tool reanalyze_image', () => {
+  const profile = {
+    intakeSchema: { $businessName: 'Tapicería', $businessDomain: 'tapicería' },
+    imageFocus: 'tipo de mueble, daños',
+  } as any;
+
+  it('re-analiza una foto del job y persiste la nueva descripción', async () => {
+    const ctx = await setupCtx();
+    const mediaRoot = await mkdtemp(join(tmpdir(), 'intake-tool-'));
+    try {
+      const mediaStore = new FilesystemMediaStore(mediaRoot);
+      const relPath = await mediaStore.save({
+        buffer: Buffer.from('fake-jpeg'),
+        mimetype: 'image/jpeg',
+        contactId: ctx.contact.id,
+        jobId: ctx.job.id,
+        messageId: 'img-1',
+      });
+      const msg = await prisma.message.create({
+        data: {
+          id: 'img-1',
+          tenantId: TEST_TENANT_ID,
+          jobId: ctx.job.id,
+          contactId: ctx.contact.id,
+          direction: 'inbound',
+          kind: 'image',
+          body: 'foto del sillón',
+          mediaPath: relPath,
+        },
+      });
+      ctx.availablePhotos = [{ messageId: msg.id, caption: msg.body, description: null }];
+
+      const tool = buildReanalyzeImageTool(ctx, {
+        prisma,
+        tenantId: TEST_TENANT_ID,
+        profile,
+        mediaStore,
+        describer: new ScriptedDescriber(['El brazo derecho tiene una rotura de 10cm en la costura.']),
+      });
+
+      const out = await tool.execute({ photo_ref: 'img-1', focus: 'el daño exacto en el brazo' });
+      expect(out.ok).toBe(true);
+      if (!out.ok) return;
+      expect(String(out.description)).toContain('rotura de 10cm');
+
+      const reload = await prisma.message.findUnique({ where: { id: 'img-1' } });
+      expect(reload!.mediaDescription).toContain('rotura de 10cm');
+      // El contexto del turno también refleja la nueva descripción.
+      expect(ctx.availablePhotos[0].description).toContain('rotura de 10cm');
+    } finally {
+      await rm(mediaRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rechaza un photo_ref que no está en availablePhotos', async () => {
+    const ctx = await setupCtx();
+    ctx.availablePhotos = [];
+    const tool = buildReanalyzeImageTool(ctx, {
+      prisma,
+      tenantId: TEST_TENANT_ID,
+      profile,
+      mediaStore: new FilesystemMediaStore('/tmp/none'),
+      describer: new ScriptedDescriber(['x']),
+    });
+    const out = await tool.execute({ photo_ref: 'nope', focus: 'lo que sea' });
+    expect(out.ok).toBe(false);
+  });
+});
+
 import { buildTools } from '../../src/agent/tools';
 
 describe('buildTools', () => {

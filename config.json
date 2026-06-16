@@ -26,7 +26,9 @@
   "media": {
     "storeDir": "./media",
     "transcribeAudio": true,
-    "whisperModel": "openai/gpt-4o-mini-transcribe"
+    "whisperModel": "openai/gpt-4o-mini-transcribe",
+    "describeImages": true,
+    "visionModel": "openai/gpt-4o-mini"
   },
   "limits": {
     "monthlyCostUsd": 50,

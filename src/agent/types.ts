@@ -10,6 +10,15 @@ export interface BatchMessage {
   body: string | null;
   /** Path relativo en media-store si aplica. */
   mediaPath?: string | null;
+  /** Descripción textual generada por el modelo de visión (solo imágenes). */
+  description?: string | null;
+}
+
+/** Foto disponible en el job, referenciable por la tool `reanalyze_image`. */
+export interface AvailablePhoto {
+  messageId: string;
+  caption: string | null;
+  description: string | null;
 }
 
 /** Snapshot mínimo de un job abierto para `select_or_open_job`. */
@@ -35,6 +44,11 @@ export interface TurnContext {
    * Opcional para retro-compatibilidad con tests existentes.
    */
   recentHistory?: HistoryEntry[];
+  /**
+   * Fotos del job (del batch actual y de turnos previos) que el agente puede
+   * re-analizar con `reanalyze_image`. Si está vacío, la tool no se expone.
+   */
+  availablePhotos?: AvailablePhoto[];
 }
 
 export interface HistoryEntry {
@@ -53,6 +67,10 @@ export interface AgentDeps {
   notifier: import('../services/notification').Notifier;
   /** Factory del SDK — el runner llama `deps.createAgent({...})`. Permite stub en tests. */
   createAgent: AgentFactory;
+  /** Media-store para leer imágenes (necesario para `reanalyze_image`). Opcional. */
+  mediaStore?: import('../media/store').MediaStore;
+  /** Describer de imágenes (necesario para `reanalyze_image`). Opcional. */
+  describer?: import('../media/describer').Describer;
 }
 
 /** Tipos mínimos del SDK que el runner consume. */

@@ -84,6 +84,7 @@ model Message {
   kind            String   // 'text' | 'image' | 'audio' | 'sticker' | 'location' | 'other'
   body            String?
   mediaPath       String?
+  mediaDescription String? // descripción textual de la imagen (modelo de visión)
   whatsappMsgId   String?
   raw             String?  // JSON serializado
   createdAt       DateTime @default(now())

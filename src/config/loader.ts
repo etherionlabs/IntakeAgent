@@ -70,6 +70,8 @@ export async function loadProfile(profileDir: string): Promise<Profile> {
     promptVars: promptVars.data,
     businessFacts: businessFacts.data,
     welcome: welcomeRaw,
+    // Foco para describir imágenes: convención en prompt-vars.json (vars.imageFocus).
+    imageFocus: promptVars.data.vars.imageFocus ?? '',
     hash,
   };
 }

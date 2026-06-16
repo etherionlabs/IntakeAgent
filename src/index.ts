@@ -21,6 +21,11 @@ import {
   WhisperTranscriber,
   type Transcriber,
 } from './media/transcriber';
+import {
+  NoopDescriber,
+  VisionDescriber,
+  type Describer,
+} from './media/describer';
 import { InboundCoordinator } from './pipeline/coordinator';
 import { WhatsAppSender } from './adapters/whatsapp/sender';
 import { WhatsAppNotifier } from './adapters/whatsapp/notifier';
@@ -60,6 +65,20 @@ async function main() {
     );
   }
 
+  // Describer de imágenes vía modelo de visión de OpenRouter. Genera una
+  // descripción textual de cada foto (guiada por el contexto del negocio) que el
+  // agente lee en vez de los bytes. Configurable en config.media.{describeImages,visionModel}.
+  const describer: Describer =
+    config.media.describeImages && apiKey
+      ? new VisionDescriber(apiKey, config.media.visionModel)
+      : new NoopDescriber();
+  if (config.media.describeImages && !apiKey) {
+    logger.warn(
+      'describeImages=true pero OPENROUTER_API_KEY no está configurada. ' +
+        'Las imágenes no se describirán.',
+    );
+  }
+
   // Lazy getter para evitar referencia circular: el sender se crea antes
   // que el adapter, pero el adapter es quien provee el socket.
   let adapter: BaileysAdapter | null = null;
@@ -74,6 +93,7 @@ async function main() {
     notifier,
     sender,
     transcriber,
+    describer,
     mediaStore,
     agentFactory: defaultAgentFactory,
     now: () => new Date(),

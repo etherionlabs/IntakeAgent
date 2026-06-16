@@ -18,7 +18,16 @@ export interface BuildOptions {
 export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
-  await app.register(cors, { origin: CORS_ORIGIN, credentials: true });
+  // `methods` explícito: el default de @fastify/cors no incluye PUT/PATCH/DELETE,
+  // lo que hace fallar el preflight de los guardados (PUT /settings, PATCH /jobs…)
+  // con "Failed to fetch" en el navegador. `credentials` solo cuando hay un origin
+  // concreto: combinar `*` con credentials es inválido en CORS.
+  const allowCredentials = CORS_ORIGIN !== '*';
+  await app.register(cors, {
+    origin: CORS_ORIGIN,
+    credentials: allowCredentials,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
   await app.register(jwt, { secret: opts.jwtSecret ?? requireEnv('JWT_SECRET') });
 
   // Decorator: protege rutas y expone request.tenantId / request.authUser.
