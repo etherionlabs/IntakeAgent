@@ -137,3 +137,26 @@ export async function updateJobIntake(
 export function parseJobIntake(job: Job): IntakeState {
   return JSON.parse(job.intake) as IntakeState;
 }
+
+export async function archiveJob(prisma: PrismaClient, tenantId: string, jobId: string): Promise<Job> {
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
+  return prisma.job.update({ where: { id: jobId, tenantId }, data: { archivedAt: new Date() } });
+}
+
+export async function restoreJob(prisma: PrismaClient, tenantId: string, jobId: string): Promise<Job> {
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
+  return prisma.job.update({ where: { id: jobId, tenantId }, data: { archivedAt: null } });
+}
+
+export async function hardDeleteJob(prisma: PrismaClient, tenantId: string, jobId: string): Promise<void> {
+  const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
+  if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
+  await prisma.$transaction([
+    prisma.notification.deleteMany({ where: { tenantId, jobId } }),
+    prisma.agentRun.deleteMany({ where: { tenantId, jobId } }),
+    prisma.message.deleteMany({ where: { tenantId, jobId } }),
+    prisma.job.deleteMany({ where: { tenantId, id: jobId } }),
+  ]);
+}
