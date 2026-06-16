@@ -19,6 +19,7 @@ export default function Layout() {
           <NavLink to="/contacts">Contactos</NavLink>
           <NavLink to="/usage">Uso</NavLink>
           <NavLink to="/whatsapp">WhatsApp</NavLink>
+          <NavLink to="/settings">Configuración</NavLink>
         </nav>
         <button type="button" className="logout" onClick={handleLogout}>
           Salir

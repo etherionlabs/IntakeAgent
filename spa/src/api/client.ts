@@ -31,4 +31,46 @@ export const api = {
   toggleContact: (id: string, botPaused: boolean) => request<{ ok: boolean; contact: any }>('PATCH', `/contacts/${id}`, { botPaused }),
   getUsage: () => request<{ totals: any; recent: any[] }>('GET', '/usage'),
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string }>('GET', '/wa-status'),
+  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings }>('GET', '/settings'),
+  updateProfileSettings: (payload: ProfileSettings) =>
+    request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
+  updateConfigSettings: (payload: ConfigSettings) =>
+    request<{ ok: boolean; config: ConfigSettings }>('PUT', '/settings/config', payload),
 };
+
+export interface BusinessFact {
+  topic: string;
+  aliases: string[];
+  answer: string;
+}
+
+export interface ProfileSettings {
+  businessName: string;
+  businessDomain: string;
+  welcome: string;
+  vars: Record<string, string>;
+  businessFacts: { facts: BusinessFact[]; freeContext: string };
+}
+
+export interface ConfigSettings {
+  model: string;
+  temperature: number;
+  maxSteps: number;
+  hours: {
+    enabled: boolean;
+    timezone: string;
+    schedule: Record<string, [string, string] | null>;
+    outOfHoursNotice: string;
+  };
+  owner: {
+    phoneE164: string;
+    notifyOnReady: boolean;
+    notifyOnDisconnect: boolean;
+    panelUrl: string;
+  };
+  limits: {
+    monthlyCostUsd: number;
+    alertOnCostUsd: number;
+    maxConsecutiveErrors: number;
+  };
+}

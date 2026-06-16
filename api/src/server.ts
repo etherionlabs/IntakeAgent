@@ -8,6 +8,7 @@ import { jobsRoutes } from './routes/jobs';
 import { contactsRoutes } from './routes/contacts';
 import { usageRoutes } from './routes/usage';
 import { waStatusRoutes } from './routes/wa-status';
+import { settingsRoutes } from './routes/settings';
 
 export interface BuildOptions {
   jwtSecret?: string;
@@ -39,6 +40,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(contactsRoutes);
   await app.register(usageRoutes);
   await app.register(waStatusRoutes, { fetcher: opts.fetcher });
+  await app.register(settingsRoutes);
 
   return app;
 }
