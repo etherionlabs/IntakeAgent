@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FilesystemMediaStore } from '../../src/media/store';
 import { NoopTranscriber, ScriptedTranscriber } from '../../src/media/transcriber';
+import { ScriptedDescriber } from '../../src/media/describer';
 import { NoopNotifier } from '../../src/services/notification';
 import { MemorySender } from '../../src/services/outbound';
 import { InboundCoordinator } from '../../src/pipeline/coordinator';
@@ -33,6 +34,7 @@ const profile: Profile = {
   promptVars: { promptTemplate: 'X', vars: {} },
   businessFacts: { facts: [], freeContext: '' },
   welcome: '¡Hola! Soy el asistente.',
+  imageFocus: '',
   hash: 'h',
 };
 
@@ -47,7 +49,7 @@ const config: Config = {
   hours: { enabled: false, timezone: 'UTC', schedule: {}, outOfHoursNotice: '' },
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
-  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1' },
+  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;
 
@@ -198,6 +200,44 @@ describe('InboundCoordinator', () => {
     const job = await prisma.job.findFirst();
     const intake = parseJobIntake(job!);
     expect(intake.media.audio_count).toBe(1);
+  });
+
+  it('describe una imagen entrante, la persiste y se la pasa al agente', async () => {
+    let seenUserMessage = '';
+    const captureFactory: AgentFactory = () => ({
+      on: () => {},
+      sendSync: async (userMessage: string) => {
+        seenUserMessage = userMessage;
+        return { text: 'gracias por la foto', usage: { inputTokens: 1, outputTokens: 1, costUsd: 0 } };
+      },
+    });
+    const deps = await makeDeps({
+      agentFactory: captureFactory,
+      describer: new ScriptedDescriber(['Sillón de 3 plazas, tela azul desgastada y una rotura en el brazo.']),
+    });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(
+      rawMsg({
+        whatsappMsgId: 'wa_img',
+        kind: 'image',
+        text: 'mi sillón',
+        media: { buffer: Buffer.from('fake-jpeg'), mimetype: 'image/jpeg' },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // El agente vio la descripción (no solo el path).
+    expect(seenUserMessage).toContain('Descripción de la imagen: Sillón de 3 plazas');
+    expect(seenUserMessage).toContain('Caption del cliente: mi sillón');
+
+    // Se persistió en la DB y se contó la foto.
+    const msg = await prisma.message.findFirst({ where: { whatsappMsgId: 'wa_img' } });
+    expect(msg!.mediaDescription).toContain('Sillón de 3 plazas');
+    const job = await prisma.job.findFirst();
+    const intake = parseJobIntake(job!);
+    expect(intake.media.photo_count).toBe(1);
   });
 
   it('múltiples mensajes consecutivos se agrupan en un solo agent run', async () => {

@@ -23,13 +23,31 @@ describe('renderUserMessage', () => {
     expect(out).toMatch(/\[mensaje 1[^\]]*\][\s\S]*Hola[\s\S]*\[mensaje 2[^\]]*\][\s\S]*Tengo un sillón/);
   });
 
-  it('anota imágenes con su media path', () => {
+  it('anota imágenes con su descripción y ref cuando existe', () => {
     const batch: BatchMessage[] = [
-      { id: 'm1', kind: 'image', body: null, mediaPath: 'photos/abc.jpg' },
+      {
+        id: 'm1',
+        kind: 'image',
+        body: 'mi sillón',
+        mediaPath: 'photos/abc.jpg',
+        description: 'Sillón de 3 plazas con tela desgastada y una rotura en el brazo izquierdo.',
+      },
     ];
     const out = renderUserMessage(batch);
     expect(out).toContain('foto recibida');
-    expect(out).toContain('photos/abc.jpg');
+    expect(out).toContain('Caption del cliente: mi sillón');
+    expect(out).toContain('Descripción de la imagen: Sillón de 3 plazas');
+    expect(out).toContain('(ref: m1)');
+  });
+
+  it('marca la imagen sin describir indicando reanalyze_image', () => {
+    const batch: BatchMessage[] = [
+      { id: 'm9', kind: 'image', body: null, mediaPath: 'photos/x.jpg' },
+    ];
+    const out = renderUserMessage(batch);
+    expect(out).toContain('foto recibida');
+    expect(out).toContain('reanalyze_image');
+    expect(out).toContain('(ref: m9)');
   });
 
   it('anota audios transcritos mostrando la transcripción', () => {
@@ -181,6 +199,7 @@ const profile: Profile = {
   },
   businessFacts: sampleFacts,
   welcome: 'hola',
+  imageFocus: '',
   hash: 'abc',
 };
 

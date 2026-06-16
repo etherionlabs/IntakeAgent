@@ -15,11 +15,22 @@ export function renderUserMessage(batch: BatchMessage[]): string {
       case 'text':
         parts.push(`[mensaje ${n} — texto]\n${m.body ?? ''}`);
         break;
-      case 'image':
-        parts.push(
-          `[mensaje ${n} — foto recibida]\n(imagen guardada en ${m.mediaPath ?? 'desconocido'})`,
-        );
+      case 'image': {
+        const imgLines = [`[mensaje ${n} — foto recibida]`];
+        if (m.body && m.body.trim().length > 0) {
+          imgLines.push(`Caption del cliente: ${m.body}`);
+        }
+        if (m.description && m.description.trim().length > 0) {
+          imgLines.push(`Descripción de la imagen: ${m.description}`);
+        } else {
+          imgLines.push(
+            'Descripción de la imagen: (no disponible — usa reanalyze_image si necesitas analizarla)',
+          );
+        }
+        imgLines.push(`(ref: ${m.id})`);
+        parts.push(imgLines.join('\n'));
         break;
+      }
       case 'audio':
         parts.push(
           `[mensaje ${n} — audio transcrito]\n${m.body ?? '(sin transcripción)'}\n(archivo: ${m.mediaPath ?? 'desconocido'})`,

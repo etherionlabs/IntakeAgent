@@ -3,6 +3,7 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import type { OutboundSender } from '../services/outbound';
 import type { Transcriber } from '../media/transcriber';
+import type { Describer } from '../media/describer';
 import type { MediaStore } from '../media/store';
 import type { AgentFactory } from '../agent/types';
 
@@ -26,6 +27,8 @@ export interface PipelineDeps {
   notifier: Notifier;
   sender: OutboundSender;
   transcriber: Transcriber;
+  /** Describer de imágenes. Opcional: si falta, las fotos no se describen. */
+  describer?: Describer;
   mediaStore: MediaStore;
   agentFactory: AgentFactory;
   now: () => Date;

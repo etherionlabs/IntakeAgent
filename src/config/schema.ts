@@ -63,8 +63,16 @@ export const ConfigZ = z.object({
       storeDir: z.string().default('./media'),
       transcribeAudio: z.boolean().default(true),
       whisperModel: z.string().default('openai/whisper-1'),
+      describeImages: z.boolean().default(true),
+      visionModel: z.string().default('openai/gpt-4o-mini'),
     })
-    .default({ storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1' }),
+    .default({
+      storeDir: './media',
+      transcribeAudio: true,
+      whisperModel: 'openai/whisper-1',
+      describeImages: true,
+      visionModel: 'openai/gpt-4o-mini',
+    }),
   limits: z
     .object({
       monthlyCostUsd: z.number().positive().default(50),
@@ -80,5 +88,7 @@ export interface Profile {
   promptVars: PromptVars;
   businessFacts: BusinessFacts;
   welcome: string;
+  /** Instrucciones de foco para describir imágenes (vertical-specific). Opcional. */
+  imageFocus: string;
   hash: string;
 }

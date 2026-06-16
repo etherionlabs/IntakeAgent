@@ -5,6 +5,7 @@ import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob } from '../se
 import { flagNonIntake } from '../services/contact';
 import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
+import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
 
 /** Forma común a todas las tools del agent. Compatible con @openrouter/sdk `tool()`. */
 export interface AgentTool {
@@ -233,6 +234,69 @@ export function buildSelectOrOpenJobTool(ctx: TurnContext): AgentTool {
   };
 }
 
+const ReanalyzeImageArgsZ = z.object({
+  photo_ref: z.string().min(1, 'photo_ref es el ref de la foto (ej. el de "(ref: ...)")'),
+  focus: z.string().min(3, 'describe en qué enfocar el nuevo análisis'),
+});
+
+export interface ReanalyzeImageDeps {
+  prisma: AgentDeps['prisma'];
+  tenantId: string;
+  profile: Profile;
+  mediaStore: NonNullable<AgentDeps['mediaStore']>;
+  describer: NonNullable<AgentDeps['describer']>;
+}
+
+export function buildReanalyzeImageTool(ctx: TurnContext, deps: ReanalyzeImageDeps): AgentTool {
+  return {
+    name: 'reanalyze_image',
+    description:
+      'Vuelve a analizar una foto que el cliente ya envió, enfocándote en algo específico (ej. "el color exacto", "las medidas", "el tipo de daño en el respaldo"). Útil cuando surge información nueva o necesitas un detalle que la descripción inicial no cubrió. Usa el ref que aparece en cada foto como photo_ref.',
+    inputSchema: ReanalyzeImageArgsZ,
+    execute: async (rawArgs) => {
+      const parse = ReanalyzeImageArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+      const { photo_ref, focus } = parse.data;
+
+      const photos = ctx.availablePhotos ?? [];
+      const photo = photos.find((p) => p.messageId === photo_ref);
+      if (!photo) {
+        const refs = photos.map((p) => p.messageId).join(', ') || '(ninguna)';
+        return { ok: false, error: `no hay foto con ref "${photo_ref}". Refs disponibles: ${refs}` };
+      }
+
+      const message = await deps.prisma.message.findFirst({
+        where: { id: photo_ref, tenantId: deps.tenantId, kind: 'image' },
+      });
+      if (!message || !message.mediaPath) {
+        return { ok: false, error: `la foto ${photo_ref} no tiene archivo disponible para analizar` };
+      }
+
+      const base = buildDescribeBaseContext(deps.profile, ctx.recentHistory, ctx.batchMessages);
+      const description = await reanalyzeDescription(
+        deps.prisma,
+        deps.tenantId,
+        deps.mediaStore,
+        deps.describer,
+        message,
+        base,
+        focus,
+      );
+      if (!description) {
+        return { ok: false, error: 'no se pudo generar una nueva descripción de la imagen' };
+      }
+
+      // Refleja la nueva descripción en el contexto del turno por si el agente
+      // re-analiza otra vez o la usa más adelante en el mismo turno.
+      photo.description = description;
+      const batchMsg = ctx.batchMessages.find((m) => m.id === photo_ref);
+      if (batchMsg) batchMsg.description = description;
+
+      return { ok: true, description };
+    },
+  };
+}
+
 export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
   const tools: AgentTool[] = [
     buildUpdateIntakeTool(ctx, deps),
@@ -243,6 +307,17 @@ export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
   ];
   if (ctx.otherOpenJobs.length >= 2) {
     tools.push(buildSelectOrOpenJobTool(ctx));
+  }
+  if ((ctx.availablePhotos?.length ?? 0) > 0 && deps.mediaStore && deps.describer) {
+    tools.push(
+      buildReanalyzeImageTool(ctx, {
+        prisma: deps.prisma,
+        tenantId: deps.tenantId,
+        profile: deps.profile,
+        mediaStore: deps.mediaStore,
+        describer: deps.describer,
+      }),
+    );
   }
   return tools;
 }
