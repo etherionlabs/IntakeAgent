@@ -21,6 +21,7 @@
     "cli:inbound-demo": "tsx src/cli/inbound-demo.ts",
     "cli:chat": "tsx src/cli/chat.ts",
     "cli:smoke": "tsx src/cli/smoke-test.ts",
+    "cli:e2e": "tsx src/cli/e2e-scenarios.ts",
     "db:inspect": "tsx src/cli/db-inspect.ts",
     "api:dev": "tsx api/src/index.ts",
     "api:create-user": "tsx api/src/cli/create-user.ts"

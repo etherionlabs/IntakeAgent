@@ -110,6 +110,15 @@ export class InboundCoordinator {
           body: welcome,
         },
       });
+
+      // El welcome YA hace la pregunta de apertura ("¿tu nombre y qué mueble?").
+      // Si el primer mensaje es solo un saludo (sin datos), correr el agente
+      // produciría un segundo mensaje redundante (doble saludo). Saltamos el
+      // turno. Un primer mensaje CON contenido sí se procesa normalmente.
+      if (raw.kind === 'text' && isBareGreeting(raw.text)) {
+        logger.info({ contactId: contactRes.contact.id }, 'inbound.welcome_only');
+        return;
+      }
     }
 
     this.debouncer.enqueue(contactRes.contact.id, message.id);
@@ -254,4 +263,30 @@ export class InboundCoordinator {
 
 function applyTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+}
+
+const GREETING_TOKENS = new Set([
+  'hola', 'ola', 'holaa', 'holi', 'ey', 'hello', 'hi', 'hey',
+  'buenas', 'buenos', 'buen', 'dia', 'dias', 'tarde', 'tardes', 'noche', 'noches',
+  'que', 'tal', 'saludos', 'hello', 'oa',
+]);
+
+/**
+ * ¿El texto es SOLO un saludo, sin datos del intake? Conservador a propósito:
+ * ante la duda devuelve false (deja correr el agente) para nunca perder
+ * contenido. Quita acentos/puntuación/emojis y exige que TODOS los tokens sean
+ * saludos. Mensajes largos (>40 chars) se consideran con contenido.
+ */
+export function isBareGreeting(text: string | null): boolean {
+  if (!text) return true;
+  if (text.length > 40) return false;
+  const cleaned = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // quitar acentos (marcas combinantes)
+    .replace(/[^a-z\s]/g, ' ') // quitar puntuación, emojis, números
+    .trim();
+  if (cleaned.length === 0) return true; // "?", emojis sueltos
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  return tokens.every((t) => GREETING_TOKENS.has(t));
 }

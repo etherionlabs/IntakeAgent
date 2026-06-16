@@ -199,17 +199,27 @@ export function renderIntakeForModel(
     for (const field of section.fields) {
       const f = sec?.[field.key];
       const reqMark = field.required ? ' (REQUERIDO)' : '';
+      // El path canónico [section.field] y las opciones de enum se incluyen
+      // SIEMPRE: sin esto el modelo inventa paths a partir del label en español
+      // (ej. "Dirección" → logistics.dirección) y update_intake falla, perdiendo
+      // datos que el cliente ya dio. El label es para humanos; el path, para tools.
+      const path = `[${section.key}.${field.key}]`;
+      const opts =
+        (field.type === 'enum' || field.type === 'multi_enum') && field.options
+          ? ` (opciones: ${field.options.join(' | ')})`
+          : '';
+      const meta = `${path}${opts}`;
       if (!f || (f.value === null && !f.declined)) {
         const icon = field.required ? '✗' : '○';
         const askedNote = f?.asked ? ' [ya preguntado]' : '';
-        lines.push(`  ${icon} ${field.label}${reqMark}${askedNote}`);
+        lines.push(`  ${icon} ${field.label} ${meta}${reqMark}${askedNote}`);
       } else if (f.declined) {
         lines.push(
-          `  ⊘ ${field.label}${reqMark} — declinado: "${f.declined_reason ?? ''}"`,
+          `  ⊘ ${field.label} ${meta}${reqMark} — declinado: "${f.declined_reason ?? ''}"`,
         );
       } else {
         const v = typeof f.value === 'string' ? `"${f.value}"` : String(f.value);
-        lines.push(`  ✓ ${field.label}: ${v}`);
+        lines.push(`  ✓ ${field.label} ${meta}: ${v}`);
       }
     }
   }

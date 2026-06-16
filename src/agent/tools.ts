@@ -52,6 +52,13 @@ export function buildUpdateIntakeTool(
       }
       const args = parse.data;
 
+      // Defensa en profundidad: el modelo a veces copia el path CON los corchetes
+      // que usamos como delimitador visual en el estado del intake ('[client.name]').
+      // Normalizamos quitando corchetes/espacios para que la escritura no se pierda.
+      for (const field of args.fields) {
+        field.path = field.path.trim().replace(/^\[+|\]+$/g, '').trim();
+      }
+
       const sourceMessageId = ctx.batchMessages[ctx.batchMessages.length - 1]?.id ?? null;
       const meta = { now: ctx.now, source_message_id: sourceMessageId };
 

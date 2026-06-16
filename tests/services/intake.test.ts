@@ -200,7 +200,23 @@ describe('renderIntakeForModel', () => {
     });
     if (!r.ok) throw new Error('fail');
     const out = renderIntakeForModel(schema, r.intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
-    expect(out).toMatch(/✓\s+Nombre: "María"/);
+    expect(out).toMatch(/✓\s+Nombre \[client\.name\]: "María"/);
+  });
+
+  it('incluye el path canónico de cada campo para que el modelo no lo invente', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const out = renderIntakeForModel(schema, intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    // El modelo debe ver section.field exacto, no solo el label en español.
+    expect(out).toContain('[client.name]');
+    expect(out).toContain('[client.phone]');
+    expect(out).toContain('[work.qty]');
+    expect(out).toContain('[work.service]');
+  });
+
+  it('muestra las opciones permitidas de un campo enum', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const out = renderIntakeForModel(schema, intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toMatch(/opciones:.*retapizar.*reparar/);
   });
 
   it('marca campos declinados con ⊘ y razón', () => {

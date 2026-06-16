@@ -13,6 +13,11 @@ data/
 data/baileys-session/
 *.qr.png
 
+# Llaves SSH (NUNCA commitear la privada)
+ssh-railway-key
+ssh-railway-key.pub
+*.pem
+
 # Local dev artifacts / design scratch (not part of the package)
 .claude/
 mockups.html

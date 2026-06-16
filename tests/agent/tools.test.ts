@@ -69,6 +69,17 @@ describe('tool update_intake', () => {
     expect(intake.client.name.source_message_id).toBe('m1');
   });
 
+  it('tolera paths con corchetes (los normaliza) — defensa anti bracket-copy', async () => {
+    const ctx = await setupCtx();
+    const profile = { intakeSchema: schema } as any;
+    const tool = buildUpdateIntakeTool(ctx, { prisma, tenantId: TEST_TENANT_ID, profile, notifier: new NoopNotifier() } as any);
+    const out = await tool.execute({ fields: [{ path: '[client.name]', value: 'Gabriela' }] });
+    expect(out.ok).toBe(true);
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    const intake = JSON.parse(reload!.intake);
+    expect(intake.client.name.value).toBe('Gabriela');
+  });
+
   it('agrega notas libres', async () => {
     const ctx = await setupCtx();
     const profile = { intakeSchema: schema } as any;

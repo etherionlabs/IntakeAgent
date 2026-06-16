@@ -142,6 +142,38 @@ describe('InboundCoordinator', () => {
     expect(sender.sent.at(-1)!.text).toContain('en qué te ayudo');
   });
 
+  it('primer mensaje solo-saludo → envía welcome pero NO corre el agente', async () => {
+    let calls = 0;
+    const factory: AgentFactory = () => ({
+      on: () => {},
+      sendSync: async () => {
+        calls++;
+        return { text: 'no debería correr', usage: { inputTokens: 1, outputTokens: 1, costUsd: 0 } };
+      },
+    });
+    const deps = await makeDeps({ agentFactory: factory });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(rawMsg({ text: 'Hola' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+    const sender = deps.sender as MemorySender;
+    expect(sender.sent).toHaveLength(1); // solo el welcome, sin segundo mensaje del agente
+    expect(sender.sent[0].text).toContain('Hola');
+    expect(calls).toBe(0); // el agente no corrió
+  });
+
+  it('primer mensaje CON contenido sí corre el agente (welcome + respuesta)', async () => {
+    const deps = await makeDeps();
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(rawMsg({ text: 'Hola, quiero retapizar un sillón' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+    const sender = deps.sender as MemorySender;
+    expect(sender.sent.length).toBeGreaterThanOrEqual(2); // welcome + agente
+  });
+
   it('descarta mensajes de grupo sin tocar nada', async () => {
     const deps = await makeDeps();
     const coord = new InboundCoordinator(deps);
