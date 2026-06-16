@@ -25,6 +25,7 @@ test('renders the nav links', () => {
   expect(screen.getByRole('link', { name: 'Contactos' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Uso' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'WhatsApp' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Configuración' })).toBeInTheDocument();
 });
 
 test('clicking logout clears the token', () => {

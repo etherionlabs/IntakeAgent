@@ -8,6 +8,7 @@ import JobDetail from './pages/JobDetail';
 import Contacts from './pages/Contacts';
 import Usage from './pages/Usage';
 import WhatsApp from './pages/WhatsApp';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/usage" element={<Usage />} />
             <Route path="/whatsapp" element={<WhatsApp />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>
       </Routes>

@@ -125,6 +125,20 @@ Edita estos archivos antes de la primera prueba con el cliente para adaptarlo al
 negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 `npm start`.
 
+### Editar desde el panel
+
+La sección **Configuración** del panel (visible solo para usuarios con rol
+`admin`) permite editar sin tocar archivos:
+
+- **Negocio** (perfil del tenant): nombre y giro, mensaje de bienvenida,
+  variables del asistente (tono, instrucciones), y los datos del negocio.
+- **Sistema** (`config.json`): modelo, temperatura, horarios, teléfono del
+  dueño y notificaciones, y límites de costo.
+
+Los cambios se validan y se escriben a los archivos correspondientes. Como el
+worker carga la configuración al arrancar, **reinícialo para aplicar los
+cambios**.
+
 ---
 
 ## Variables de entorno (`.env`)
