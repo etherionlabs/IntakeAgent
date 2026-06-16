@@ -2,12 +2,14 @@ import type { PrismaClient, Message } from '@prisma/client';
 import type { RawInboundMessage } from './types';
 import type { MediaStore } from '../media/store';
 import type { Transcriber } from '../media/transcriber';
+import type { Describer } from '../media/describer';
 
 export async function normalizeAndPersistMessage(
   prisma: PrismaClient,
   tenantId: string,
   mediaStore: MediaStore,
   transcriber: Transcriber,
+  describer: Describer,
   raw: RawInboundMessage,
   contactId: string,
 ): Promise<Message> {
@@ -38,6 +40,18 @@ export async function normalizeAndPersistMessage(
     const transcription = await transcriber.transcribe(raw.media.buffer, raw.media.mimetype);
     if (transcription && transcription.length > 0) {
       body = transcription;
+    }
+  } else if (raw.kind === 'image') {
+    const description = await describer.describe(raw.media.buffer, raw.media.mimetype, {
+      caption: raw.text,
+    });
+    if (description && description.length > 0) {
+      const caption = raw.text?.trim();
+      // Conservamos el caption del cliente (si lo hay) y le anexamos la
+      // descripción generada por visión, para que el agente razone sobre ambos.
+      body = caption
+        ? `${caption}\n\n[Descripción de la foto] ${description}`
+        : `[Descripción de la foto] ${description}`;
     }
   }
 

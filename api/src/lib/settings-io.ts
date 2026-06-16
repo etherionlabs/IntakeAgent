@@ -58,6 +58,11 @@ export interface ConfigSettings {
     alertOnCostUsd: number;
     maxConsecutiveErrors: number;
   };
+  media: {
+    transcribeAudio: boolean;
+    describeImages: boolean;
+    visionModel: string;
+  };
 }
 
 export const ConfigSettingsInputZ = z.object({
@@ -80,6 +85,11 @@ export const ConfigSettingsInputZ = z.object({
     monthlyCostUsd: z.number().positive(),
     alertOnCostUsd: z.number().positive(),
     maxConsecutiveErrors: z.number().int().positive(),
+  }),
+  media: z.object({
+    transcribeAudio: z.boolean(),
+    describeImages: z.boolean(),
+    visionModel: z.string().min(1),
   }),
 });
 export type ConfigSettingsInput = z.infer<typeof ConfigSettingsInputZ>;
@@ -120,6 +130,11 @@ export async function readConfigSettings(configPath: string): Promise<ConfigSett
     hours: cfg.hours,
     owner: cfg.owner,
     limits: cfg.limits,
+    media: {
+      transcribeAudio: cfg.media.transcribeAudio,
+      describeImages: cfg.media.describeImages,
+      visionModel: cfg.media.visionModel,
+    },
   };
 }
 
@@ -188,6 +203,8 @@ export async function writeConfigSettings(
     hours: input.hours,
     owner: { ...(current.owner as object), ...input.owner },
     limits: input.limits,
+    // Preservar campos de media no editables (storeDir, whisperModel).
+    media: { ...(current.media as object), ...input.media },
   };
   const check = ConfigZ.safeParse(merged);
   if (!check.success) {

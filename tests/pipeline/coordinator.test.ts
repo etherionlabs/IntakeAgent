@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FilesystemMediaStore } from '../../src/media/store';
 import { NoopTranscriber, ScriptedTranscriber } from '../../src/media/transcriber';
+import { NoopDescriber } from '../../src/media/describer';
 import { NoopNotifier } from '../../src/services/notification';
 import { MemorySender } from '../../src/services/outbound';
 import { InboundCoordinator } from '../../src/pipeline/coordinator';
@@ -47,7 +48,7 @@ const config: Config = {
   hours: { enabled: false, timezone: 'UTC', schedule: {}, outOfHoursNotice: '' },
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
-  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1' },
+  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;
 
@@ -106,6 +107,7 @@ async function makeDeps(extra: Partial<PipelineDeps> = {}): Promise<PipelineDeps
     notifier: new NoopNotifier(),
     sender: new MemorySender(),
     transcriber: new NoopTranscriber(),
+    describer: new NoopDescriber(),
     mediaStore: new FilesystemMediaStore(mediaRoot),
     agentFactory: stubFactory('Hola, ¿en qué te ayudo?'),
     now: () => new Date('2026-05-25T10:00:00Z'),

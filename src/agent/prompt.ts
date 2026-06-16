@@ -17,7 +17,9 @@ export function renderUserMessage(batch: BatchMessage[]): string {
         break;
       case 'image':
         parts.push(
-          `[mensaje ${n} — foto recibida]\n(imagen guardada en ${m.mediaPath ?? 'desconocido'})`,
+          m.body && m.body.trim().length > 0
+            ? `[mensaje ${n} — foto]\n${m.body}`
+            : `[mensaje ${n} — foto recibida]\n(imagen sin descripción disponible)`,
         );
         break;
       case 'audio':

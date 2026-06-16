@@ -61,6 +61,7 @@ export class InboundCoordinator {
       tenantId,
       this.deps.mediaStore,
       this.deps.transcriber,
+      this.deps.describer,
       raw,
       contactRes.contact.id,
     );

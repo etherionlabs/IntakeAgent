@@ -114,7 +114,10 @@ Para detener el proceso: `Ctrl + C`.
 
 - **`config.json`** — comportamiento del asistente: modelo, teléfono del dueño
   (`owner.phoneE164`, en formato E.164, ej. `+5215555555555`), horarios, límites
-  de costo, etc.
+  de costo, etc. La sección `media` controla cómo se procesan los adjuntos:
+  `transcribeAudio` (notas de voz → texto) y `describeImages` (fotos del cliente
+  → descripción con `visionModel`). Cuando están activos, el asistente "razona"
+  sobre audios y fotos como si fueran texto.
 - **`profiles/tapiceria/`** — el "perfil" del negocio:
   - `intake-schema.json` — qué datos se recogen de cada trabajo.
   - `prompt-vars.json` — variables del prompt (nombre del negocio, tono…).
@@ -133,7 +136,8 @@ La sección **Configuración** del panel (visible solo para usuarios con rol
 - **Negocio** (perfil del tenant): nombre y giro, mensaje de bienvenida,
   variables del asistente (tono, instrucciones), y los datos del negocio.
 - **Sistema** (`config.json`): modelo, temperatura, horarios, teléfono del
-  dueño y notificaciones, y límites de costo.
+  dueño y notificaciones, límites de costo, y medios (describir imágenes,
+  transcribir audios, modelo de visión).
 
 Los cambios se validan y se escriben a los archivos correspondientes. Como el
 worker carga la configuración al arrancar, **reinícialo para aplicar los

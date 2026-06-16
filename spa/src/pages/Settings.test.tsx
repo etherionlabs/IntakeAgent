@@ -34,6 +34,7 @@ const CONFIG = {
   hours: { enabled: false, timezone: 'America/Mexico_City', schedule: {}, outOfHoursNotice: '' },
   owner: { phoneE164: '+13058799511', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
+  media: { transcribeAudio: true, describeImages: true, visionModel: 'meta-llama/vision-90b' },
 };
 
 beforeEach(() => {

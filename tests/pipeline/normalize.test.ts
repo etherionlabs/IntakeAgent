@@ -12,6 +12,7 @@ import { upsertContactByPhone } from '../../src/services/contact';
 import { normalizeAndPersistMessage } from '../../src/pipeline/normalize';
 import { FilesystemMediaStore } from '../../src/media/store';
 import { NoopTranscriber, ScriptedTranscriber } from '../../src/media/transcriber';
+import { NoopDescriber, ScriptedDescriber } from '../../src/media/describer';
 import type { RawInboundMessage } from '../../src/pipeline/types';
 
 let mediaRoot: string;
@@ -52,6 +53,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
+      new NoopDescriber(),
       rawMsg({ kind: 'text', text: 'Hola, tengo un sillón' }),
       c.id,
     );
@@ -62,7 +64,7 @@ describe('normalizeAndPersistMessage', () => {
     expect(reload!.body).toBe('Hola, tengo un sillón');
   });
 
-  it('persiste imagen al filesystem y guarda mediaPath', async () => {
+  it('persiste imagen al filesystem y guarda mediaPath (sin describer → body null)', async () => {
     const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
     const msg = await normalizeAndPersistMessage(
@@ -70,6 +72,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
+      new NoopDescriber(),
       rawMsg({
         whatsappMsgId: 'wa_img',
         kind: 'image',
@@ -83,6 +86,52 @@ describe('normalizeAndPersistMessage', () => {
     expect(msg.body).toBeNull();
   });
 
+  it('imagen con describer guarda la descripción en el body', async () => {
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
+    const store = new FilesystemMediaStore(mediaRoot);
+    const describer = new ScriptedDescriber(['Sillón de 3 plazas, tela gris desgastada.']);
+    const msg = await normalizeAndPersistMessage(
+      prisma,
+      TEST_TENANT_ID,
+      store,
+      new NoopTranscriber(),
+      describer,
+      rawMsg({
+        whatsappMsgId: 'wa_img2',
+        kind: 'image',
+        text: null,
+        media: { buffer: Buffer.from('FAKEJPEG'), mimetype: 'image/jpeg' },
+      }),
+      c.id,
+    );
+    expect(msg.kind).toBe('image');
+    expect(msg.mediaPath).toMatch(/\.jpe?g$/);
+    expect(msg.body).toContain('Sillón de 3 plazas');
+    expect(msg.body).toContain('[Descripción de la foto]');
+  });
+
+  it('imagen con caption + describer conserva ambos en el body', async () => {
+    const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
+    const store = new FilesystemMediaStore(mediaRoot);
+    const describer = new ScriptedDescriber(['Silla de comedor de madera.']);
+    const msg = await normalizeAndPersistMessage(
+      prisma,
+      TEST_TENANT_ID,
+      store,
+      new NoopTranscriber(),
+      describer,
+      rawMsg({
+        whatsappMsgId: 'wa_img3',
+        kind: 'image',
+        text: 'esta es la silla',
+        media: { buffer: Buffer.from('FAKEJPEG'), mimetype: 'image/jpeg' },
+      }),
+      c.id,
+    );
+    expect(msg.body).toContain('esta es la silla');
+    expect(msg.body).toContain('Silla de comedor de madera');
+  });
+
   it('persiste audio + transcribe (transcriber devuelve cadena)', async () => {
     const c = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+521');
     const store = new FilesystemMediaStore(mediaRoot);
@@ -92,6 +141,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       transcriber,
+      new NoopDescriber(),
       rawMsg({
         whatsappMsgId: 'wa_audio',
         kind: 'audio',
@@ -113,6 +163,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
+      new NoopDescriber(),
       rawMsg({
         whatsappMsgId: 'wa_audio2',
         kind: 'audio',
@@ -133,6 +184,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
+      new NoopDescriber(),
       rawMsg({ whatsappMsgId: 'wa_sticker', kind: 'sticker', text: null, media: null }),
       c.id,
     );
@@ -149,6 +201,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
+      new NoopDescriber(),
       rawMsg({ raw: { weird: 'payload', n: 42 } }),
       c.id,
     );

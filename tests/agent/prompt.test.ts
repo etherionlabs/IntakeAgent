@@ -23,13 +23,27 @@ describe('renderUserMessage', () => {
     expect(out).toMatch(/\[mensaje 1[^\]]*\][\s\S]*Hola[\s\S]*\[mensaje 2[^\]]*\][\s\S]*Tengo un sillón/);
   });
 
-  it('anota imágenes con su media path', () => {
+  it('imagen sin descripción se anota como foto recibida', () => {
     const batch: BatchMessage[] = [
       { id: 'm1', kind: 'image', body: null, mediaPath: 'photos/abc.jpg' },
     ];
     const out = renderUserMessage(batch);
     expect(out).toContain('foto recibida');
-    expect(out).toContain('photos/abc.jpg');
+    expect(out).toContain('sin descripción');
+  });
+
+  it('imagen con descripción muestra el texto descriptivo al agente', () => {
+    const batch: BatchMessage[] = [
+      {
+        id: 'm1',
+        kind: 'image',
+        body: '[Descripción de la foto] Sillón de 3 plazas, tela gris desgastada.',
+        mediaPath: 'photos/abc.jpg',
+      },
+    ];
+    const out = renderUserMessage(batch);
+    expect(out).toContain('foto');
+    expect(out).toContain('Sillón de 3 plazas');
   });
 
   it('anota audios transcritos mostrando la transcripción', () => {

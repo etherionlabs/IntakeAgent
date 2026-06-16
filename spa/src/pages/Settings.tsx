@@ -270,6 +270,35 @@ export default function Settings() {
           />
         </label>
 
+        <h3>Imágenes y audio</h3>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={config.media.describeImages}
+            onChange={(e) =>
+              setConfig({ ...config, media: { ...config.media, describeImages: e.target.checked } })
+            }
+          />
+          Describir las fotos del cliente (el asistente razona sobre ellas)
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={config.media.transcribeAudio}
+            onChange={(e) =>
+              setConfig({ ...config, media: { ...config.media, transcribeAudio: e.target.checked } })
+            }
+          />
+          Transcribir las notas de voz
+        </label>
+        <label>
+          Modelo de visión
+          <input
+            value={config.media.visionModel}
+            onChange={(e) => setConfig({ ...config, media: { ...config.media, visionModel: e.target.value } })}
+          />
+        </label>
+
         <div className="settings-actions">
           <button type="button" onClick={() => void saveConfig()} disabled={savingConfig}>
             {savingConfig ? 'Guardando…' : 'Guardar sistema'}

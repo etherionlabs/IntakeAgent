@@ -73,4 +73,9 @@ export interface ConfigSettings {
     alertOnCostUsd: number;
     maxConsecutiveErrors: number;
   };
+  media: {
+    transcribeAudio: boolean;
+    describeImages: boolean;
+    visionModel: string;
+  };
 }

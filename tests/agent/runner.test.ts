@@ -44,7 +44,7 @@ const config: Config = {
   hours: { enabled: false, timezone: 'America/Mexico_City', schedule: {}, outOfHoursNotice: '' },
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
-  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1' },
+  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;
 

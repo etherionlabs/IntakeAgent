@@ -9,6 +9,7 @@ import { loadConfig, loadProfile } from '../config/loader';
 import { getPrisma, disconnectPrisma } from '../storage/client';
 import { FilesystemMediaStore } from '../media/store';
 import { NoopTranscriber } from '../media/transcriber';
+import { NoopDescriber } from '../media/describer';
 import { NoopNotifier } from '../services/notification';
 import { MemorySender } from '../services/outbound';
 import { InboundCoordinator } from '../pipeline/coordinator';
@@ -70,6 +71,7 @@ async function main() {
     notifier: new NoopNotifier(),
     sender,
     transcriber: new NoopTranscriber(),
+    describer: new NoopDescriber(),
     mediaStore: new FilesystemMediaStore('./media'),
     agentFactory: stubFactory,
     now: () => new Date(),
