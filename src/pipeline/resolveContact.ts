@@ -10,7 +10,14 @@ export async function resolveContact(
   tenantId: string,
   fromPhoneE164: string,
 ): Promise<ContactResolution> {
-  const contact = await upsertContactByPhone(prisma, tenantId, fromPhoneE164);
+  let contact = await upsertContactByPhone(prisma, tenantId, fromPhoneE164);
+  // Si estaba archivado, resucítalo: hay actividad nueva que el dueño debe ver.
+  if (contact.archivedAt) {
+    contact = await prisma.contact.update({
+      where: { id: contact.id, tenantId },
+      data: { archivedAt: null },
+    });
+  }
   if (!contact.botActive) {
     return { shouldRespond: false, contact, reason: 'bot_paused' };
   }

@@ -12,6 +12,9 @@ import {
   closeJob,
   reopenJob,
   findOpenJobsForContact,
+  archiveJob,
+  restoreJob,
+  hardDeleteJob,
 } from '../../src/services/job';
 import { createEmptyIntakeFromSchema } from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
@@ -113,5 +116,41 @@ describe('job service', () => {
     await closeJob(prisma, T, j4.id);
     const open = await findOpenJobsForContact(prisma, T, c.id);
     expect(open.map((j) => j.id).sort()).toEqual([j1.id, j2.id].sort());
+  });
+});
+
+describe('archivado y borrado de job', () => {
+  beforeEach(async () => { await cleanup(); await seedTestTenant(); });
+  afterAll(async () => { await cleanup(); await prisma.$disconnect(); });
+
+  it('archiveJob setea archivedAt y restoreJob lo limpia', async () => {
+    const contact = await createContact('+5215550000010');
+    const job = await openJob(prisma, T, contact.id, createEmptyIntakeFromSchema(schema));
+    const archived = await archiveJob(prisma, T, job.id);
+    expect(archived.archivedAt).toBeInstanceOf(Date);
+    const restored = await restoreJob(prisma, T, job.id);
+    expect(restored.archivedAt).toBeNull();
+  });
+
+  it('hardDeleteJob borra el job y sus mensajes/agentRuns/notifications', async () => {
+    const contact = await createContact('+5215550000011');
+    const job = await openJob(prisma, T, contact.id, createEmptyIntakeFromSchema(schema));
+    await prisma.message.create({ data: { tenantId: T, contactId: contact.id, jobId: job.id, direction: 'inbound', kind: 'text', body: 'hola' } });
+    await prisma.agentRun.create({ data: { tenantId: T, jobId: job.id, triggerMessageIds: '[]', model: 'm', toolCalls: '[]' } });
+    await prisma.notification.create({ data: { tenantId: T, jobId: job.id, kind: 'owner_ready', sentVia: 'panel_only' } });
+
+    await hardDeleteJob(prisma, T, job.id);
+
+    expect(await prisma.job.findFirst({ where: { id: job.id } })).toBeNull();
+    expect(await prisma.message.count({ where: { jobId: job.id } })).toBe(0);
+    expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(0);
+    expect(await prisma.notification.count({ where: { jobId: job.id } })).toBe(0);
+  });
+
+  it('hardDeleteJob de otro tenant lanza error y no borra', async () => {
+    const contact = await createContact('+5215550000012');
+    const job = await openJob(prisma, T, contact.id, createEmptyIntakeFromSchema(schema));
+    await expect(hardDeleteJob(prisma, 'tenant-ajeno', job.id)).rejects.toThrow(/no existe/i);
+    expect(await prisma.job.findFirst({ where: { id: job.id } })).not.toBeNull();
   });
 });

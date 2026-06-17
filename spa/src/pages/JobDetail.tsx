@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import IntakeForm, { type Intake, type IntakeSchema } from '../components/IntakeForm';
 import MessageList, { type Message } from '../components/MessageList';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 type Contact = {
   id: string;
@@ -28,6 +29,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [confirm, setConfirm] = useState<null | 'archive' | 'delete'>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [intake, setIntake] = useState<Intake>({});
   const [messages, setMessages] = useState<Message[]>([]);
@@ -75,6 +78,36 @@ export default function JobDetail() {
       setActionError(err instanceof Error ? err.message : 'error en la acción');
     } finally {
       setActionBusy(false);
+    }
+  }
+
+  async function doArchive() {
+    if (!id) return;
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await api.archiveJob(id);
+      navigate('/');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'error al archivar');
+    } finally {
+      setActionBusy(false);
+      setConfirm(null);
+    }
+  }
+
+  async function doDelete() {
+    if (!id) return;
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await api.deleteJob(id);
+      navigate('/');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'error al eliminar');
+    } finally {
+      setActionBusy(false);
+      setConfirm(null);
     }
   }
 
@@ -144,6 +177,12 @@ export default function JobDetail() {
               >
                 Cerrar
               </button>
+              <button type="button" onClick={() => setConfirm('archive')} disabled={actionBusy}>
+                Archivar
+              </button>
+              <button type="button" className="btn-danger" onClick={() => setConfirm('delete')} disabled={actionBusy}>
+                Eliminar
+              </button>
             </div>
           </div>
 
@@ -151,6 +190,24 @@ export default function JobDetail() {
           <MessageList messages={messages} />
         </section>
       </div>
+
+      <ConfirmDialog
+        open={confirm === 'archive'}
+        title="Archivar trabajo"
+        message="El trabajo se ocultará del listado pero conservará su historial. Podrás restaurarlo."
+        confirmLabel="Archivar"
+        onConfirm={() => void doArchive()}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm === 'delete'}
+        title="Eliminar trabajo definitivamente"
+        message={`Se borrarán el trabajo y sus ${messages.length} mensaje(s) de forma permanente. Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar definitivamente"
+        danger
+        onConfirm={() => void doDelete()}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

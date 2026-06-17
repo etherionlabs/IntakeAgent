@@ -80,4 +80,34 @@ describe('contacts', () => {
     const res = await app.inject({ method: 'GET', url: '/contacts' });
     expect(res.statusCode).toBe(401);
   });
+
+  it('PATCH /contacts/:id { displayName, unflag } edita y des-marca', async () => {
+    await testPrisma.contact.update({ where: { id: contactId }, data: { flaggedNonIntake: true, flaggedReason: 'x' } });
+    const res = await app.inject({ method: 'PATCH', url: `/contacts/${contactId}`, headers: await authHeader(app, userId), payload: { displayName: 'Nuevo Nombre', unflag: true } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().contact.displayName).toBe('Nuevo Nombre');
+    expect(res.json().contact.flaggedNonIntake).toBe(false);
+  });
+
+  it('POST /contacts/:id/archive y restore alternan archivedAt y filtran el listado', async () => {
+    const arch = await app.inject({ method: 'POST', url: `/contacts/${contactId}/archive`, headers: await authHeader(app, userId) });
+    expect(arch.statusCode).toBe(200);
+    const list = await app.inject({ method: 'GET', url: '/contacts', headers: await authHeader(app, userId) });
+    expect(list.json().contacts.map((c: any) => c.id)).not.toContain(contactId);
+    const listArch = await app.inject({ method: 'GET', url: '/contacts?includeArchived=true', headers: await authHeader(app, userId) });
+    expect(listArch.json().contacts.map((c: any) => c.id)).toContain(contactId);
+    const res = await app.inject({ method: 'POST', url: `/contacts/${contactId}/restore`, headers: await authHeader(app, userId) });
+    expect(res.json().contact.archivedAt).toBeNull();
+  });
+
+  it('DELETE /contacts/:id borra el contacto', async () => {
+    const res = await app.inject({ method: 'DELETE', url: `/contacts/${contactId}`, headers: await authHeader(app, userId) });
+    expect(res.statusCode).toBe(200);
+    expect(await testPrisma.contact.findFirst({ where: { id: contactId } })).toBeNull();
+  });
+
+  it('DELETE /contacts/:otherTenant → 404', async () => {
+    const res = await app.inject({ method: 'DELETE', url: `/contacts/${otherContactId}`, headers: await authHeader(app, userId) });
+    expect(res.statusCode).toBe(404);
+  });
 });

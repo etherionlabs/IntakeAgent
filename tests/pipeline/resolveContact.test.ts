@@ -51,4 +51,15 @@ describe('resolveContact', () => {
     expect(r.shouldRespond).toBe(false);
     if (!r.shouldRespond) expect(r.reason).toBe('flagged_non_intake');
   });
+
+  it('resucita (archivedAt=null) un contacto archivado al recibir inbound', async () => {
+    const created = await prisma.contact.create({
+      data: { tenantId: T, phoneE164: '+5215550000030', archivedAt: new Date(), botActive: true },
+    });
+    const r = await resolveContact(prisma, T, '+5215550000030');
+    expect(r.contact.id).toBe(created.id);
+    expect(r.contact.archivedAt).toBeNull();
+    const reloaded = await prisma.contact.findFirst({ where: { id: created.id } });
+    expect(reloaded?.archivedAt).toBeNull();
+  });
 });

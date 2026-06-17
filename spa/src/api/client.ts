@@ -23,12 +23,27 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   login: (username: string, password: string) => request<{ token: string; user: any }>('POST', '/auth/login', { username, password }),
   getProfile: () => request<{ intakeSchema: any }>('GET', '/profile'),
-  getJobs: (status?: string) => request<{ jobs: any[] }>('GET', `/jobs${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  getJobs: (status?: string, includeArchived = false) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (includeArchived) params.set('includeArchived', 'true');
+    const qs = params.toString();
+    return request<{ jobs: any[] }>('GET', `/jobs${qs ? `?${qs}` : ''}`);
+  },
+  archiveJob: (id: string) => request<{ ok: boolean; job: any }>('POST', `/jobs/${id}/archive`),
+  restoreJob: (id: string) => request<{ ok: boolean; job: any }>('POST', `/jobs/${id}/restore`),
+  deleteJob: (id: string) => request<{ ok: boolean }>('DELETE', `/jobs/${id}`),
   getJob: (id: string) => request<{ job: any; intake: any; messages: any[] }>('GET', `/jobs/${id}`),
   patchIntake: (id: string, payload: { path: string; value?: unknown; declined?: boolean; declined_reason?: string }) => request<{ ok: boolean; intake: any }>('PATCH', `/jobs/${id}/intake`, payload),
   jobAction: (id: string, action: 'mark_ready' | 'close', summary?: string) => request<{ ok: boolean; status: string }>('POST', `/jobs/${id}/actions`, { action, summary }),
-  getContacts: () => request<{ contacts: any[] }>('GET', '/contacts'),
+  getContacts: (includeArchived = false) =>
+    request<{ contacts: any[] }>('GET', `/contacts${includeArchived ? '?includeArchived=true' : ''}`),
   toggleContact: (id: string, botPaused: boolean) => request<{ ok: boolean; contact: any }>('PATCH', `/contacts/${id}`, { botPaused }),
+  updateContact: (id: string, payload: { displayName?: string; unflag?: boolean }) =>
+    request<{ ok: boolean; contact: any }>('PATCH', `/contacts/${id}`, payload),
+  archiveContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/archive`),
+  restoreContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/restore`),
+  deleteContact: (id: string) => request<{ ok: boolean }>('DELETE', `/contacts/${id}`),
   getUsage: () => request<{ totals: any; recent: any[] }>('GET', '/usage'),
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string }>('GET', '/wa-status'),
   getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings }>('GET', '/settings'),

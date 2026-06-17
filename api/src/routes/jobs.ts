@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrisma } from '../db';
-import { parseJobIntake, updateJobIntake, markReadyForReview, closeJob } from '../../../src/services/job';
+import { parseJobIntake, updateJobIntake, markReadyForReview, closeJob, archiveJob, restoreJob, hardDeleteJob } from '../../../src/services/job';
 import { bulkUpdate, isIntakeComplete } from '../../../src/services/intake';
 import { getTenantProfile } from '../lib/tenant-profile';
 
@@ -17,9 +17,15 @@ const ActionZ = z.object({ action: z.enum(['mark_ready', 'close']), summary: z.s
 export async function jobsRoutes(app: FastifyInstance) {
   app.get('/jobs', { preHandler: app.authenticate }, async (request) => {
     const prisma = getPrisma();
-    const status = (request.query as any)?.status as string | undefined;
+    const q = request.query as any;
+    const status = q?.status as string | undefined;
+    const includeArchived = q?.includeArchived === 'true';
     const jobs = await prisma.job.findMany({
-      where: { tenantId: request.tenantId, ...(status ? { status } : {}) },
+      where: {
+        tenantId: request.tenantId,
+        ...(status ? { status } : {}),
+        ...(includeArchived ? {} : { archivedAt: null }),
+      },
       orderBy: { openedAt: 'desc' },
       include: { contact: true },
     });
@@ -78,5 +84,32 @@ export async function jobsRoutes(app: FastifyInstance) {
     } catch (e) {
       return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
     }
+  });
+
+  app.post('/jobs/:id/archive', { preHandler: app.authenticate }, async (request, reply) => {
+    const prisma = getPrisma();
+    const id = (request.params as any).id as string;
+    const job = await prisma.job.findFirst({ where: { id, tenantId: request.tenantId } });
+    if (!job) return reply.code(404).send({ error: 'job no encontrado' });
+    const updated = await archiveJob(prisma, request.tenantId, id);
+    return { ok: true, job: updated };
+  });
+
+  app.post('/jobs/:id/restore', { preHandler: app.authenticate }, async (request, reply) => {
+    const prisma = getPrisma();
+    const id = (request.params as any).id as string;
+    const job = await prisma.job.findFirst({ where: { id, tenantId: request.tenantId } });
+    if (!job) return reply.code(404).send({ error: 'job no encontrado' });
+    const updated = await restoreJob(prisma, request.tenantId, id);
+    return { ok: true, job: updated };
+  });
+
+  app.delete('/jobs/:id', { preHandler: app.authenticate }, async (request, reply) => {
+    const prisma = getPrisma();
+    const id = (request.params as any).id as string;
+    const job = await prisma.job.findFirst({ where: { id, tenantId: request.tenantId } });
+    if (!job) return reply.code(404).send({ error: 'job no encontrado' });
+    await hardDeleteJob(prisma, request.tenantId, id);
+    return { ok: true };
   });
 }
