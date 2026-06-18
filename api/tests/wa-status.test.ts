@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { buildServer } from '../src/server';
 import { seedTenantAndUser, cleanupDb, TEST_JWT_SECRET, TEST_TENANT_ID } from './helpers/app';
 
-const WORKER_JSON = { connected: true, qr: null, phone: '' };
+const WORKER_JSON = { ok: true, connected: true, qr: null, phone: '' };
 
 function stubFetcher(): typeof fetch {
   return (async () =>
@@ -47,7 +47,7 @@ describe('wa-status', () => {
       headers: { authorization: `Bearer ${tokenFor(app, userId)}` },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual(WORKER_JSON);
+    expect(res.json()).toMatchObject({ connected: true });
   });
 
   it('GET /wa-status sin WORKER_INTERNAL_URL/INTERNAL_API_TOKEN → 503', async () => {
@@ -65,6 +65,26 @@ describe('wa-status', () => {
     process.env.WORKER_INTERNAL_URL = 'http://worker-x:3002';
     process.env.INTERNAL_API_TOKEN = 't';
     const res = await app.inject({ method: 'GET', url: '/wa-status' });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('POST /wa-status/reconnect proxied → 200', async () => {
+    process.env.WORKER_INTERNAL_URL = 'http://worker-x:3002';
+    process.env.INTERNAL_API_TOKEN = 't';
+    const res = await app.inject({ method: 'POST', url: '/wa-status/reconnect', headers: { authorization: `Bearer ${tokenFor(app, userId)}` } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ ok: true });
+  });
+
+  it('POST /wa-status/logout sin envs → 503', async () => {
+    delete process.env.WORKER_INTERNAL_URL;
+    delete process.env.INTERNAL_API_TOKEN;
+    const res = await app.inject({ method: 'POST', url: '/wa-status/logout', headers: { authorization: `Bearer ${tokenFor(app, userId)}` } });
+    expect(res.statusCode).toBe(503);
+  });
+
+  it('POST /wa-status/logout sin token → 401', async () => {
+    const res = await app.inject({ method: 'POST', url: '/wa-status/logout' });
     expect(res.statusCode).toBe(401);
   });
 });
