@@ -116,9 +116,16 @@ async function main() {
         return {
           connected: snap.status === 'connected',
           qr: snap.qr,
-          phone: '',
+          phone: snap.phone ?? '',
+          status: snap.status,
+          lastConnectedAt: snap.lastConnectedAt,
+          lastError: snap.lastError,
         };
       },
+    },
+    actions: {
+      logout: () => adapter!.logout(),
+      reconnect: () => adapter!.reconnect(),
     },
   });
 

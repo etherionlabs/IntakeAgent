@@ -4,10 +4,11 @@ import {
   DisconnectReason,
   Browsers,
 } from 'baileys';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import qrcode from 'qrcode-terminal';
 import { logger } from '../../lib/logger';
+import { extractPhoneFromJid } from './jid';
 import type {
   AdapterStateSnapshot,
   ConnectionStatus,
@@ -35,6 +36,7 @@ export class BaileysConnection {
   private lastError: string | null = null;
   private lastConnectedAt: string | null = null;
   private lastQr: string | null = null;
+  private phone: string | null = null;
   private reconnecting = false;
   private stopped = false;
 
@@ -56,6 +58,7 @@ export class BaileysConnection {
     return {
       status: this.status,
       qr: this.lastQr,
+      phone: this.phone,
       lastError: this.lastError,
       lastConnectedAt: this.lastConnectedAt,
     };
@@ -107,6 +110,7 @@ export class BaileysConnection {
         this.lastQr = null;
         this.lastError = null;
         this.lastConnectedAt = new Date().toISOString();
+        this.phone = extractPhoneFromJid(this.socket?.user?.id ?? '');
         this.setStatus('connected');
         logger.info('whatsapp.connected');
       }
@@ -116,6 +120,7 @@ export class BaileysConnection {
         this.lastError = reason;
         logger.warn({ code, reason }, 'whatsapp.disconnected');
         if (code === DisconnectReason.loggedOut) {
+          this.phone = null;
           this.setStatus('logged_out');
         } else {
           this.setStatus('disconnected');
@@ -172,6 +177,33 @@ export class BaileysConnection {
         reuploadRequest: this.socket.updateMediaMessage,
       },
     )) as Buffer;
+  }
+
+  /** Cierra sesión, borra la sesión persistida y reconecta para generar un QR nuevo. */
+  async logout(): Promise<void> {
+    try {
+      if (this.socket?.logout) await this.socket.logout();
+    } catch {
+      // best-effort: si el socket ya no responde, igual borramos la sesión local.
+    }
+    this.reconnecting = false;
+    this.socket = null;
+    await rm(resolve(this.opts.sessionDir), { recursive: true, force: true });
+    this.phone = null;
+    this.lastQr = null;
+    this.stopped = false;
+    await this.connect();
+  }
+
+  /** Reintenta la conexión SIN borrar la sesión (re-vincula la misma cuenta). */
+  async reconnect(): Promise<void> {
+    if (this.socket?.end) {
+      try { this.socket.end(undefined); } catch {}
+    }
+    this.reconnecting = false;
+    this.socket = null;
+    this.stopped = false;
+    await this.connect();
   }
 
   private setStatus(s: ConnectionStatus): void {

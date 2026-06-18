@@ -13,10 +13,14 @@ export interface AdapterStatus {
   connected: boolean;
   qr: string | null;
   phone: string;
+  status?: string;
+  lastConnectedAt?: string | null;
+  lastError?: string | null;
 }
 
 export interface InternalServerDeps {
   adapterState: { state: () => AdapterStatus };
+  actions?: { logout: () => Promise<void>; reconnect: () => Promise<void> };
 }
 
 export interface InternalServer {
@@ -45,6 +49,26 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
 
   app.get('/internal/wa-status', async () => {
     return deps.adapterState.state();
+  });
+
+  app.post('/internal/wa-logout', async (_request, reply) => {
+    if (!deps.actions) return reply.code(503).send({ ok: false, error: 'sin acciones' });
+    try {
+      await deps.actions.logout();
+      return { ok: true };
+    } catch (e) {
+      return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) });
+    }
+  });
+
+  app.post('/internal/wa-reconnect', async (_request, reply) => {
+    if (!deps.actions) return reply.code(503).send({ ok: false, error: 'sin acciones' });
+    try {
+      await deps.actions.reconnect();
+      return { ok: true };
+    } catch (e) {
+      return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) });
+    }
   });
 
   const port = Number(process.env.INTERNAL_PORT ?? 3002);

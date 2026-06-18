@@ -21,6 +21,8 @@ export interface AdapterStateSnapshot {
   status: ConnectionStatus;
   /** ASCII del QR cuando status='qr_required'. */
   qr: string | null;
+  /** Teléfono E.164 de la cuenta vinculada cuando status='connected'. */
+  phone: string | null;
   lastError: string | null;
   /** ISO 8601 de última conexión exitosa. */
   lastConnectedAt: string | null;
