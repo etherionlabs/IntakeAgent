@@ -72,6 +72,24 @@ Fase 7  Beta cerrada → Lanzamiento
 > Estimaciones en "semanas-persona" (1 dev full-time). Ajustar a tu capacidad
 > real. Las fases 1, 5 y 6 pueden solaparse parcialmente con 2–4.
 
+### Documentos de diseño por fase (base teórica)
+
+Cada fase tiene su **spec de diseño** aterrizado al código (decisiones,
+arquitectura, modelo de datos, criterios de aceptación). Este roadmap es el
+documento maestro; los specs son el detalle previo a implementar. Convención:
+`spec (diseño)` → `plan (implementación)` → código.
+
+| Fase | Spec de diseño |
+| --- | --- |
+| 1 — Seguridad y confiabilidad | [`specs/2026-06-18-fase1-security-hardening-design.md`](superpowers/specs/2026-06-18-fase1-security-hardening-design.md) |
+| 2 — Multi-tenancy + capa de canal | [`specs/2026-06-18-fase2-multitenancy-channel-layer-design.md`](superpowers/specs/2026-06-18-fase2-multitenancy-channel-layer-design.md) |
+| 3 — Billing (Stripe) | [`specs/2026-06-18-fase3-billing-stripe-design.md`](superpowers/specs/2026-06-18-fase3-billing-stripe-design.md) |
+| 4 — Onboarding self-service | [`specs/2026-06-18-fase4-self-service-onboarding-design.md`](superpowers/specs/2026-06-18-fase4-self-service-onboarding-design.md) |
+| 5 — Observabilidad y operaciones | [`specs/2026-06-18-fase5-observability-ops-design.md`](superpowers/specs/2026-06-18-fase5-observability-ops-design.md) |
+| 6 — Legal, cumplimiento y GTM | [`specs/2026-06-18-fase6-legal-gtm-design.md`](superpowers/specs/2026-06-18-fase6-legal-gtm-design.md) |
+| 7 — Beta → Lanzamiento | (operacional — runbook, no requiere spec de diseño) |
+| 8 — Multicanal v2 (SMS + voz) | [`specs/2026-06-18-fase8-multichannel-sms-voice-design.md`](superpowers/specs/2026-06-18-fase8-multichannel-sms-voice-design.md) |
+
 ---
 
 ## Fase 1 — Hardening de seguridad y confiabilidad  *(prioridad #1)*
