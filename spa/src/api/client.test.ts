@@ -42,4 +42,33 @@ describe('api client', () => {
     expect(err.status).toBe(401);
     expect(handler).toHaveBeenCalledTimes(1);
   });
+
+  it('NO envía content-type cuando no hay body (evita 400 de Fastify en DELETE)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(200, { ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    await api.deleteContact('c1');
+    const opts = fetchMock.mock.calls[0][1];
+    expect(opts.method).toBe('DELETE');
+    expect(opts.body).toBeUndefined();
+    expect(opts.headers['content-type']).toBeUndefined();
+  });
+
+  it('POST sin body (desvincular WhatsApp) tampoco manda content-type', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(200, { ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    await api.waLogout();
+    const opts = fetchMock.mock.calls[0][1];
+    expect(opts.method).toBe('POST');
+    expect(opts.body).toBeUndefined();
+    expect(opts.headers['content-type']).toBeUndefined();
+  });
+
+  it('SÍ envía content-type cuando hay body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(200, { ok: true, contact: {} }));
+    vi.stubGlobal('fetch', fetchMock);
+    await api.updateContact('c1', { displayName: 'X' });
+    const opts = fetchMock.mock.calls[0][1];
+    expect(opts.headers['content-type']).toBe('application/json');
+    expect(opts.body).toBe(JSON.stringify({ displayName: 'X' }));
+  });
 });

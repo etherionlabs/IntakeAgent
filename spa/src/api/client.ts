@@ -10,10 +10,14 @@ export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 function getToken(): string | null { return localStorage.getItem('intake_token'); }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  // OJO: solo enviar content-type cuando HAY body. Fastify responde 400 si llega
+  // content-type:application/json con body vacío (pasa en DELETE y POST sin cuerpo,
+  // ej. eliminar contacto o desvincular WhatsApp).
+  const headers: Record<string, string> = {};
   const token = getToken();
   if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  const res = await fetch(`${BASE}${path}`, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
   if (res.status === 401) { onUnauthorized?.(); throw new ApiError(401, 'no autorizado'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `error ${res.status}`);
