@@ -42,6 +42,14 @@ export class BaileysAdapter {
     return this.conn.state();
   }
 
+  async logout(): Promise<void> {
+    await this.conn.logout();
+  }
+
+  async reconnect(): Promise<void> {
+    await this.conn.reconnect();
+  }
+
   asSocket(): WASocket {
     return this.conn.asWASocket();
   }

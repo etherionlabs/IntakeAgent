@@ -45,7 +45,9 @@ export const api = {
   restoreContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/restore`),
   deleteContact: (id: string) => request<{ ok: boolean }>('DELETE', `/contacts/${id}`),
   getUsage: () => request<{ totals: any; recent: any[] }>('GET', '/usage'),
-  getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string }>('GET', '/wa-status'),
+  getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
+  waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
+  waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
   getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),

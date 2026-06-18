@@ -1,20 +1,35 @@
 import QRCode from 'qrcode';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 type WaStatus = {
   connected: boolean;
   qr: string | null;
   phone: string;
+  status?: string;
+  lastConnectedAt?: string | null;
+  lastError?: string | null;
 };
 
 const POLL_MS = 5000;
+
+const STATUS_LABELS: Record<string, string> = {
+  connecting: 'Conectando…',
+  qr_required: 'Esperando escaneo de QR',
+  connected: 'Conectado',
+  disconnected: 'Desconectado',
+  logged_out: 'Sesión cerrada',
+};
 
 export default function WhatsApp() {
   const [status, setStatus] = useState<WaStatus | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const firstLoad = useRef(true);
 
   const load = useCallback(async () => {
@@ -44,6 +59,33 @@ export default function WhatsApp() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [load]);
+
+  async function reconnect() {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await api.waReconnect();
+      await load();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'error al reconectar');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function logout() {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await api.waLogout();
+      await load();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'error al desvincular');
+    } finally {
+      setActionBusy(false);
+      setConfirmLogout(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -81,13 +123,40 @@ export default function WhatsApp() {
       {status && (
         <>
           <p className="wa-status">
-            {status.connected ? (
-              <span className="wa-connected">Conectado</span>
-            ) : (
-              <span className="wa-disconnected">Desconectado</span>
-            )}
-            {status.phone && <span className="wa-phone"> - {status.phone}</span>}
+            <span className={status.connected ? 'wa-connected' : 'wa-disconnected'}>
+              {STATUS_LABELS[status.status ?? ''] ?? (status.connected ? 'Conectado' : 'Desconectado')}
+            </span>
+            {status.phone && <span className="wa-phone"> — {status.phone}</span>}
           </p>
+
+          {status.lastConnectedAt && (
+            <p className="wa-meta">
+              Última conexión: {new Date(status.lastConnectedAt).toLocaleString()}
+            </p>
+          )}
+          {status.lastError && (
+            <p className="wa-meta wa-meta-error">Último error: {status.lastError}</p>
+          )}
+
+          {actionError && (
+            <p className="error" role="alert">
+              {actionError}
+            </p>
+          )}
+
+          <div className="wa-actions">
+            <button type="button" onClick={() => void reconnect()} disabled={actionBusy}>
+              Reconectar
+            </button>
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={() => setConfirmLogout(true)}
+              disabled={actionBusy}
+            >
+              Desvincular
+            </button>
+          </div>
 
           {!status.connected && typeof status.qr === 'string' && status.qr && (
             <div className="wa-qr">
@@ -104,6 +173,16 @@ export default function WhatsApp() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Desvincular WhatsApp"
+        message="Se cerrará la sesión actual y deberás escanear un QR nuevo para volver a vincular un teléfono. ¿Continuar?"
+        confirmLabel="Desvincular definitivamente"
+        danger
+        onConfirm={() => void logout()}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </div>
   );
 }
