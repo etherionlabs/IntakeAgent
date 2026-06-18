@@ -12,6 +12,7 @@ multi-tenant, self-service, con cobro recurrente) sin romper lo que ya funciona.
 | **Monetización** | Suscripción mensual fija (Stripe) | Stripe Checkout + webhooks de estado de suscripción. Sin medición de uso para cobrar (el `CostEntry` queda como control interno, no como base de factura). |
 | **Onboarding** | **Self-service completo** | Signup público → pago → aprovisionamiento automático del bot. Esto **obliga** a resolver el aprovisionamiento dinámico de workers (hoy manual en `docker-compose.yml`). Es el mayor esfuerzo de ingeniería del roadmap. |
 | **Prioridad #1** | **Seguridad y confiabilidad** | El hardening (Fase 1) va **antes** que billing y signup. Vendemos con confianza primero. |
+| **Canales** | WhatsApp en el lanzamiento; **SMS + voz en vivo como v2** | Se hace un refactor ligero de "capa de canal" antes del lanzamiento (Fase 2) para no cerrar la puerta, pero los canales SMS y **voz conversacional en vivo** (Twilio) se construyen post-lanzamiento (Fase 8). El núcleo del pipeline ya es agnóstico al canal. |
 
 ---
 
@@ -167,12 +168,32 @@ Hay dos caminos para soportar N tenants dinámicos:
 - Carga de perfiles de intake por industria seleccionable (tapicería,
   paquetería, genérico) como plantillas al alta.
 
+### 2.x Capa de canal (refactor ligero, habilitador de SMS/voz)
+El núcleo del pipeline (debounce, agente, intake, media) **ya es agnóstico al
+canal**: `OutboundSender` es una interfaz (`sendText`) y el agente no sabe de
+WhatsApp. Lo acoplado es solo el borde. Hacer ahora un refactor mínimo evita una
+migración dolorosa después, sin retrasar el lanzamiento WhatsApp-only:
+
+- Renombrar `RawInboundMessage.whatsappMsgId` → `externalMsgId` y añadir un
+  campo `channel: 'whatsapp' | 'sms' | 'voice'` (`src/pipeline/types.ts`).
+- Añadir columna `channel` a `Message` y `Contact` (un contacto puede existir en
+  varios canales; clave de identidad sigue siendo el teléfono E.164). Migración
+  Prisma con default `'whatsapp'` para datos existentes.
+- Definir interfaces `InboundSource` y mantener `OutboundSender`/`Notifier` como
+  contratos por canal; WhatsApp (Baileys) pasa a ser **una** implementación.
+- **No** se construye SMS ni voz aquí — solo se deja la abstracción lista.
+
+> Este refactor es barato (días, no semanas) y se hace junto con la Fase 2 porque
+> ambos tocan la frontera del worker. SMS y voz reales viven en la Fase 8.
+
 ### Criterios de aceptación
 - [ ] Alta de un tenant nuevo desde código/API crea su conexión sin reiniciar
       el proceso ni tocar archivos.
 - [ ] `wa-status` devuelve el estado **del tenant del usuario**, no de uno fijo.
 - [ ] Dos tenants con bots simultáneos, mensajes aislados, verificado en staging.
 - [ ] Config del bot editable por tenant desde el panel (sin tocar JSON en disco).
+- [ ] `Message`/`Contact` tienen `channel`; WhatsApp es una implementación de
+      `InboundSource`/`OutboundSender` (abstracción lista, sin nuevos canales).
 
 ---
 
@@ -327,24 +348,92 @@ Cierra las brechas 7 y 8. Puede correr en paralelo desde la Fase 1.
 
 ---
 
+## Fase 8 — Multicanal v2: SMS + Voz conversacional en vivo  *(post-lanzamiento)*
+
+**Objetivo:** atender clientes que prefieren **SMS** o **llamada de voz**, no solo
+WhatsApp. Se construye **después** del lanzamiento (decisión: WhatsApp primero),
+apoyándose en la capa de canal de la Fase 2. Proveedor: **Twilio** (SMS + voz +
+números en un solo lugar).
+
+> Dos sub-tracks de esfuerzo muy distinto. SMS es barato y reutiliza casi todo el
+> pipeline; la voz en vivo es la pieza más compleja de todo el roadmap.
+
+### 8A — SMS (Twilio)  ·  esfuerzo: 1.5–2.5 semanas
+- Webhook de Twilio para SMS entrante → adaptarlo a `InboundSource` (un mensaje
+  de texto entra al mismo pipeline; sin media salvo MMS opcional).
+- `OutboundSender` para SMS vía Twilio API.
+- **Aprovisionamiento de número por tenant** (comprar/asignar un número Twilio en
+  el onboarding; guardarlo en `TenantSettings`).
+- Diferencias de canal a manejar: SMS no tiene "typing"/recibos como WhatsApp,
+  límite de 160 chars/segmentación, sin QR ni sesión Baileys (mucho más estable).
+- UI: el panel muestra el canal de cada conversación; estado del número SMS.
+- **Costos:** SMS se cobra por segmento — vigilar el margen contra el plan fijo.
+
+**Criterios de aceptación 8A**
+- [ ] Un SMS entrante crea/continúa un intake y el bot responde por SMS.
+- [ ] El número SMS se asigna en el onboarding sin intervención manual.
+- [ ] Conversaciones SMS y WhatsApp del mismo teléfono se ven coherentes.
+
+### 8B — Agente de voz conversacional en vivo (Twilio)  ·  esfuerzo: 6–10+ semanas
+La pieza más ambiciosa: el cliente **llama y conversa con la IA en tiempo real**.
+Arquitectura nueva y sensible a latencia, separada del worker de chat.
+
+**Arquitectura propuesta**
+- **Twilio Voice + Media Streams**: audio bidireccional por WebSocket hacia un
+  nuevo servicio de voz (`voice-gateway`).
+- Bucle en tiempo real: **STT (streaming) → razonamiento (LLM) → TTS (streaming)**
+  con **barge-in** (el cliente puede interrumpir) y presupuesto de latencia
+  objetivo < ~800 ms por turno. Evaluar un modelo *speech-to-speech* realtime vs.
+  pipeline STT+LLM+TTS por separado (trade-off latencia/control/costo).
+- **Reutiliza la lógica de intake/agente** existente, pero adaptada a turnos de
+  voz (respuestas cortas, confirmaciones habladas, manejo de silencios).
+- **Grabación + consentimiento**: aviso de grabación al inicio de la llamada
+  (requisito legal en muchos países), transcripción guardada como `Message` con
+  `channel='voice'`, audio en el media store.
+- **Fallbacks**: si la IA no entiende o falla, derivar a buzón → transcripción
+  (el modo simple) o a un humano; nunca dejar la llamada colgada.
+- Nuevo contenedor `voice-gateway` (escala distinta al worker de chat; la voz es
+  intensiva en CPU/red y stateful por llamada).
+
+**Riesgos / decisiones de la voz en vivo**
+- Latencia y calidad de la conversación son el make-or-break del producto.
+- Costo por minuto (Twilio + STT + LLM + TTS) puede ser alto → revisar margen
+  contra el plan fijo; quizá la voz sea un add-on de precio.
+- Cumplimiento de grabación de llamadas varía por jurisdicción.
+
+**Criterios de aceptación 8B**
+- [ ] Un cliente llama, conversa con la IA y completa un intake por voz, con
+      interrupciones manejadas y latencia aceptable.
+- [ ] La llamada queda transcrita y vinculada al job correcto del tenant.
+- [ ] Aviso de grabación reproducido; fallback a buzón/humano si la IA falla.
+- [ ] Margen por minuto validado contra el precio del plan (o add-on definido).
+
+---
+
 ## Resumen de secuencia y dependencias
 
 ```
 Fase 1 (seguridad) ──┐
-                     ├─► Fase 4 (self-service) ──► Fase 7 (beta → launch)
-Fase 2 (multi-tenant)┤        ▲
-                     │        │
-Fase 3 (billing) ────┘────────┘
+                     ├─► Fase 4 (self-service) ──► Fase 7 (beta → LANZAMIENTO)
+Fase 2 (multi-tenant)┤        ▲                          │
+  + capa de canal    │        │                          ▼
+Fase 3 (billing) ────┘────────┘            Fase 8 (multicanal v2: SMS + voz)
 Fase 5 (observabilidad)  ── en paralelo desde Fase 1 ──► requisito de launch
 Fase 6 (legal/GTM)       ── en paralelo, cierra antes de Fase 7
 ```
 
-**Ruta crítica:** 1 → 2 → 3 → 4 → 7. Las fases 5 y 6 corren en paralelo y son
-requisitos del Go/No-Go.
+**Ruta crítica al lanzamiento:** 1 → 2 → 3 → 4 → 7 (WhatsApp-only). Las fases 5 y
+6 corren en paralelo y son requisitos del Go/No-Go. La **Fase 8 (SMS + voz) es
+post-lanzamiento** y no bloquea el launch; la capa de canal que la habilita se
+deja lista barato dentro de la Fase 2.
 
-**Estimación total (1 dev full-time, secuencial):** ~13–21 semanas de ingeniería
-+ 2–4 de beta. Con paralelización (5 y 6 solapadas) y foco, una ventana realista
-es **~3–4 meses** hasta lanzamiento.
+**Estimación total al lanzamiento (1 dev full-time, secuencial):** ~13–21 semanas
+de ingeniería + 2–4 de beta. Con paralelización (5 y 6 solapadas) y foco, una
+ventana realista es **~3–4 meses** hasta lanzamiento WhatsApp-only.
+
+**Post-lanzamiento (Fase 8):** SMS ~2 semanas; **voz en vivo 6–10+ semanas** como
+línea de producto v2 (la inversión más grande, pero también el mayor
+diferenciador).
 
 ---
 
@@ -360,7 +449,11 @@ es **~3–4 meses** hasta lanzamiento.
    en Stripe.
 5. **Mercado/moneda/impuestos** — ¿país objetivo inicial? (afecta Stripe Tax y
    requisitos legales).
+6. **Voz (Fase 8)** — ¿la voz en vivo será parte del plan base o un **add-on de
+   precio**? (su costo por minuto puede no caber en el plan fijo). Definir también
+   el país inicial para cumplimiento de grabación de llamadas.
 
 > Cuando confirmes 1–5, el siguiente paso es convertir **Fase 1** en un plan de
 > implementación detallado (spec → plan → ejecución) y arrancar, ya que no
-> depende de las decisiones de billing/onboarding.
+> depende de las decisiones de billing/onboarding. La decisión 6 puede esperar
+> hasta acercarse a la Fase 8.
