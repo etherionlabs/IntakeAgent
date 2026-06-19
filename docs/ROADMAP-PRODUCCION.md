@@ -79,16 +79,25 @@ arquitectura, modelo de datos, criterios de aceptación). Este roadmap es el
 documento maestro; los specs son el detalle previo a implementar. Convención:
 `spec (diseño)` → `plan (implementación)` → código.
 
-| Fase | Spec de diseño |
+| Fase | Spec de diseño | Plan de implementación |
+| --- | --- | --- |
+| 1 — Seguridad y confiabilidad | [spec](superpowers/specs/2026-06-18-fase1-security-hardening-design.md) | [plan](superpowers/plans/2026-06-18-fase1-security-hardening-plan.md) |
+| 2 — Multi-tenancy + capa de canal | [spec](superpowers/specs/2026-06-18-fase2-multitenancy-channel-layer-design.md) | [plan](superpowers/plans/2026-06-18-fase2-multitenancy-channel-layer-plan.md) |
+| 3 — Billing (Stripe) | [spec](superpowers/specs/2026-06-18-fase3-billing-stripe-design.md) | [plan](superpowers/plans/2026-06-18-fase3-billing-stripe-plan.md) |
+| 4 — Onboarding self-service | [spec](superpowers/specs/2026-06-18-fase4-self-service-onboarding-design.md) | [plan](superpowers/plans/2026-06-18-fase4-self-service-onboarding-plan.md) |
+| 5 — Observabilidad y operaciones | [spec](superpowers/specs/2026-06-18-fase5-observability-ops-design.md) | [plan](superpowers/plans/2026-06-18-fase5-observability-ops-plan.md) |
+| 6 — Legal, cumplimiento y GTM | [spec](superpowers/specs/2026-06-18-fase6-legal-gtm-design.md) | [plan](superpowers/plans/2026-06-18-fase6-legal-gtm-plan.md) |
+| 7 — Beta → Lanzamiento | (operacional) | [runbook go-live](runbooks/2026-06-18-go-live-runbook.md) |
+| 8 — Multicanal v2 (SMS + voz) | [spec](superpowers/specs/2026-06-18-fase8-multichannel-sms-voice-design.md) | [plan](superpowers/plans/2026-06-18-fase8-multichannel-sms-voice-plan.md) |
+
+### Documentos operativos, legales y de GTM (base no-código lista)
+
+| Área | Documentos |
 | --- | --- |
-| 1 — Seguridad y confiabilidad | [`specs/2026-06-18-fase1-security-hardening-design.md`](superpowers/specs/2026-06-18-fase1-security-hardening-design.md) |
-| 2 — Multi-tenancy + capa de canal | [`specs/2026-06-18-fase2-multitenancy-channel-layer-design.md`](superpowers/specs/2026-06-18-fase2-multitenancy-channel-layer-design.md) |
-| 3 — Billing (Stripe) | [`specs/2026-06-18-fase3-billing-stripe-design.md`](superpowers/specs/2026-06-18-fase3-billing-stripe-design.md) |
-| 4 — Onboarding self-service | [`specs/2026-06-18-fase4-self-service-onboarding-design.md`](superpowers/specs/2026-06-18-fase4-self-service-onboarding-design.md) |
-| 5 — Observabilidad y operaciones | [`specs/2026-06-18-fase5-observability-ops-design.md`](superpowers/specs/2026-06-18-fase5-observability-ops-design.md) |
-| 6 — Legal, cumplimiento y GTM | [`specs/2026-06-18-fase6-legal-gtm-design.md`](superpowers/specs/2026-06-18-fase6-legal-gtm-design.md) |
-| 7 — Beta → Lanzamiento | (operacional — runbook, no requiere spec de diseño) |
-| 8 — Multicanal v2 (SMS + voz) | [`specs/2026-06-18-fase8-multichannel-sms-voice-design.md`](superpowers/specs/2026-06-18-fase8-multichannel-sms-voice-design.md) |
+| **Legal** (borradores, requieren revisión profesional) | [ToS](legal/terms-of-service.md) · [Privacidad](legal/privacy-policy.md) · [DPA](legal/dpa.md) · [Aviso WhatsApp/Baileys](legal/whatsapp-baileys-disclaimer.md) |
+| **Runbooks** | [Backup/restore drill](runbooks/2026-06-18-backup-restore-drill.md) · [Respuesta a incidentes](runbooks/2026-06-18-incident-response.md) · [Go-live](runbooks/2026-06-18-go-live-runbook.md) |
+| **GTM / cliente** | [Landing copy](gtm/landing-copy.md) · [Precios](gtm/pricing.md) · [Guía de inicio](gtm/getting-started.md) · [FAQ](gtm/faq.md) |
+| **Decisiones** | [Registro de decisiones abiertas](DECISIONES-PENDIENTES.md) |
 
 ---
 
