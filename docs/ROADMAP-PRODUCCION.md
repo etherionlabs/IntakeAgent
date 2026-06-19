@@ -13,6 +13,17 @@ multi-tenant, self-service, con cobro recurrente) sin romper lo que ya funciona.
 | **Onboarding** | **Self-service completo** | Signup público → pago → aprovisionamiento automático del bot. Esto **obliga** a resolver el aprovisionamiento dinámico de workers (hoy manual en `docker-compose.yml`). Es el mayor esfuerzo de ingeniería del roadmap. |
 | **Prioridad #1** | **Seguridad y confiabilidad** | El hardening (Fase 1) va **antes** que billing y signup. Vendemos con confianza primero. |
 | **Canales** | WhatsApp en el lanzamiento; **SMS + voz en vivo como v2** | Se hace un refactor ligero de "capa de canal" antes del lanzamiento (Fase 2) para no cerrar la puerta, pero los canales SMS y **voz conversacional en vivo** (Twilio) se construyen post-lanzamiento (Fase 8). El núcleo del pipeline ya es agnóstico al canal. |
+| **Arquitectura multi-tenant** | **`TenantManager` (Enfoque A), diseño shardeable** | Aprovisionamiento de bots en caliente sin tocar infra (requisito del self-service), con asignación de tenants por worker desde la BD para escalar horizontalmente. Ver Fase 2. |
+| **Identidad de login** | **Email global único** | Encaja con signup self-service y recuperación de contraseña; reemplaza el `findFirst` por `username`. Ver Fase 1. |
+| **Trial** | **Trial corto con tarjeta requerida** | Cada trial tiene costo marginal real (bot + OpenRouter); la tarjeta filtra abuso y mejora la conversión. Ver Fases 3 y 4. |
+| **Email transaccional** | **Resend** | Verificación de email, recuperación, avisos de pago. |
+| **Observabilidad** | **Sentry** | Rastreo de errores en API, worker y SPA con `tenantId`. Ver Fase 5. |
+| **WhatsApp a escala** *(dirección estratégica)* | Evaluar **API oficial de WhatsApp Business Cloud** antes de lo previsto | Baileys (no oficial) es el verdadero cuello de botella del self-service a escala (sesión con estado, riesgo de baneo, sockets por proceso). No bloquea el lanzamiento, pero se adelanta su evaluación como canal en paralelo. |
+
+> **Decisiones aún pendientes (de negocio):** monto/intervalo del plan, mercado/
+> moneda/impuestos, jurisdicción legal, y si la voz (Fase 8) va en el plan base o
+> como add-on. Registro completo y estado en
+> [`DECISIONES-PENDIENTES.md`](DECISIONES-PENDIENTES.md).
 
 ---
 
