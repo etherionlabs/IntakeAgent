@@ -34,8 +34,11 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
+    "@fastify/helmet": "^13.0.2",
     "@fastify/jwt": "^10.1.0",
+    "@fastify/rate-limit": "^11.0.0",
     "@openrouter/sdk": "^0.12.35",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",

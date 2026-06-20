@@ -33,6 +33,7 @@ export async function cleanupDb(): Promise<void> {
   await testPrisma.notification.deleteMany();
   await testPrisma.job.deleteMany();
   await testPrisma.contact.deleteMany();
+  await testPrisma.passwordResetToken.deleteMany();
   await testPrisma.panelUser.deleteMany();
   await testPrisma.tenant.deleteMany();
 }

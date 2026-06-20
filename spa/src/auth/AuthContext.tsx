@@ -3,44 +3,38 @@ import { api, setUnauthorizedHandler } from '../api/client';
 
 interface AuthState {
   user: any | null;
-  token: string | null;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
-function readUser(): any | null {
-  const raw = localStorage.getItem('intake_user');
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('intake_token'));
-  const [user, setUser] = useState<any | null>(() => readUser());
+  // El estado de auth vive SOLO en memoria; la sesión persiste en la cookie
+  // HttpOnly (inaccesible a JS). Al montar se rehidrata vía /auth/me.
+  const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  function logout() {
-    localStorage.removeItem('intake_token');
-    localStorage.removeItem('intake_user');
-    setToken(null);
-    setUser(null);
-  }
-
-  async function login(username: string, password: string) {
-    const res = await api.login(username, password);
-    localStorage.setItem('intake_token', res.token);
-    localStorage.setItem('intake_user', JSON.stringify(res.user));
-    setToken(res.token);
+  async function login(email: string, password: string) {
+    const res = await api.login(email, password);
     setUser(res.user);
   }
 
+  async function logout() {
+    try { await api.logout(); } finally { setUser(null); }
+  }
+
   useEffect(() => {
-    setUnauthorizedHandler(() => logout());
+    setUnauthorizedHandler(() => setUser(null));
+    api.me()
+      .then((res) => setUser(res.user))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

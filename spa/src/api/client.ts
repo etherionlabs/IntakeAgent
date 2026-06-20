@@ -7,17 +7,32 @@ export class ApiError extends Error {
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 
-function getToken(): string | null { return localStorage.getItem('intake_token'); }
+const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+// La cookie CSRF (intake_csrf) NO es HttpOnly: la reflejamos en el header
+// x-csrf-token en las mutaciones (double-submit).
+function readCsrfCookie(): string | null {
+  const m = document.cookie.match(/(?:^|;\s*)intake_csrf=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   // OJO: solo enviar content-type cuando HAY body. Fastify responde 400 si llega
   // content-type:application/json con body vacío (pasa en DELETE y POST sin cuerpo,
   // ej. eliminar contacto o desvincular WhatsApp).
   const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers.authorization = `Bearer ${token}`;
   if (body !== undefined) headers['content-type'] = 'application/json';
-  const res = await fetch(`${BASE}${path}`, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+  if (MUTATING.has(method)) {
+    const csrf = readCsrfCookie();
+    if (csrf) headers['x-csrf-token'] = csrf;
+  }
+  // credentials:'include' envía/recibe la cookie de sesión HttpOnly cross-site.
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers,
+    credentials: 'include',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
   if (res.status === 401) { onUnauthorized?.(); throw new ApiError(401, 'no autorizado'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `error ${res.status}`);
@@ -25,7 +40,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
-  login: (username: string, password: string) => request<{ token: string; user: any }>('POST', '/auth/login', { username, password }),
+  login: (email: string, password: string) => request<{ user: any }>('POST', '/auth/login', { email, password }),
+  logout: () => request<{ ok: boolean }>('POST', '/auth/logout'),
+  me: () => request<{ user: any }>('GET', '/auth/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('POST', '/auth/change-password', { currentPassword, newPassword }),
+  forgotPassword: (email: string) => request<{ ok: boolean }>('POST', '/auth/forgot-password', { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ ok: boolean }>('POST', '/auth/reset-password', { token, newPassword }),
   getProfile: () => request<{ intakeSchema: any }>('GET', '/profile'),
   getJobs: (status?: string, includeArchived = false) => {
     const params = new URLSearchParams();

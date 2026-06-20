@@ -26,13 +26,29 @@ model PanelUser {
   id           String   @id @default(uuid())
   tenantId     String
   username     String
+  email        String?  @unique
   passwordHash String
+  passwordChangedAt DateTime?
   role         String   // 'admin' | 'viewer'
   createdAt    DateTime @default(now())
 
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  resetTokens  PasswordResetToken[]
 
   @@unique([tenantId, username])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      PanelUser @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Contact {

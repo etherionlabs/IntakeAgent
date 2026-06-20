@@ -560,30 +560,30 @@ Va al final: valida que todo lo anterior es recuperable. Mayormente documental/o
 
 ## Checklist de tareas
 
-**Grupo 1 — Auth cookie HttpOnly + CSRF + login por email**
-- [ ] 1.1 `email` (nullable → backfill → `@unique`) + `passwordChangedAt` en `PanelUser`; migración aplicada
-- [ ] 1.2 Login por email + emisión de cookies `intake_session`/`intake_csrf`; `@fastify/cookie` + jwt desde cookie
-- [ ] 1.3 `authenticate` lee la cookie; `GET /auth/me` y `POST /auth/logout`
-- [ ] 1.4 Hook global CSRF double-submit (exime `/auth/login`, `/health`)
-- [ ] 1.5 SPA `client.ts`: `credentials: 'include'`, `x-csrf-token`, sin `localStorage`, `api.me`/`api.logout`
-- [ ] 1.6 SPA `AuthContext.tsx` en memoria + rehidratación por `/auth/me`; formulario por email
+**Grupo 1 — Auth cookie HttpOnly + CSRF + login por email** ✅ COMPLETO
+- [x] 1.1 `email` (`@unique` nullable) + `passwordChangedAt` en `PanelUser`; migración `20260620000000_auth_email_reset`
+- [x] 1.2 Login por email + emisión de cookies `intake_session`/`intake_csrf`; `@fastify/cookie` + jwt desde cookie
+- [x] 1.3 `authenticate` lee la cookie; `GET /auth/me` y `POST /auth/logout`
+- [x] 1.4 Hook global CSRF double-submit (solo si hay cookie de sesión; exime `/auth/*`, `/health`)
+- [x] 1.5 SPA `client.ts`: `credentials: 'include'`, `x-csrf-token`, sin `localStorage`, `api.me`/`api.logout`
+- [x] 1.6 SPA `AuthContext.tsx` en memoria + rehidratación por `/auth/me`; formulario por email
 
-**Grupo 2 — Recuperación/cambio de contraseña + rate-limit**
-- [ ] 2.1 `password-policy.ts` + `EmailSender`/`LogEmailSender`
-- [ ] 2.2 Modelo `PasswordResetToken` + `POST /auth/forgot-password` (200 anti-enumeración)
-- [ ] 2.3 `POST /auth/reset-password` (token de un solo uso, expirable)
-- [ ] 2.4 `POST /auth/change-password` + invalidación por `passwordChangedAt` en `authenticate`
-- [ ] 2.5 Rate-limit estricto en `/auth/login` (5/15 min, 429 + `Retry-After`)
+**Grupo 2 — Recuperación/cambio de contraseña + rate-limit** ✅ COMPLETO
+- [x] 2.1 `password-policy.ts` + `EmailSender`/`LogEmailSender`
+- [x] 2.2 Modelo `PasswordResetToken` + `POST /auth/forgot-password` (200 anti-enumeración)
+- [x] 2.3 `POST /auth/reset-password` (token de un solo uso, expirable)
+- [x] 2.4 `POST /auth/change-password` + invalidación por `passwordChangedAt` en `authenticate`
+- [x] 2.5 Rate-limit estricto en `/auth/login` (5/15 min, 429 + `Retry-After`)
 
-**Grupo 3 — Endurecimiento API**
-- [ ] 3.1 `@fastify/rate-limit` global por IP
-- [ ] 3.2 `@fastify/helmet` (hsts/noSniff/frameguard)
-- [ ] 3.3 `bodyLimit` (256 KB)
-- [ ] 3.4 CORS: origin concreto + `credentials: true`; falla si `*` en producción; `cors.test.ts` actualizado
-- [ ] 3.5 Auditoría de secretos en logs (redacción de auth/cookies)
-- [ ] 3.6 `tenant-isolation.test.ts` en verde; rutas auditadas por `tenantId`
+**Grupo 3 — Endurecimiento API** (5/6)
+- [x] 3.1 `@fastify/rate-limit` global por IP (alto en test)
+- [x] 3.2 `@fastify/helmet` (hsts/noSniff/frameguard)
+- [x] 3.3 `bodyLimit` (256 KB)
+- [x] 3.4 CORS: origin concreto + `credentials`; `getCorsOrigin` falla si `*` en producción
+- [ ] 3.5 Auditoría de secretos en logs — API ya sin logger; falta redacción en el logger del worker
+- [x] 3.6 `tenant-isolation.test.ts` en verde; rutas auditadas por `tenantId`
 
-**Grupo 4 — Resiliencia Baileys + OpenRouter**
+**Grupo 4 — Resiliencia Baileys + OpenRouter** (pendiente)
 - [ ] 4.1 Backoff exponencial + jitter; reset de intentos al reconectar
 - [ ] 4.2 `loggedOut` no reintenta (alerta de re-vinculación); transitorios reintentan
 - [ ] 4.3 Alerta por bot desconectado > N min (operador persistente + dueño si el canal vive)
