@@ -18,7 +18,8 @@ let mediaRoot: string;
 
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {
-    whatsappMsgId: 'wa_1',
+    externalMsgId: 'wa_1',
+    channel: 'whatsapp',
     fromPhoneE164: '+5215555555555',
     chatKind: 'individual',
     fromMe: false,
@@ -71,7 +72,7 @@ describe('normalizeAndPersistMessage', () => {
       store,
       new NoopTranscriber(),
       rawMsg({
-        whatsappMsgId: 'wa_img',
+        externalMsgId: 'wa_img',
         kind: 'image',
         text: null,
         media: { buffer: Buffer.from('FAKEJPEG'), mimetype: 'image/jpeg' },
@@ -93,7 +94,7 @@ describe('normalizeAndPersistMessage', () => {
       store,
       transcriber,
       rawMsg({
-        whatsappMsgId: 'wa_audio',
+        externalMsgId: 'wa_audio',
         kind: 'audio',
         text: null,
         media: { buffer: Buffer.from('OGG'), mimetype: 'audio/ogg' },
@@ -114,7 +115,7 @@ describe('normalizeAndPersistMessage', () => {
       store,
       new NoopTranscriber(),
       rawMsg({
-        whatsappMsgId: 'wa_audio2',
+        externalMsgId: 'wa_audio2',
         kind: 'audio',
         text: null,
         media: { buffer: Buffer.from('OGG'), mimetype: 'audio/ogg' },
@@ -133,7 +134,7 @@ describe('normalizeAndPersistMessage', () => {
       TEST_TENANT_ID,
       store,
       new NoopTranscriber(),
-      rawMsg({ whatsappMsgId: 'wa_sticker', kind: 'sticker', text: null, media: null }),
+      rawMsg({ externalMsgId: 'wa_sticker', kind: 'sticker', text: null, media: null }),
       c.id,
     );
     expect(msg.kind).toBe('sticker');

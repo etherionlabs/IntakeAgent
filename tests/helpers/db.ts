@@ -35,5 +35,27 @@ export async function cleanupDb(): Promise<void> {
   await testPrisma.contact.deleteMany();
   await testPrisma.passwordResetToken.deleteMany();
   await testPrisma.panelUser.deleteMany();
+  await testPrisma.tenantSettings.deleteMany();
   await testPrisma.tenant.deleteMany();
+}
+
+/** Siembra una fila mínima válida de TenantSettings para el tenant dado. */
+export async function seedTestTenantSettings(
+  tenantId: string = TEST_TENANT_ID,
+  overrides: Record<string, unknown> = {},
+): Promise<void> {
+  await testPrisma.tenantSettings.upsert({
+    where: { tenantId },
+    update: {},
+    create: {
+      tenantId,
+      industry: 'tapiceria',
+      businessName: 'Test Tapicería',
+      businessDomain: 'tapicería',
+      ownerPhoneE164: '+5210000000000',
+      welcomeTemplate: 'Hola, soy el asistente.',
+      intakeSchema: { sections: [] },
+      ...overrides,
+    },
+  });
 }

@@ -57,7 +57,8 @@ let mediaRoot: string;
 
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {
-    whatsappMsgId: 'wa_' + Math.random().toString(36).slice(2),
+    externalMsgId: 'wa_' + Math.random().toString(36).slice(2),
+    channel: 'whatsapp',
     fromPhoneE164: '+5215555',
     chatKind: 'individual',
     fromMe: false,
@@ -184,35 +185,35 @@ describe('InboundCoordinator', () => {
     expect((deps.sender as MemorySender).sent).toHaveLength(0);
   });
 
-  it('descarta duplicados por whatsappMsgId', async () => {
+  it('descarta duplicados por externalMsgId', async () => {
     const deps = await makeDeps();
     const coord = new InboundCoordinator(deps);
-    const msg = rawMsg({ whatsappMsgId: 'wa_dup' });
+    const msg = rawMsg({ externalMsgId: 'wa_dup' });
     await coord.handleInbound(msg);
     await coord.handleInbound(msg);
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
     await flushAsyncIO();
-    const count = await prisma.message.count({ where: { whatsappMsgId: 'wa_dup' } });
+    const count = await prisma.message.count({ where: { externalMsgId: 'wa_dup' } });
     expect(count).toBe(1);
   });
 
   it('cuando bot_active=false guarda el mensaje pero no responde', async () => {
     const deps = await makeDeps();
     const coord = new InboundCoordinator(deps);
-    await coord.handleInbound(rawMsg({ whatsappMsgId: 'wa1', text: 'hola' }));
+    await coord.handleInbound(rawMsg({ externalMsgId: 'wa1', text: 'hola' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
     await flushAsyncIO();
     await prisma.contact.updateMany({ data: { botActive: false } });
     (deps.sender as MemorySender).clear();
-    await coord.handleInbound(rawMsg({ whatsappMsgId: 'wa2', text: 'sigues ahí?' }));
+    await coord.handleInbound(rawMsg({ externalMsgId: 'wa2', text: 'sigues ahí?' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
     await flushAsyncIO();
     const sender = deps.sender as MemorySender;
     expect(sender.sent).toHaveLength(0);
-    const count = await prisma.message.count({ where: { whatsappMsgId: 'wa2' } });
+    const count = await prisma.message.count({ where: { externalMsgId: 'wa2' } });
     expect(count).toBe(1);
   });
 
@@ -250,7 +251,7 @@ describe('InboundCoordinator', () => {
     const coord = new InboundCoordinator(deps);
     await coord.handleInbound(
       rawMsg({
-        whatsappMsgId: 'wa_img',
+        externalMsgId: 'wa_img',
         kind: 'image',
         text: 'mi sillón',
         media: { buffer: Buffer.from('fake-jpeg'), mimetype: 'image/jpeg' },
@@ -265,7 +266,7 @@ describe('InboundCoordinator', () => {
     expect(seenUserMessage).toContain('Caption del cliente: mi sillón');
 
     // Se persistió en la DB y se contó la foto.
-    const msg = await prisma.message.findFirst({ where: { whatsappMsgId: 'wa_img' } });
+    const msg = await prisma.message.findFirst({ where: { externalMsgId: 'wa_img' } });
     expect(msg!.mediaDescription).toContain('Sillón de 3 plazas');
     const job = await prisma.job.findFirst();
     const intake = parseJobIntake(job!);
@@ -283,9 +284,9 @@ describe('InboundCoordinator', () => {
     });
     const deps = await makeDeps({ agentFactory: factory });
     const coord = new InboundCoordinator(deps);
-    await coord.handleInbound(rawMsg({ whatsappMsgId: 'a', text: 'uno' }));
-    await coord.handleInbound(rawMsg({ whatsappMsgId: 'b', text: 'dos' }));
-    await coord.handleInbound(rawMsg({ whatsappMsgId: 'c', text: 'tres' }));
+    await coord.handleInbound(rawMsg({ externalMsgId: 'a', text: 'uno' }));
+    await coord.handleInbound(rawMsg({ externalMsgId: 'b', text: 'dos' }));
+    await coord.handleInbound(rawMsg({ externalMsgId: 'c', text: 'tres' }));
     await vi.advanceTimersByTimeAsync(100);
     await vi.runAllTimersAsync();
     await flushAsyncIO();

@@ -11,15 +11,40 @@ model Tenant {
   slug        String   @unique
   name        String
   industry    String
+  /// DEPRECADO: la config del bot vive en TenantSettings. Se conserva durante la
+  /// ventana de migración (backfill); ningún código nuevo lo lee.
   profileDir  String
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
+  settings      TenantSettings?
   panelUsers    PanelUser[]
   contacts      Contact[]
   jobs          Job[]
   messages      Message[]
   agentRuns     AgentRun[]
   notifications Notification[]
+}
+
+/// Config operativa del bot por tenant (1:1 con Tenant). Reemplaza config.json +
+/// profileDir estáticos; editable por UI. El TenantManager la carga en addTenant.
+model TenantSettings {
+  tenantId        String   @id
+  industry        String
+  businessName    String
+  businessDomain  String
+  ownerPhoneE164  String
+  welcomeTemplate String
+  intakeSchema    Json
+  debounceMs      Int      @default(8000)
+  transcribeAudio Boolean  @default(false)
+  describeImages  Boolean  @default(false)
+  whisperModel    String?
+  visionModel     String?
+  panelUrl        String?
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
 }
 
 model PanelUser {
@@ -56,6 +81,7 @@ model Contact {
   phoneE164         String
   displayName       String?
   botActive         Boolean  @default(true)
+  channel           String   @default("whatsapp")
   flaggedNonIntake  Boolean  @default(false)
   flaggedReason     String?
   archivedAt        DateTime?
@@ -103,7 +129,8 @@ model Message {
   body            String?
   mediaPath       String?
   mediaDescription String? // descripción textual de la imagen (modelo de visión)
-  whatsappMsgId   String?
+  externalMsgId   String?  // ID del mensaje en el canal de origen (antes whatsappMsgId)
+  channel         String   @default("whatsapp")
   raw             String?  // JSON serializado
   createdAt       DateTime @default(now())
 
@@ -113,7 +140,7 @@ model Message {
   job             Job?     @relation(fields: [jobId], references: [id])
   contact         Contact  @relation(fields: [contactId], references: [id])
 
-  @@unique([tenantId, whatsappMsgId])
+  @@unique([tenantId, externalMsgId])
   @@index([contactId, createdAt])
 }
 

@@ -36,7 +36,7 @@ export async function mapWAMessageToRaw(
   const remoteJid = wam.key.remoteJid ?? '';
   const chatKind = inferChatKind(remoteJid);
   const fromPhoneE164 = jidToE164(remoteJid, wam.key.participant ?? null);
-  const whatsappMsgId = wam.key.id ?? `unknown_${Date.now()}`;
+  const externalMsgId = wam.key.id ?? `unknown_${Date.now()}`;
   const fromMe = wam.key.fromMe === true;
   const receivedAt = timestampToIso(wam.messageTimestamp);
 
@@ -83,7 +83,8 @@ export async function mapWAMessageToRaw(
     media: RawInboundMessage['media'],
   ): RawInboundMessage {
     return {
-      whatsappMsgId,
+      externalMsgId,
+      channel: 'whatsapp',
       fromPhoneE164,
       chatKind,
       fromMe,

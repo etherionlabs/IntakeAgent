@@ -28,7 +28,7 @@ export class InboundCoordinator {
   async handleInbound(raw: RawInboundMessage): Promise<void> {
     logger.info(
       {
-        whatsappMsgId: raw.whatsappMsgId,
+        externalMsgId: raw.externalMsgId,
         from: raw.fromPhoneE164,
         kind: raw.kind,
         chatKind: raw.chatKind,
@@ -40,14 +40,14 @@ export class InboundCoordinator {
 
     const pf = prefilter(raw);
     if (pf.rejected) {
-      logger.info({ reason: pf.reason, whatsappMsgId: raw.whatsappMsgId }, 'inbound.prefiltered');
+      logger.info({ reason: pf.reason, externalMsgId: raw.externalMsgId }, 'inbound.prefiltered');
       return;
     }
 
     const tenantId = this.deps.tenantId;
 
-    if (await alreadySeen(this.deps.prisma, tenantId, raw.whatsappMsgId)) {
-      logger.info({ whatsappMsgId: raw.whatsappMsgId }, 'inbound.duplicate');
+    if (await alreadySeen(this.deps.prisma, tenantId, raw.externalMsgId)) {
+      logger.info({ externalMsgId: raw.externalMsgId }, 'inbound.duplicate');
       return;
     }
 
@@ -58,7 +58,7 @@ export class InboundCoordinator {
       tenantId,
       this.deps.profile.intakeSchema,
       contactRes.contact.id,
-      raw.whatsappMsgId,
+      raw.externalMsgId,
     );
 
     const messageWithoutJob = await normalizeAndPersistMessage(
