@@ -54,7 +54,14 @@ export async function seedTestTenantSettings(
       businessDomain: 'tapicería',
       ownerPhoneE164: '+5210000000000',
       welcomeTemplate: 'Hola, soy el asistente.',
-      intakeSchema: { sections: [] },
+      intakeSchema: {
+        $businessName: 'Test Tapicería',
+        $businessDomain: 'tapicería',
+        $language: 'es-MX',
+        sections: [
+          { key: 'client', label: 'Cliente', fields: [{ key: 'name', label: 'Nombre', type: 'string', required: true }] },
+        ],
+      },
       ...overrides,
     },
   });

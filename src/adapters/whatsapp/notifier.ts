@@ -1,12 +1,14 @@
 import type {
-  Notifier,
   OwnerReadyPayload,
   DisconnectPayload,
 } from '../../services/notification';
 import type { OutboundSender } from '../../services/outbound';
+import type { ChannelNotifier } from '../../channels/types';
+import type { Channel } from '../../pipeline/types';
 import { logger } from '../../lib/logger';
 
-export class WhatsAppNotifier implements Notifier {
+export class WhatsAppNotifier implements ChannelNotifier {
+  readonly channel: Channel = 'whatsapp';
   constructor(
     private readonly sender: OutboundSender,
     private readonly ownerPhoneE164: string,

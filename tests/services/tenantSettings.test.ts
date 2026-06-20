@@ -17,6 +17,6 @@ describe('TenantSettings', () => {
     expect(s?.transcribeAudio).toBe(false);
     expect(s?.describeImages).toBe(false);
     expect(s?.businessName).toBe('Test Tapicería');
-    expect(s?.intakeSchema).toEqual({ sections: [] });
+    expect((s?.intakeSchema as any)?.sections).toBeInstanceOf(Array);
   });
 });

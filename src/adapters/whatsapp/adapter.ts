@@ -3,6 +3,8 @@ import { BaileysConnection } from './connection';
 import { mapWAMessageToRaw } from './mapMessage';
 import type { Notifier } from '../../services/notification';
 import { logger } from '../../lib/logger';
+import type { Channel } from '../../pipeline/types';
+import type { InboundSource, ConnectionControl } from '../../channels/types';
 import type { AdapterStateSnapshot, ConnectionStatus, WASocket } from './types';
 
 export interface BaileysAdapterOptions {
@@ -19,7 +21,8 @@ export interface BaileysAdapterOptions {
 
 const DEFAULT_ALERT_MS = Number(process.env.WA_DISCONNECT_ALERT_MS ?? 5 * 60 * 1000);
 
-export class BaileysAdapter {
+export class BaileysAdapter implements InboundSource, ConnectionControl {
+  readonly channel: Channel = 'whatsapp';
   private readonly conn: BaileysConnection;
   private disconnectTimer: NodeJS.Timeout | null = null;
 
