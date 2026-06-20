@@ -170,21 +170,26 @@ export DATABASE_URL="postgres://intake:intake@localhost:5432/intake"
 
 ---
 
-### Tarea B3: `start()` cargando tenants `active` desde Postgres con aislamiento de fallos
+### Tarea B3: `start()` cargando tenants `active` (filtrado por shard) con aislamiento de fallos
 
-**Objetivo:** Que el arranque levante **todos** los tenants `active` y que el fallo de uno no impida los demás.
+**Objetivo:** Que el arranque levante los tenants `active` **que le corresponden a
+este shard** y que el fallo de uno no impida los demás. Diseño shardeable desde el
+inicio (decisión #1, spec §2.1); con `SHARD_COUNT=1` levanta a todos.
 
 **Archivos:**
+- Crear: `src/tenant/shard.ts` (función de asignación `ownsTenant(tenantId)` + lectura de `SHARD_ID`/`SHARD_COUNT` del entorno con default `0`/`1`)
 - Modificar: `src/tenant/manager.ts`
-- Modificar: `tests/tenant/manager.test.ts`
+- Modificar/crear: `tests/tenant/manager.test.ts`, `tests/tenant/shard.test.ts`
 
 **Dependencias:** B2, A1 (columna `active`).
 
 **Cambios:**
-- `start()`: `prisma.tenant.findMany({ where: { active: true }, select: { id: true } })` y `Promise.allSettled(tenants.map(t => this.addTenant(t.id)))` (spec §3.3). `allSettled`, no `all`: un fallo de arranque no aborta el resto; cada fallo se registra y deja ese tenant en `status:'error'`.
+- `src/tenant/shard.ts`: `ownsTenant(id)` = `hashEstable(id) % SHARD_COUNT === SHARD_ID`. Hash estable y determinista (no `Math.random`, no el hash de V8). **Misma función reutilizada por la API** (D2) para el ruteo por shard — exportar de un módulo compartible.
+- `start()`: `prisma.tenant.findMany({ where: { active: true }, select: { id: true } })`, **filtrar por `ownsTenant(t.id)`**, y `Promise.allSettled(mine.map(t => this.addTenant(t.id)))` (spec §3.3). `allSettled`, no `all`: un fallo de arranque no aborta el resto; cada fallo se registra y deja ese tenant en `status:'error'`.
 
 **Verificación:**
-- Test: sembrar 2 tenants `active` + 1 `active:false`; con un factory que falla **solo** para uno, `start()` resuelve, el sano queda `connected` y el inactivo no se levanta. Aserción de que el inactivo no está en el `Map`.
+- Test `shard.test.ts`: con `SHARD_COUNT=1`, `ownsTenant` es siempre `true`; con `SHARD_COUNT=2`, el conjunto de ids se parte de forma estable y disjunta entre `SHARD_ID=0` y `1` (sin solapamiento, sin huérfanos).
+- Test `manager.test.ts`: sembrar 2 tenants `active` + 1 `active:false`; con un factory que falla **solo** para uno, `start()` resuelve, el sano queda `connected` y el inactivo no se levanta. Aserción de que el inactivo no está en el `Map`. Con `SHARD_COUNT=2`/`SHARD_ID=0`, solo se levantan los tenants que el shard posee.
 - `npm test` verde.
 
 ---
@@ -271,12 +276,14 @@ export DATABASE_URL="postgres://intake:intake@localhost:5432/intake"
 
 **Cambios:**
 - El `GET /wa-status` y `proxyAction` dejan de ignorar el request (hoy `_request`, `:7,33,36`): leen `request.user.tenantId`/`request.tenant` que expone `app.authenticate`.
-- Inyectan el `tenantId` resuelto hacia la **única** URL interna del `TenantManager`: querystring para el GET, body para los POST.
+- **Ruteo consciente del shard (decisión #1, spec §5.2):** la API resuelve la URL interna del `TenantManager` que **posee** el `tenantId` mediante la misma asignación de `src/tenant/shard.ts` (B3). Con `SHARD_COUNT=1` colapsa a una sola URL (`TENANT_MANAGER_URL`); con N shards, `TENANT_MANAGER_URL_<shard>`. Encapsular en un helper `resolveManagerUrl(tenantId)` para no esparcir la lógica.
+- Inyectan el `tenantId` resuelto hacia esa URL interna: querystring para el GET, body para los POST.
 - **Aislamiento:** el `tenantId` SIEMPRE es el del JWT, nunca uno que venga del cliente (defensa contra un usuario que intente consultar el estado de otro tenant, spec §5.3).
 - El `INTERNAL_API_TOKEN` y el manejo de errores 502/503 se conservan tal cual.
 
 **Verificación:**
 - Tests con un `fetcher` falso: el GET reenvía `?tenantId=<jwt>`; los POST reenvían `{ tenantId: <jwt> }`; un `tenantId` enviado por el cliente se ignora; 503 si falta config, 502 si el worker responde mal/inalcanzable (paridad con el comportamiento actual).
+- Test de ruteo por shard: con `SHARD_COUNT=1`, todo va a la URL única; con `SHARD_COUNT=2`, `resolveManagerUrl` envía cada `tenantId` a la URL del shard que lo posee (consistente con `ownsTenant`).
 - `npm test` verde.
 
 ---
@@ -295,8 +302,9 @@ export DATABASE_URL="postgres://intake:intake@localhost:5432/intake"
 **Cambios:**
 - Reemplazar el servicio `worker-tapiceria` (`docker-compose.yml:17-34`) por **un** servicio `worker` (el `TenantManager`); quitar `TENANT_ID` de su `environment`.
 - Volúmenes: en vez de `baileys-tapiceria`/`media-tapiceria` por tenant, un volumen de sesiones y uno de media particionados **dentro** por `tenantId` (`./data/baileys-session/<id>`, `./media/<id>`, spec §5.4).
-- API: `WORKER_INTERNAL_URL: http://worker:3002` (decisión abierta #1: renombrar a `TENANT_MANAGER_URL` o conservar el nombre — recomendado renombrar, es un cambio semántico real; si se renombra, actualizar `wa-status.ts` y `.env.example`).
-- `.env.example`: quitar `TENANT_TAPICERIA_ID`.
+- API: `WORKER_INTERNAL_URL: http://worker:3002` → renombrar a `TENANT_MANAGER_URL` (cambio semántico real; actualizar `wa-status.ts` y `.env.example`). Para el diseño shardeable (decisión #1), `resolveManagerUrl` lee `TENANT_MANAGER_URL` cuando `SHARD_COUNT=1` y `TENANT_MANAGER_URL_<n>` cuando hay varios.
+- `worker`: añadir `SHARD_ID: 0` y `SHARD_COUNT: 1` al `environment` (defaults; escalar = subir réplicas con su `SHARD_ID`/`SHARD_COUNT`, sin cambios de código).
+- `.env.example`: quitar `TENANT_TAPICERIA_ID`; documentar `SHARD_ID`/`SHARD_COUNT`.
 
 **Verificación:**
 - `docker compose config` valida sin error.
@@ -347,6 +355,7 @@ export DATABASE_URL="postgres://intake:intake@localhost:5432/intake"
 - `ChannelNotifier extends Notifier { readonly channel: Channel }`.
 - `BaileysAdapter` implementa `InboundSource` con `channel='whatsapp'`; `WhatsAppSender`/`WhatsAppNotifier` declaran `channel='whatsapp'`.
 - El `TenantRuntime` (B4) habla de estas interfaces en su firma, no de "Baileys".
+- **Diseño con vista a la API oficial (decisión #10):** mantener estas interfaces lo bastante neutrales como para que un futuro `WhatsAppCloudApiAdapter` (API oficial, *stateless* por webhook) sea **otra** implementación de `InboundSource`/`ChannelOutboundSender` en paralelo a Baileys, sin reescribir el pipeline. No se construye aquí; solo se evita acoplar las interfaces a particularidades de Baileys (p. ej. no exponer QR/sesión en la interfaz común).
 
 **Verificación:**
 - `npm run typecheck` verde; `BaileysAdapter` satisface `InboundSource`.
@@ -359,7 +368,7 @@ export DATABASE_URL="postgres://intake:intake@localhost:5432/intake"
 1. **Aislamiento de fallos (Enfoque A):** un crash del proceso afecta a varios tenants. **Mitigación:** supervisión por-tenant (B4) — cada `TenantRuntime` en su try/catch con reinicio aislado y backoff; `start()` usa `Promise.allSettled` (B3); un tenant en `status:'error'` no tumba a los demás ni al proceso. Verificado por tests con factory/source que falla solo para un tenant.
 2. **Migración de datos: rename `whatsappMsgId` (A3):** el `migration.sql` por defecto haría drop+add y **borraría la idempotencia**. **Mitigación obligatoria:** editar el SQL a `ALTER ... RENAME COLUMN` + renombrar el índice; verificar el SQL y probar en una DB con datos antes de prod.
 3. **Backfill de `TenantSettings` (A4):** sin él, los tenants existentes no tienen config y `addTenant` no levanta. **Mitigación:** script idempotente con test; en cada entorno correr A1 → A4 **antes** de arrancar el `TenantManager`. Validar `Tenant` sin `settings = 0` post-backfill.
-4. **Límite de tenants por proceso:** N conexiones Baileys en un proceso tiene un techo de memoria/CPU (decisión abierta #4). **Mitigación:** observar memoria/CPU en staging con 2 tenants; definir umbral y estrategia de sharding del `TenantManager` antes de crecer no linealmente. Fuera de alcance de esta fase, pero registrado.
+4. **Límite de tenants por proceso → mitigado por diseño shardeable (decisión #1):** N conexiones Baileys en un proceso tiene un techo de memoria/CPU. **Mitigación construida en esta fase:** función de asignación `ownsTenant` (B3) y ruteo de la API por shard (D2), con `SHARD_COUNT=1` en el lanzamiento; escalar = subir réplicas con su `SHARD_ID`/`SHARD_COUNT`, **sin cambios de código**. Queda como tarea de *operación* (no de diseño) observar memoria/CPU en staging y fijar el umbral para subir `SHARD_COUNT`.
 5. **Sesiones Baileys particionadas por carpeta vs N volúmenes (decisión abierta #3):** particionar `./data/baileys-session/<id>` simplifica el alta pero complica backup/borrado granular (relevante para Fase 6, derecho de borrado). **Mitigación:** aceptable en Fase 2; se refina en Fase 6.
 6. **Coordinación E1↔A3 y E2↔C/B4:** el rename de tipo y de columna deben quedar alineados en la misma ventana; las interfaces de canal deben existir antes de que el runtime dependa de ellas. **Mitigación:** seguir el orden recomendado (E1 → A → B(+E2 antes de B4) → C → D); cada tarea cierra con `typecheck` + `npm test` verdes.
 7. **`Tenant.active` vs estado de suscripción (decisión abierta #2):** hasta Fase 3 (billing), `active` es la fuente de verdad independiente; se reconciliará con `Subscription` en Fase 3. Sin acción aquí, registrado.

@@ -38,6 +38,7 @@ Las **pendientes** son de negocio y se irán cerrando; varias no bloquean códig
   bloqueos** (no depende de billing ni legal). Siguiente paso recomendado: ejecutar
   su plan (`superpowers/plans/2026-06-18-fase1-security-hardening-plan.md`).
 - **4 y 5** no bloquean código: el billing se parametriza por variables de entorno.
-- **Pendiente de propagar a los specs/planes:** reflejar el diseño *shardeable* del
-  `TenantManager` (decisión #1) y la dirección de la API oficial (decisión #10) en
-  el spec/plan de la Fase 2.
+- **Propagado ✅:** el diseño *shardeable* del `TenantManager` (decisión #1) y la
+  dirección de la API oficial de WhatsApp (decisión #10) ya están reflejados en el
+  spec (§2.1, §2.2, §3.3, §5.2, §9) y el plan de la Fase 2 (B3 `ownsTenant`, D2/D3
+  ruteo por shard + `SHARD_ID`/`SHARD_COUNT`, E2 interfaz neutral, riesgo #4).

@@ -44,7 +44,7 @@ elegante".
 
 ---
 
-## 2. Decisión de arquitectura (requiere aprobación)
+## 2. Decisión de arquitectura *(decidida)*
 
 Para soportar N tenants dinámicos hay dos caminos.
 
@@ -75,10 +75,55 @@ La API lanza/para contenedores vía Docker API u orquestador.
   límites de recursos, descubrimiento de red dinámico, más superficie de fallo.
   Desproporcionado para el tamaño actual (2 tenants → crecimiento no lineal).
 
-### Recomendación
+### Decisión
 
-**Enfoque A.** El resto de este diseño lo asume. El aislamiento de fallos se
-resuelve con supervisión por-tenant, no con un contenedor por tenant.
+**Enfoque A — `TenantManager`, con diseño shardeable** (ver
+`DECISIONES-PENDIENTES.md` #1). El resto de este diseño lo asume. El aislamiento
+de fallos se resuelve con supervisión por-tenant, no con un contenedor por tenant.
+
+### 2.1 Diseño shardeable desde el inicio *(decisión #1)*
+
+Un solo proceso sosteniendo **todos** los sockets Baileys tiene un techo de
+memoria/CPU y es un único punto de fallo. Para que el self-service escale sin
+rediseño, el `TenantManager` se diseña **shardeable desde el día uno**, aunque en
+el lanzamiento corra un solo shard:
+
+- **Asignación tenant→shard desde la BD.** Cada proceso `TenantManager` arranca con
+  un identificador de shard (`SHARD_ID`/`SHARD_COUNT` por env, o una tabla de
+  asignación). En `start()`, **filtra los tenants `active` que le corresponden**
+  (p. ej. por hash estable de `tenantId` módulo `SHARD_COUNT`, o por una columna
+  `Tenant.shardId`). Hoy `SHARD_COUNT=1` ⇒ un proceso atiende a todos; mañana
+  `SHARD_COUNT=N` ⇒ cada proceso atiende a su subconjunto, **sin cambios de
+  código**, solo más réplicas del mismo servicio `worker`.
+- **Ruteo de la API consciente del shard.** El endpoint interno deja de asumir
+  "un único `TenantManager`". La API resuelve **qué shard** posee el `tenantId`
+  (misma función de asignación) y despacha a la URL interna de ese shard. En el
+  lanzamiento (un shard) esto colapsa a una sola URL, pero la abstracción queda
+  lista (ver §5).
+- **Sesiones Baileys ya particionadas por `tenantId`** (`sessionDir =
+  ./data/baileys-session/<tenantId>`), por lo que mover un tenant de shard no
+  exige re-vincular si el volumen es compartido/accesible.
+
+> El sharding **no se implementa de forma completa en esta fase** (se lanza con un
+> shard), pero las dos piezas anteriores —función de asignación tenant→shard y
+> ruteo de la API por shard— **sí se construyen ahora** para no cerrar la puerta.
+> Antes era "decisión abierta #4"; ahora es principio de diseño.
+
+### 2.2 Dirección estratégica del canal: API oficial de WhatsApp *(decisión #10)*
+
+El verdadero cuello de botella del self-service a escala **no es el `TenantManager`
+sino Baileys**: es una integración **no oficial** con **sesión con estado** (QR a
+re-vincular), **riesgo de baneo** del número, y un socket por tenant que vive en el
+proceso. La **API oficial de WhatsApp Business Cloud** es *stateless* (HTTP por
+webhook), sin QR ni sesión que mantener, y provisionable por API — encaja mucho
+mejor con multiusuario self-service.
+
+Implicación de diseño para esta fase: **la capa de canal (§7) debe quedar lo
+bastante limpia como para que "WhatsApp oficial" sea otra implementación de
+`InboundSource`/`ChannelOutboundSender`**, no una reescritura. No se construye aquí
+(sigue siendo Baileys en el lanzamiento), pero la abstracción de canal se diseña
+pensando en que el adaptador oficial entre en paralelo a Baileys antes de crecer
+de forma no lineal. Ver `DECISIONES-PENDIENTES.md` #10.
 
 ---
 
@@ -143,18 +188,24 @@ export interface TenantManager {
 
 ### 3.3 Arranque cargando tenants activos desde Postgres
 
-En lugar de leer `process.env.TENANT_ID`, `start()` consulta los tenants activos:
+En lugar de leer `process.env.TENANT_ID`, `start()` consulta los tenants activos
+**que le corresponden a este shard** (§2.1):
 
 ```ts
 const tenants = await prisma.tenant.findMany({
   where: { active: true },        // ver columna `active` en §6
   select: { id: true },
 });
-await Promise.allSettled(tenants.map((t) => this.addTenant(t.id)));
+// Filtro de shard (decisión #1): con SHARD_COUNT=1 esto es identidad.
+const mine = tenants.filter((t) => ownsTenant(t.id)); // hash(id) % SHARD_COUNT === SHARD_ID
+await Promise.allSettled(mine.map((t) => this.addTenant(t.id)));
 ```
 
-`Promise.allSettled` (no `all`) garantiza que el fallo de arranque de **un**
-tenant no impida levantar el resto. Cada fallo se registra y deja al
+`ownsTenant` es la **única** función de asignación tenant→shard, compartida con la
+API para el ruteo (§5). En el lanzamiento `SHARD_COUNT=1` ⇒ `ownsTenant` siempre
+es `true` y un proceso atiende a todos; subir réplicas no requiere cambios de
+código. `Promise.allSettled` (no `all`) garantiza que el fallo de arranque de
+**un** tenant no impida levantar el resto. Cada fallo se registra y deja al
 `TenantRuntime` en `status: 'error'` (consultable por `getStatus`).
 
 ### 3.4 `addTenant(tenantId)` — qué hace en caliente
@@ -221,16 +272,20 @@ queries por él. El cambio es de **quién construye y posee** los coordinadores
 **siempre** consulta el mismo worker, sin importar el `tenantId` del JWT. Lo
 mismo para `/wa-status/logout` y `/wa-status/reconnect` (`:33-38`).
 
-### 5.2 Cambio: resolver `tenantId` del JWT y despachar por tenant
+### 5.2 Cambio: resolver `tenantId` del JWT y despachar por tenant (consciente del shard)
 
-Con el Enfoque A hay **un** `TenantManager` detrás de **una** URL interna. La
-API ya no necesita "elegir worker"; necesita **pasar el `tenantId`** para que el
-`TenantManager` despache a la conexión correcta.
+Con el Enfoque A hay un `TenantManager` por **shard** detrás de su URL interna. En
+el lanzamiento (un shard) esto es **una** sola URL; el diseño shardeable (§2.1)
+exige que el ruteo se exprese desde ahora en función del shard, no de un worker
+fijo. La API ya no "elige worker"; **resuelve el shard del `tenantId`** y le **pasa
+el `tenantId`** para que despache a la conexión correcta.
 
 - `WORKER_INTERNAL_URL` deja de ser "la URL del worker de tapicería" y pasa a ser
-  `TENANT_MANAGER_URL` (o se conserva el nombre): **una sola** URL interna,
-  estable, que apunta al proceso `TenantManager`. **Ya no hay una URL por
-  tenant**, ni hay que regenerarla al alta de un tenant.
+  la URL del `TenantManager` del shard que posee el tenant. Con `SHARD_COUNT=1`
+  hay **una sola** URL interna estable (`TENANT_MANAGER_URL`); con N shards, la API
+  resuelve `shardOf(tenantId)` (misma función `ownsTenant`/asignación de §2.1) →
+  `TENANT_MANAGER_URL_<shard>`. **Nunca** hay una URL por tenant, ni se regenera al
+  alta de un tenant.
 - Las rutas obtienen `tenantId` del JWT. El middleware `app.authenticate` ya
   expone el tenant del usuario (claims `{ userId, tenantId, role }` del spec
   maestro). `wa-status.ts` debe leer `request.tenant`/`request.user.tenantId` en
@@ -491,14 +546,21 @@ construyen sender/notifier/adapter). SMS y voz reales viven en la Fase 8.
    más simple para self-service, pero complica el backup granular y el borrado por
    tenant (Fase 6, derecho de borrado). ¿Aceptable para Fase 2 y se refina en
    Fase 6?
-4. **Límite de tenants por proceso** — ¿cuántas conexiones Baileys concurrentes
-   aguanta un proceso antes de necesitar sharding del `TenantManager`? Definir un
-   umbral observado (memoria/CPU) y una estrategia de partición horizontal antes
-   de crecer "no linealmente".
+4. **~~Límite de tenants por proceso / sharding~~ → DECIDIDO (#1).** Ya no es una
+   pregunta abierta: el `TenantManager` se diseña **shardeable desde el inicio**
+   (§2.1), con función de asignación tenant→shard y ruteo de la API por shard
+   construidos en esta fase, aunque se lance con `SHARD_COUNT=1`. Queda como tarea
+   de *operación* (no de diseño) observar memoria/CPU en staging y definir el
+   umbral para subir `SHARD_COUNT`.
 5. **`intakeSchema` en `jsonb` vs columnas tipadas** — guardar el schema completo
    como JSON es flexible pero pierde validación a nivel DB. ¿Validación solo en la
    capa de aplicación (contra `src/config/intake-schema.ts`) es suficiente?
 6. **Reuso del rename `externalMsgId`** — confirmar que ningún índice/consulta
    fuera de los archivos revisados (`api/`, `spa/`) dependa del nombre
    `whatsappMsgId` antes de migrar (grep de cierre previo a la migración).
-```
+7. **~~Canal a escala~~ → DIRECCIÓN DECIDIDA (#10).** Evaluar la **API oficial de
+   WhatsApp Business Cloud** como implementación de canal en paralelo a Baileys
+   antes de crecer no linealmente. No se construye en esta fase; la capa de canal
+   (§7) se diseña para que entre como otra implementación de
+   `InboundSource`/`ChannelOutboundSender`, no como reescritura. Ver §2.2 y
+   `DECISIONES-PENDIENTES.md` #10.
