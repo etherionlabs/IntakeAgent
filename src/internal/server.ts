@@ -1,31 +1,32 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { logger } from '../lib/logger';
+import type { TenantStatus } from '../tenant/types';
 
 /**
- * Forma del estado que expone el endpoint interno de status.
- *
- * El `BaileysAdapter.state()` devuelve `AdapterStateSnapshot`
- * (`{ status, qr, lastError, lastConnectedAt }`), que NO coincide con esta
- * forma. El mapeo a `{ connected, qr, phone }` se hace en el bootstrap
- * (`src/index.ts`) antes de inyectar `adapterState`, sin tocar el adapter.
+ * Dispatcher por tenant que el endpoint interno consulta. El `TenantManager` lo
+ * satisface directamente (getStatus/logout/reconnect por tenantId).
  */
-export interface AdapterStatus {
-  connected: boolean;
-  qr: string | null;
-  phone: string;
-  status?: string;
-  lastConnectedAt?: string | null;
-  lastError?: string | null;
+export interface TenantDispatcher {
+  getStatus(tenantId: string): TenantStatus | null;
+  logout(tenantId: string): Promise<void>;
+  reconnect(tenantId: string): Promise<void>;
 }
 
 export interface InternalServerDeps {
-  adapterState: { state: () => AdapterStatus };
-  actions?: { logout: () => Promise<void>; reconnect: () => Promise<void> };
+  dispatcher: TenantDispatcher;
 }
 
 export interface InternalServer {
   app: FastifyInstance;
   close: () => Promise<void>;
+}
+
+function tenantIdOf(source: unknown): string | null {
+  if (source && typeof source === 'object' && 'tenantId' in source) {
+    const v = (source as Record<string, unknown>).tenantId;
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return null;
 }
 
 export async function startInternalServer(deps: InternalServerDeps): Promise<InternalServer> {
@@ -41,30 +42,36 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
 
   app.addHook('onRequest', async (request, reply) => {
     const header = request.headers.authorization ?? '';
-    const expected = `Bearer ${token}`;
-    if (header !== expected) {
+    if (header !== `Bearer ${token}`) {
       reply.code(401).send({ error: 'unauthorized' });
     }
   });
 
-  app.get('/internal/wa-status', async () => {
-    return deps.adapterState.state();
+  // El tenantId SIEMPRE lo provee la API (resuelto del JWT), nunca el cliente final.
+  app.get('/internal/wa-status', async (request, reply) => {
+    const tenantId = tenantIdOf(request.query);
+    if (!tenantId) return reply.code(400).send({ error: 'tenantId requerido' });
+    const status = deps.dispatcher.getStatus(tenantId);
+    if (!status) return reply.code(404).send({ error: 'tenant sin conexión activa' });
+    return status;
   });
 
-  app.post('/internal/wa-logout', async (_request, reply) => {
-    if (!deps.actions) return reply.code(503).send({ ok: false, error: 'sin acciones' });
+  app.post('/internal/wa-logout', async (request, reply) => {
+    const tenantId = tenantIdOf(request.body);
+    if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
     try {
-      await deps.actions.logout();
+      await deps.dispatcher.logout(tenantId);
       return { ok: true };
     } catch (e) {
       return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) });
     }
   });
 
-  app.post('/internal/wa-reconnect', async (_request, reply) => {
-    if (!deps.actions) return reply.code(503).send({ ok: false, error: 'sin acciones' });
+  app.post('/internal/wa-reconnect', async (request, reply) => {
+    const tenantId = tenantIdOf(request.body);
+    if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
     try {
-      await deps.actions.reconnect();
+      await deps.dispatcher.reconnect(tenantId);
       return { ok: true };
     } catch (e) {
       return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) });
@@ -72,16 +79,11 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
   });
 
   const port = Number(process.env.INTERNAL_PORT ?? 3002);
-  // Railway enruta la red privada por IPv6 → set HOST=:: en el worker para que la
-  // API lo alcance vía <worker>.railway.internal. Local/Docker: 0.0.0.0.
   const host = process.env.HOST ?? '0.0.0.0';
   await app.listen({ port, host });
   const addr = app.server.address();
   const boundPort = typeof addr === 'object' && addr ? addr.port : port;
   logger.info({ port: boundPort }, 'internal.listening');
 
-  return {
-    app,
-    close: () => app.close(),
-  };
+  return { app, close: () => app.close() };
 }

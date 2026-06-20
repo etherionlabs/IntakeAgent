@@ -14,24 +14,30 @@ services:
       retries: 10
     # sin `ports:` — solo accesible en la red interna de Docker
 
-  worker-tapiceria:
+  # Worker multi-tenant (TenantManager): mantiene N conexiones Baileys en un solo
+  # proceso/shard. Agregar un tenant NO toca este archivo: se da de alta en la BD
+  # (Tenant + TenantSettings) y el manager lo levanta. Escalar = subir réplicas
+  # con su SHARD_ID/SHARD_COUNT.
+  worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
     environment:
       DATABASE_URL: postgres://intake:${POSTGRES_PASSWORD}@postgres:5432/intake
-      TENANT_ID: ${TENANT_TAPICERIA_ID}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       INTERNAL_PORT: 3002
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      SHARD_ID: 0
+      SHARD_COUNT: 1
     volumes:
-      - baileys-tapiceria:/app/data/baileys-session
-      - media-tapiceria:/app/media
+      # Sesiones y media particionadas por tenantId DENTRO del volumen.
+      - baileys-sessions:/app/data/baileys-session
+      - media:/app/media
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    # sin `ports:` — la API (Plan 2) lo alcanza por nombre de servicio en la red interna
+    # sin `ports:` — la API lo alcanza por nombre de servicio en la red interna
 
   api:
     build:
@@ -41,7 +47,9 @@ services:
       DATABASE_URL: postgres://intake:${POSTGRES_PASSWORD}@postgres:5432/intake
       JWT_SECRET: ${JWT_SECRET}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
-      WORKER_INTERNAL_URL: http://worker-tapiceria:3002
+      # URL interna del TenantManager (shard único). Con N shards: TENANT_MANAGER_URL_0, _1, …
+      TENANT_MANAGER_URL: http://worker:3002
+      SHARD_COUNT: 1
       CORS_ORIGIN: ${CORS_ORIGIN}
       API_PORT: 3001
     ports: ["3001:3001"]
@@ -52,5 +60,5 @@ services:
 
 volumes:
   pgdata:
-  baileys-tapiceria:
-  media-tapiceria:
+  baileys-sessions:
+  media:

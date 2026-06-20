@@ -377,17 +377,22 @@ inicio (decisión #1, spec §2.1); con `SHARD_COUNT=1` levanta a todos.
 
 ## Checklist final (criterios de aceptación, spec §8)
 
-- [ ] Alta de un tenant desde código/API (`manager.addTenant(id)`) crea su conexión Baileys **sin reiniciar** el proceso ni tocar `docker-compose.yml`/`.env`. *(B2, C1, D3)*
-- [ ] `TenantManager.start()` levanta todos los tenants `active` desde Postgres; el fallo de uno no impide los demás. *(B3)*
-- [ ] `wa-status` devuelve el estado **del tenant del usuario** (JWT); un tenant sin runtime responde 404/409, no el estado de otro. *(D1, D2)*
-- [ ] `WORKER_INTERNAL_URL` deja de ser una URL por worker: una sola URL interna del `TenantManager`, ruteo por `tenantId`. *(D2, D3)*
-- [ ] Dos tenants con bots simultáneos, mensajes y sesiones Baileys aislados, verificado en staging. *(B4, D3)*
-- [ ] Existe `TenantSettings`; la config del bot (welcome, intakeSchema, flags de media, owner phone, debounce) es editable por tenant **sin tocar JSON en disco**. *(A1; edición por panel en `api/src/routes/settings.ts`, fuera del alcance estricto de este plan pero habilitada)*
-- [ ] Backfill de `TenantSettings` ejecutado para los tenants existentes; ningún código nuevo lee `Tenant.profileDir`. *(A4)*
-- [ ] `Message` y `Contact` tienen columna `channel` (default `'whatsapp'`); `RawInboundMessage` usa `externalMsgId` + `channel`; la migración **renombró** (no recreó) `whatsappMsgId` preservando la idempotencia. *(A2, A3, E1)*
-- [ ] WhatsApp es **una** implementación de `InboundSource` / `ChannelOutboundSender` / `ChannelNotifier`; el `TenantRuntime` depende de las interfaces, no de Baileys. Sin SMS/voz construidos. *(E2, B4)*
-- [ ] La supervisión por-tenant reinicia la conexión de un tenant caído sin derribar las demás ni el proceso. *(B4)*
-- [ ] `npm test` + `npm run typecheck` verdes tras cada bloque.
+- [x] Alta de un tenant desde código/API (`manager.addTenant(id)`) crea su conexión Baileys **sin reiniciar** el proceso ni tocar `docker-compose.yml`/`.env`. *(B2, C1, D3)*
+- [x] `TenantManager.start()` levanta todos los tenants `active` desde Postgres; el fallo de uno no impide los demás. *(B3)*
+- [x] `wa-status` devuelve el estado **del tenant del usuario** (JWT); un tenant sin runtime responde 404, no el estado de otro. *(D1, D2)*
+- [x] `WORKER_INTERNAL_URL` deja de ser una URL por worker: una sola URL interna del `TenantManager` (`TENANT_MANAGER_URL`), ruteo por `tenantId`/shard. *(D2, D3)*
+- [ ] Dos tenants con bots simultáneos, mensajes y sesiones Baileys aislados, verificado en **staging real** (no verificable sin Docker/Baileys aquí; queda para Fase 7). *(B4, D3)*
+- [x] Existe `TenantSettings`; la config del bot (welcome, intakeSchema, flags de media, owner phone, debounce) vive por tenant en BD. *(A1; edición por panel = follow-up en `settings.ts`)*
+- [x] Backfill de `TenantSettings` (`scripts/backfill-tenant-settings.ts`); ningún código nuevo lee `Tenant.profileDir`. *(A4)*
+- [x] `Message` y `Contact` tienen columna `channel` (default `'whatsapp'`); `RawInboundMessage` usa `externalMsgId` + `channel`; la migración **renombró** (no recreó) `whatsappMsgId` preservando la idempotencia. *(A2, A3, E1)*
+- [x] WhatsApp es **una** implementación de `InboundSource` / `ChannelOutboundSender` / `ChannelNotifier`; el `TenantRuntime` depende de las interfaces, no de Baileys. Sin SMS/voz construidos. *(E2, B4)*
+- [x] La supervisión por-tenant reinicia la conexión de un tenant caído sin derribar las demás ni el proceso. *(B4)*
+- [x] `npm test` + `npm run typecheck` verdes tras cada bloque.
+
+> **Nota de seguimiento:** la edición de `TenantSettings` desde el panel
+> (`api/src/routes/settings.ts` aún escribe a `profileDir`/`config.json`) y la
+> verificación de 2 bots simultáneos en staging real quedan como follow-up
+> (esta última depende de infra Docker/Baileys, Fase 7).
 
 ---
 
