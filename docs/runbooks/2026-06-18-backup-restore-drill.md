@@ -165,13 +165,23 @@ curl -s http://localhost:3001/health   # → {"ok":true}
 docker rm -f postgres-restore-drill   # limpia el contenedor del drill
 ```
 
-| Métrica | Objetivo | Último drill (rellenar) |
+> **Atajo:** el script `scripts/restore-postgres.sh <archivo.sql.gz> [base]` hace
+> el restore a una base efímera y muestra los conteos de verificación. Úsalo para
+> el drill en vez de tipear los pasos a mano.
+
+| Métrica | Objetivo | Último drill |
 |---------|----------|--------------------------|
-| RPO (pérdida máxima) | 24 h | _____ |
-| RTO (tiempo de restore) | < 30 min | _____ min |
-| Fecha del drill | — | _____ |
-| Backup verificado | — | backup-____.sql.gz |
-| Resultado | — | OK / FALLÓ |
+| RPO (pérdida máxima) | 24 h | 24 h |
+| RTO (tiempo de restore) | < 30 min | < 1 min (round-trip local) |
+| Fecha del drill | — | 2026-06-20 |
+| Backup verificado | — | round-trip `pg_dump → restore` |
+| Resultado | — | ✅ OK |
+
+> **Drill ejecutado (2026-06-20):** round-trip `pg_dump` → base efímera
+> `intake_restore` validado contra la base de desarrollo: el restore termina sin
+> error, un tenant testigo aparece tras restaurar y los conteos coinciden. Falta
+> repetirlo en el **staging real con Docker** una vez aprovisionado (Fase 7), con
+> la verificación de login de §2.3 y los tiempos reales de RTO.
 
 ---
 

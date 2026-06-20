@@ -2,6 +2,8 @@ import type { TurnContext, TurnResult, AgentDeps, ToolCallRecord } from './types
 import { buildSystemPrompt, renderUserMessage } from './prompt';
 import { buildTools } from './tools';
 import { recordAgentRun } from './audit';
+import { classifyLlmError, isActionableLlmError, type LlmErrorKind } from './errors';
+import { logger } from '../lib/logger';
 
 export async function runAgentTurn(
   ctx: TurnContext,
@@ -49,6 +51,7 @@ export async function runAgentTurn(
   let outputTokens = 0;
   let costUsd: number | null = null;
   let error: string | null = null;
+  let errorKind: LlmErrorKind | undefined;
 
   try {
     const agent = await deps.createAgent({
@@ -66,7 +69,15 @@ export async function runAgentTurn(
     costUsd = response.usage?.costUsd ?? null;
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
+    errorKind = classifyLlmError(e);
+    // Degradación sin perder el mensaje: el inbound ya está persistido; al cliente
+    // le devolvemos el fallback neutral y registramos el AgentRun con el error.
     responseText = deps.config.fallbackOnError;
+    // Saldo agotado / quota: alerta accionable al operador (recargar OpenRouter).
+    logger.error(
+      { alert: isActionableLlmError(errorKind), tenantId: deps.tenantId, jobId: ctx.job.id, errorKind },
+      'agent.llm_error',
+    );
   }
 
   await recordAgentRun(deps.prisma, deps.tenantId, {
@@ -89,5 +100,6 @@ export async function runAgentTurn(
     outputTokens,
     costUsd,
     error,
+    errorKind,
   };
 }

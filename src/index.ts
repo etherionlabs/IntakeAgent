@@ -103,6 +103,8 @@ async function main() {
     sessionDir: './data/baileys-session',
     coordinator,
     notifier,
+    tenantId,
+    notifyOwner: config.owner.notifyOnDisconnect,
   });
 
   // Endpoint interno de status (solo red Docker, protegido con INTERNAL_API_TOKEN).

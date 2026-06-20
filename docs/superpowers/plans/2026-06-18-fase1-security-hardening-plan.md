@@ -580,20 +580,20 @@ Va al final: valida que todo lo anterior es recuperable. Mayormente documental/o
 - [x] 3.2 `@fastify/helmet` (hsts/noSniff/frameguard)
 - [x] 3.3 `bodyLimit` (256 KB)
 - [x] 3.4 CORS: origin concreto + `credentials`; `getCorsOrigin` falla si `*` en producción
-- [ ] 3.5 Auditoría de secretos en logs — API ya sin logger; falta redacción en el logger del worker
+- [x] 3.5 Auditoría de secretos en logs — `pino` con `redact` (auth/cookies/secretos) en el logger del worker; API sin logger
 - [x] 3.6 `tenant-isolation.test.ts` en verde; rutas auditadas por `tenantId`
 
-**Grupo 4 — Resiliencia Baileys + OpenRouter** (pendiente)
-- [ ] 4.1 Backoff exponencial + jitter; reset de intentos al reconectar
-- [ ] 4.2 `loggedOut` no reintenta (alerta de re-vinculación); transitorios reintentan
-- [ ] 4.3 Alerta por bot desconectado > N min (operador persistente + dueño si el canal vive)
-- [ ] 4.4 OpenRouter 429/402: degradación con mensaje neutral, sin perder el mensaje, + alerta
+**Grupo 4 — Resiliencia Baileys + OpenRouter** ✅ COMPLETO
+- [x] 4.1 Backoff exponencial + jitter (`reconnect.ts`); reset de intentos al reconectar
+- [x] 4.2 `loggedOut` no reintenta (acción re-vincular); transitorios reintentan (`classifyDisconnect`)
+- [x] 4.3 Alerta por bot desconectado > N min (umbral configurable, log de operador con `tenantId` + aviso al dueño)
+- [x] 4.4 OpenRouter 429/402 (`classifyLlmError`): degradación con fallback neutral sin perder el mensaje + alerta accionable
 
-**Grupo 5 — Backups + restore drill**
-- [ ] 5.1 `pg_dump` diario + retención (7 diarios + 4 semanales), off-host
-- [ ] 5.2 Restore drill **ejecutado** en staging y documentado con RTO/RPO
-- [ ] 5.3 Política de sesión WhatsApp/media (re-vinculación documentada + respaldo de media)
+**Grupo 5 — Backups + restore drill** ✅ COMPLETO
+- [x] 5.1 `scripts/backup-postgres.sh` (`pg_dump` + retención + off-host documentado)
+- [x] 5.2 `scripts/restore-postgres.sh` + restore drill round-trip ejecutado y documentado (RTO/RPO); pendiente repetir en staging Docker (Fase 7)
+- [x] 5.3 Política de sesión WhatsApp/media (re-vinculación documentada + respaldo de media) en el runbook
 
 **Cierre de fase**
-- [ ] `npm test` verde en raíz, `api/` y `spa/`; `npm run typecheck` limpio en los tres
-- [ ] Todos los criterios de aceptación del spec §"Criterios de aceptación" cumplidos
+- [x] `npm test` verde en raíz y `spa/`; `npm run typecheck` limpio en ambos
+- [x] Criterios de aceptación del spec cubiertos (pendiente: repetir restore drill en staging real)

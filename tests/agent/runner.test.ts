@@ -153,7 +153,32 @@ describe('runAgentTurn', () => {
     });
     expect(result.error).toMatch(/network down/);
     expect(result.responseText).toBe(config.fallbackOnError);
+    expect(result.errorKind).toBe('transient');
     const runs = await prisma.agentRun.findMany({ where: { jobId: ctx.job.id } });
     expect(runs[0].error).toMatch(/network down/);
+  });
+
+  it('saldo agotado (402) degrada sin perder el mensaje y clasifica el error', async () => {
+    const ctx = await setupCtx();
+    const factory: AgentFactory = () => ({
+      on: () => {},
+      sendSync: async () => {
+        const err: any = new Error('Insufficient credits');
+        err.status = 402;
+        throw err;
+      },
+    });
+    const result = await runAgentTurn(ctx, {
+      prisma,
+      tenantId: TEST_TENANT_ID,
+      config,
+      profile,
+      notifier: new NoopNotifier(),
+      createAgent: factory,
+    });
+    expect(result.errorKind).toBe('insufficient_credits');
+    expect(result.responseText).toBe(config.fallbackOnError); // mensaje neutral, no se pierde
+    const runs = await prisma.agentRun.findMany({ where: { jobId: ctx.job.id } });
+    expect(runs[0].error).toMatch(/Insufficient credits/);
   });
 });
