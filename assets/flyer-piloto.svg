@@ -52,7 +52,7 @@
 
   <!-- Titular -->
   <g text-anchor="middle" font-family="Montserrat">
-    <text x="540" y="380" font-weight="800" font-size="92" fill="#ffffff" letter-spacing="-1">Tu taller con</text>
+    <text x="540" y="380" font-weight="800" font-size="92" fill="#ffffff" letter-spacing="-1">Tu negocio con</text>
     <text x="540" y="490" font-weight="900" font-size="118" fill="url(#accent)" letter-spacing="-2">recepcionista</text>
     <text x="540" y="588" font-weight="800" font-size="70" fill="#ffffff">que nunca duerme</text>
   </g>
@@ -60,7 +60,7 @@
   <!-- Subtítulo -->
   <g text-anchor="middle" font-family="Inter">
     <text x="540" y="678" font-weight="500" font-size="40" fill="#b9c4e0">Una IA que atiende tu</text>
-    <text x="540" y="732" font-weight="700" font-size="40" fill="#eafff4">WhatsApp de tapicería 24/7</text>
+    <text x="540" y="732" font-weight="700" font-size="40" fill="#eafff4">WhatsApp 24/7, sea cual sea tu giro</text>
   </g>
 
   <!-- Tarjeta de chat / mockup -->
@@ -78,15 +78,15 @@
     <!-- burbuja cliente -->
     <g font-family="Inter">
       <rect x="240" y="930" width="430" height="74" rx="24" fill="#1d2b4d"/>
-      <text x="270" y="965" font-size="27" fill="#dfe6f7">Hola, ¿retapizan salas?</text>
-      <text x="270" y="996" font-size="27" fill="#dfe6f7">Tengo un sillón maltratado</text>
+      <text x="270" y="965" font-size="27" fill="#dfe6f7">Hola, ¿tienen disponibilidad</text>
+      <text x="270" y="996" font-size="27" fill="#dfe6f7">para esta semana?</text>
     </g>
     <!-- burbuja IA -->
     <g font-family="Inter">
       <rect x="410" y="1024" width="430" height="110" rx="24" fill="#15402c"/>
-      <text x="440" y="1059" font-size="27" fill="#eafff4">¡Claro! Mándame una foto y</text>
-      <text x="440" y="1092" font-size="27" fill="#eafff4">medidas. Te armo el intake y</text>
-      <text x="440" y="1125" font-size="27" fill="#eafff4">aviso al taller. 📸</text>
+      <text x="440" y="1059" font-size="27" fill="#eafff4">¡Claro! Cuéntame qué necesitas</text>
+      <text x="440" y="1092" font-size="27" fill="#eafff4">y tomo tus datos. Aviso al</text>
+      <text x="440" y="1125" font-size="27" fill="#eafff4">equipo enseguida. ✅</text>
     </g>
     <!-- burbuja cliente 2 -->
     <g font-family="Inter">
@@ -94,7 +94,7 @@
       <text x="330" y="1193" font-size="27" fill="#dfe6f7">Va, ahorita te paso 🙌</text>
     </g>
     <!-- estado -->
-    <text x="540" y="1305" text-anchor="middle" font-family="Inter" font-weight="600" font-size="26" fill="#7e8bb0">Captura datos · agenda · notifica al dueño</text>
+    <text x="540" y="1305" text-anchor="middle" font-family="Inter" font-weight="600" font-size="26" fill="#7e8bb0">Atiende · capta datos · agenda · notifica al dueño</text>
   </g>
 
   <!-- Bullets de beneficios -->
@@ -112,7 +112,7 @@
     <g transform="translate(170,1590)">
       <circle cx="20" cy="-12" r="20" fill="url(#accent)"/>
       <path d="M11 -12 l6 7 l12 -14" fill="none" stroke="#06281a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="58" y="0">Panel web para ver todos los trabajos</text>
+      <text x="58" y="0">Panel web para ver todas tus conversaciones</text>
     </g>
   </g>
 
@@ -125,6 +125,6 @@
   <!-- Footer -->
   <g text-anchor="middle" font-family="Inter">
     <text x="540" y="1858" font-weight="700" font-size="34" fill="#ffffff">Cupos limitados · Desliza arriba ⬆</text>
-    <text x="540" y="1900" font-weight="500" font-size="28" fill="#8e9ac0">Intake · Recepcionista IA para tapicerías</text>
+    <text x="540" y="1900" font-weight="500" font-size="28" fill="#8e9ac0">Intake · Recepcionista IA para tu negocio</text>
   </g>
 </svg>

@@ -49,7 +49,7 @@
     <rect x="-255" y="-44" width="510" height="74" rx="37" fill="#ffffff" opacity="0.08"/>
     <rect x="-255" y="-44" width="510" height="74" rx="37" fill="none" stroke="url(#accent2)" stroke-width="2"/>
     <circle cx="-205" cy="-7" r="9" fill="#25D366"/>
-    <text x="20" y="4" font-family="Montserrat" font-weight="700" font-size="29" fill="#eafff4" letter-spacing="3">CUPO PILOTO · TAPICERÍAS</text>
+    <text x="20" y="4" font-family="Montserrat" font-weight="700" font-size="29" fill="#eafff4" letter-spacing="3">CUPO PILOTO · CUALQUIER GIRO</text>
   </g>
 
   <!-- Titular -->
@@ -63,7 +63,7 @@
   <!-- Subtítulo -->
   <g text-anchor="middle" font-family="Inter">
     <text x="540" y="742" font-weight="500" font-size="38" fill="#b9c4e0">Entra al piloto del recepcionista</text>
-    <text x="540" y="794" font-weight="700" font-size="38" fill="#eafff4">IA de WhatsApp para tu taller</text>
+    <text x="540" y="794" font-weight="700" font-size="38" fill="#eafff4">IA de WhatsApp para tu negocio</text>
   </g>
 
   <!-- Dos tarjetas de beneficio -->
@@ -93,7 +93,7 @@
     <g font-family="Inter" font-weight="500" font-size="32" fill="#cfd8ee">
       <text x="300" y="1300">No es un producto cerrado: tu</text>
       <text x="300" y="1342">feedback guía qué se construye.</text>
-      <text x="300" y="1384">Lo moldeamos a tu taller, contigo.</text>
+      <text x="300" y="1384">Lo moldeamos a tu negocio, contigo.</text>
     </g>
   </g>
 
@@ -112,6 +112,6 @@
   <!-- Footer -->
   <g text-anchor="middle" font-family="Inter">
     <text x="540" y="1846" font-weight="700" font-size="34" fill="#ffffff">Cupos muy limitados · Desliza arriba ⬆</text>
-    <text x="540" y="1888" font-weight="500" font-size="28" fill="#8e9ac0">Intake · Recepcionista IA para tapicerías</text>
+    <text x="540" y="1888" font-weight="500" font-size="28" fill="#8e9ac0">Intake · Recepcionista IA para tu negocio</text>
   </g>
 </svg>
