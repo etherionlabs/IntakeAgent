@@ -1,0 +1,117 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#0a0f1f"/>
+      <stop offset="0.55" stop-color="#101b3a"/>
+      <stop offset="1" stop-color="#1a1140"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#25D366"/>
+      <stop offset="1" stop-color="#12b886"/>
+    </linearGradient>
+    <linearGradient id="accent2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3ddc84"/>
+      <stop offset="1" stop-color="#22c1c3"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd86b"/>
+      <stop offset="1" stop-color="#ff9d3c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#25D366" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#25D366" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowGold" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff9d3c" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff9d3c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="26" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Fondo -->
+  <rect width="1080" height="1920" fill="url(#bg)"/>
+  <circle cx="170" cy="220" r="420" fill="url(#glow)"/>
+  <circle cx="950" cy="1560" r="480" fill="url(#glowGold)"/>
+
+  <g fill="#ffffff" opacity="0.05">
+    <circle cx="120" cy="900" r="4"/>
+    <circle cx="200" cy="980" r="4"/>
+    <circle cx="160" cy="1060" r="4"/>
+    <circle cx="940" cy="640" r="4"/>
+    <circle cx="980" cy="720" r="4"/>
+    <circle cx="900" cy="700" r="4"/>
+  </g>
+
+  <!-- Badge superior -->
+  <g transform="translate(540,148)" text-anchor="middle">
+    <rect x="-255" y="-44" width="510" height="74" rx="37" fill="#ffffff" opacity="0.08"/>
+    <rect x="-255" y="-44" width="510" height="74" rx="37" fill="none" stroke="url(#accent2)" stroke-width="2"/>
+    <circle cx="-205" cy="-7" r="9" fill="#25D366"/>
+    <text x="20" y="4" font-family="Montserrat" font-weight="700" font-size="29" fill="#eafff4" letter-spacing="3">CUPO PILOTO · TAPICERÍAS</text>
+  </g>
+
+  <!-- Titular -->
+  <g text-anchor="middle" font-family="Montserrat">
+    <text x="540" y="358" font-weight="800" font-size="76" fill="#ffffff" letter-spacing="-1">No solo pagas</text>
+    <text x="540" y="452" font-weight="900" font-size="92" fill="url(#gold)" letter-spacing="-2">menos.</text>
+    <text x="540" y="560" font-weight="800" font-size="76" fill="#ffffff" letter-spacing="-1">También</text>
+    <text x="540" y="652" font-weight="900" font-size="92" fill="url(#accent)" letter-spacing="-2">lo diseñas.</text>
+  </g>
+
+  <!-- Subtítulo -->
+  <g text-anchor="middle" font-family="Inter">
+    <text x="540" y="742" font-weight="500" font-size="38" fill="#b9c4e0">Entra al piloto del recepcionista</text>
+    <text x="540" y="794" font-weight="700" font-size="38" fill="#eafff4">IA de WhatsApp para tu taller</text>
+  </g>
+
+  <!-- Dos tarjetas de beneficio -->
+  <!-- Tarjeta 1: Precio -->
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="858" width="920" height="270" rx="40" fill="#0d152b"/>
+    <rect x="80" y="858" width="920" height="270" rx="40" fill="none" stroke="#ff9d3c" stroke-width="2" opacity="0.5"/>
+    <!-- icono -->
+    <circle cx="200" cy="993" r="62" fill="url(#gold)"/>
+    <text x="200" y="1018" text-anchor="middle" font-family="Montserrat" font-weight="900" font-size="62" fill="#3a1d00">%</text>
+    <text x="300" y="945" font-family="Montserrat" font-weight="800" font-size="48" fill="#ffd86b">Precio de fundador</text>
+    <g font-family="Inter" font-weight="500" font-size="32" fill="#cfd8ee">
+      <text x="300" y="1000">Tarifa preferente bloqueada por</text>
+      <text x="300" y="1042">ser de los primeros. Pagas mucho</text>
+      <text x="300" y="1084">menos que el precio público.</text>
+    </g>
+  </g>
+
+  <!-- Tarjeta 2: Co-creación -->
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="1158" width="920" height="290" rx="40" fill="#0d152b"/>
+    <rect x="80" y="1158" width="920" height="290" rx="40" fill="none" stroke="#25D366" stroke-width="2" opacity="0.5"/>
+    <!-- icono lightbulb-ish -->
+    <circle cx="200" cy="1303" r="62" fill="url(#accent)"/>
+    <text x="200" y="1326" text-anchor="middle" font-family="Montserrat" font-weight="900" font-size="60" fill="#06281a">★</text>
+    <text x="300" y="1245" font-family="Montserrat" font-weight="800" font-size="48" fill="#3ddc84">Tu voz manda</text>
+    <g font-family="Inter" font-weight="500" font-size="32" fill="#cfd8ee">
+      <text x="300" y="1300">No es un producto cerrado: tu</text>
+      <text x="300" y="1342">feedback guía qué se construye.</text>
+      <text x="300" y="1384">Lo moldeamos a tu taller, contigo.</text>
+    </g>
+  </g>
+
+  <!-- Frase puente -->
+  <g text-anchor="middle" font-family="Inter">
+    <text x="540" y="1548" font-weight="700" font-size="40" fill="#ffffff">Beneficio en el precio</text>
+    <text x="540" y="1602" font-weight="500" font-size="36" fill="#9fb0d8">+ ser parte del producto final</text>
+  </g>
+
+  <!-- CTA -->
+  <g transform="translate(540,1718)" text-anchor="middle">
+    <rect x="-400" y="-58" width="800" height="116" rx="58" fill="url(#accent)" filter="url(#cardShadow)"/>
+    <text x="0" y="14" font-family="Montserrat" font-weight="800" font-size="44" fill="#06281a" letter-spacing="1">QUIERO SER FUNDADOR</text>
+  </g>
+
+  <!-- Footer -->
+  <g text-anchor="middle" font-family="Inter">
+    <text x="540" y="1846" font-weight="700" font-size="34" fill="#ffffff">Cupos muy limitados · Desliza arriba ⬆</text>
+    <text x="540" y="1888" font-weight="500" font-size="28" fill="#8e9ac0">Intake · Recepcionista IA para tapicerías</text>
+  </g>
+</svg>
