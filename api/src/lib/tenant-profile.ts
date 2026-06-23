@@ -1,7 +1,7 @@
 import { getPrisma } from '../db';
-import { loadProfile } from '../../../src/config/loader';
+import { loadEffectiveProfile } from '../../../src/config/loader';
 
-const cache = new Map<string, Awaited<ReturnType<typeof loadProfile>>>();
+const cache = new Map<string, Awaited<ReturnType<typeof loadEffectiveProfile>>>();
 
 export async function getTenantProfile(tenantId: string) {
   const cached = cache.get(tenantId);
@@ -9,7 +9,8 @@ export async function getTenantProfile(tenantId: string) {
   const prisma = getPrisma();
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new Error(`tenant ${tenantId} no existe`);
-  const profile = await loadProfile(tenant.profileDir);
+  // Perfil efectivo: archivos base + override guardado en DB (panel).
+  const profile = await loadEffectiveProfile(prisma, tenantId, tenant.profileDir);
   cache.set(tenantId, profile);
   return profile;
 }

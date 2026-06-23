@@ -1,103 +1,50 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { z } from 'zod';
+import type { PrismaClient } from '@prisma/client';
+import { BusinessFactsZ } from '../../../src/config/schema';
+import { ConfigZ } from '../../../src/config/schema';
 import {
-  PromptVarsZ,
-  BusinessFactsZ,
-  ConfigZ,
-  type BusinessFacts,
-} from '../../../src/config/schema';
-import { validateIntakeSchema } from '../../../src/config/intake-schema';
+  ProfileSettingsZ,
+  ConfigSettingsZ,
+  type ProfileSettings,
+  type ConfigSettings,
+} from '../../../src/config/settings';
+import {
+  readProfileOverride,
+  readConfigOverride,
+} from '../../../src/config/overrides';
 
 /**
- * Lee/escribe los ajustes editables del negocio (perfil del tenant) y del
- * sistema (config.json global). Mantiene la lógica de archivos fuera de la ruta
- * para poder probarla aislada.
+ * Lee los ajustes EFECTIVOS del negocio (perfil por-tenant) y del sistema
+ * (config global): archivos base + override persistido en la base de datos.
+ *
+ * La escritura ya NO toca archivos: el contenedor de la API y el del worker no
+ * comparten filesystem, así que los cambios se guardan como overrides en
+ * Postgres (ver src/config/overrides.ts), que ambos servicios sí comparten.
  */
 
-// ---- Forma editable del PERFIL (por-tenant) ----
+// Re-export de las formas editables + sus validadores de input (Zod) que usa la
+// ruta. Viven en src/ para que el worker también pueda importarlos.
+export {
+  ProfileSettingsZ as ProfileSettingsInputZ,
+  ConfigSettingsZ as ConfigSettingsInputZ,
+} from '../../../src/config/settings';
+export type {
+  ProfileSettings,
+  ConfigSettings,
+} from '../../../src/config/settings';
+export type ProfileSettingsInput = ProfileSettings;
+export type ConfigSettingsInput = ConfigSettings;
 
-export interface ProfileSettings {
-  businessName: string;
-  businessDomain: string;
-  welcome: string;
-  /** Variables del prompt (tone, coreInstructions, hardRules, …). */
-  vars: Record<string, string>;
-  businessFacts: BusinessFacts;
-}
-
-export const ProfileSettingsInputZ = z.object({
-  businessName: z.string().min(1),
-  businessDomain: z.string().min(1),
-  welcome: z.string().min(1),
-  vars: z.record(z.string(), z.string()),
-  businessFacts: BusinessFactsZ,
-});
-export type ProfileSettingsInput = z.infer<typeof ProfileSettingsInputZ>;
-
-// ---- Forma editable del CONFIG (global) ----
-
-export interface ConfigSettings {
-  model: string;
-  temperature: number;
-  maxSteps: number;
-  hours: {
-    enabled: boolean;
-    timezone: string;
-    schedule: Record<string, [string, string] | null>;
-    outOfHoursNotice: string;
-  };
-  owner: {
-    phoneE164: string;
-    notifyOnReady: boolean;
-    notifyOnDisconnect: boolean;
-    panelUrl: string;
-  };
-  limits: {
-    monthlyCostUsd: number;
-    alertOnCostUsd: number;
-    maxConsecutiveErrors: number;
-  };
-}
-
-export const ConfigSettingsInputZ = z.object({
-  model: z.string().min(1),
-  temperature: z.number().min(0).max(2),
-  maxSteps: z.number().int().positive(),
-  hours: z.object({
-    enabled: z.boolean(),
-    timezone: z.string().min(1),
-    schedule: z.record(z.string(), z.union([z.tuple([z.string(), z.string()]), z.null()])),
-    outOfHoursNotice: z.string(),
-  }),
-  owner: z.object({
-    phoneE164: z.string().min(5),
-    notifyOnReady: z.boolean(),
-    notifyOnDisconnect: z.boolean(),
-    panelUrl: z.string().url(),
-  }),
-  limits: z.object({
-    monthlyCostUsd: z.number().positive(),
-    alertOnCostUsd: z.number().positive(),
-    maxConsecutiveErrors: z.number().int().positive(),
-  }),
-});
-export type ConfigSettingsInput = z.infer<typeof ConfigSettingsInputZ>;
-
-// ---- Helpers de archivos ----
+// ---- Helpers de archivos (DEFAULTS de arranque) ----
 
 async function readJson(path: string): Promise<Record<string, unknown>> {
   const raw = await readFile(path, 'utf-8');
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
-function writeJson(path: string, obj: unknown): Promise<void> {
-  return writeFile(path, `${JSON.stringify(obj, null, 2)}\n`, 'utf-8');
-}
-
-// ---- Lectura ----
-
-export async function readProfileSettings(profileDir: string): Promise<ProfileSettings> {
+/** Perfil base desde los archivos del profileDir (defaults antes de overrides). */
+async function readProfileDefaults(profileDir: string): Promise<ProfileSettings> {
   const schema = await readJson(join(profileDir, 'intake-schema.json'));
   const promptVars = await readJson(join(profileDir, 'prompt-vars.json'));
   const facts = BusinessFactsZ.parse(await readJson(join(profileDir, 'business-facts.json')));
@@ -111,7 +58,8 @@ export async function readProfileSettings(profileDir: string): Promise<ProfileSe
   };
 }
 
-export async function readConfigSettings(configPath: string): Promise<ConfigSettings> {
+/** Config base desde config.json (defaults antes de overrides). */
+async function readConfigDefaults(configPath: string): Promise<ConfigSettings> {
   const cfg = ConfigZ.parse(await readJson(configPath));
   return {
     model: cfg.model,
@@ -123,75 +71,21 @@ export async function readConfigSettings(configPath: string): Promise<ConfigSett
   };
 }
 
-// ---- Escritura ----
+// ---- Lectura efectiva (defaults + override de DB) ----
 
-/**
- * Escribe los archivos del perfil con los ajustes nuevos. Preserva los campos
- * que la UI no edita (sections del intake, promptTemplate). Valida cada archivo
- * antes de tocar disco; si algo no valida, lanza y no escribe nada.
- */
-export async function writeProfileSettings(
+export async function readProfileSettings(
+  prisma: PrismaClient,
+  tenantId: string,
   profileDir: string,
-  input: ProfileSettingsInput,
-): Promise<void> {
-  const schemaPath = join(profileDir, 'intake-schema.json');
-  const promptPath = join(profileDir, 'prompt-vars.json');
-  const factsPath = join(profileDir, 'business-facts.json');
-  const welcomePath = join(profileDir, 'welcome.txt');
-
-  // intake-schema: parchar solo nombre/dominio, preservar sections y validar.
-  const schema = await readJson(schemaPath);
-  schema.$businessName = input.businessName;
-  schema.$businessDomain = input.businessDomain;
-  const schemaCheck = validateIntakeSchema(schema);
-  if (!schemaCheck.ok) {
-    throw new Error(`intake-schema inválido: ${schemaCheck.error}`);
-  }
-
-  // prompt-vars: preservar promptTemplate, reemplazar vars, validar.
-  const promptVars = await readJson(promptPath);
-  const nextPromptVars = { ...promptVars, vars: input.vars };
-  const promptCheck = PromptVarsZ.safeParse(nextPromptVars);
-  if (!promptCheck.success) {
-    throw new Error(`prompt-vars inválido: ${promptCheck.error.message}`);
-  }
-
-  // business-facts: validar input completo.
-  const factsCheck = BusinessFactsZ.safeParse(input.businessFacts);
-  if (!factsCheck.success) {
-    throw new Error(`business-facts inválido: ${factsCheck.error.message}`);
-  }
-
-  // Todo validó: escribir. (Las escrituras no son atómicas entre sí, pero
-  // validamos todo antes para minimizar estados inconsistentes.)
-  await writeJson(schemaPath, schema);
-  await writeJson(promptPath, nextPromptVars);
-  await writeJson(factsPath, factsCheck.data);
-  await writeFile(welcomePath, input.welcome, 'utf-8');
+): Promise<ProfileSettings> {
+  const override = await readProfileOverride(prisma, tenantId);
+  return override ?? readProfileDefaults(profileDir);
 }
 
-/**
- * Escribe el config.json fusionando los campos editables sobre el contenido
- * actual (preserva profile, panel.users, media, mensajes de fallback, etc.).
- * Valida el resultado con ConfigZ antes de escribir.
- */
-export async function writeConfigSettings(
+export async function readConfigSettings(
+  prisma: PrismaClient,
   configPath: string,
-  input: ConfigSettingsInput,
-): Promise<void> {
-  const current = await readJson(configPath);
-  const merged = {
-    ...current,
-    model: input.model,
-    temperature: input.temperature,
-    maxSteps: input.maxSteps,
-    hours: input.hours,
-    owner: { ...(current.owner as object), ...input.owner },
-    limits: input.limits,
-  };
-  const check = ConfigZ.safeParse(merged);
-  if (!check.success) {
-    throw new Error(`config inválido: ${check.error.message}`);
-  }
-  await writeJson(configPath, merged);
+): Promise<ConfigSettings> {
+  const override = await readConfigOverride(prisma);
+  return override ?? readConfigDefaults(configPath);
 }
