@@ -43,14 +43,18 @@ async function main() {
     );
   }
 
-  // Cache de config+perfil que recarga desde disco. El arranque usa la primera
-  // versión; cada turno vuelve a leer (ConfigCache mantiene la última válida ante
-  // errores) para que los cambios guardados en el panel apliquen sin reiniciar.
-  const configCache = new ConfigCache('./config.json', {
-    warn: (m) => logger.warn(m),
-  });
-  const { config, profile } = await configCache.refresh();
   const prisma = getPrisma();
+
+  // Cache de config+perfil. Aplica los overrides guardados en la DB (lo que el
+  // panel edita desde el contenedor de la API) sobre los archivos base. Como API
+  // y worker comparten Postgres, los cambios aplican en el siguiente turno sin
+  // reiniciar. ConfigCache conserva la última versión válida ante errores.
+  const configCache = new ConfigCache(
+    './config.json',
+    { warn: (m) => logger.warn(m) },
+    { prisma, tenantId },
+  );
+  const { config, profile } = await configCache.refresh();
 
   logger.info({ tenantId, profile: config.profile }, 'bootstrap.config_loaded');
 
