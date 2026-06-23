@@ -13,7 +13,7 @@ import 'dotenv/config';
  * Primera ejecución: imprime QR en terminal — escanea desde WhatsApp Web.
  * Reanudaciones: usa sesión persistida en ./data/baileys-session/.
  */
-import { loadConfig, loadProfile } from './config/loader';
+import { ConfigCache } from './config/loader';
 import { getPrisma, disconnectPrisma } from './storage/client';
 import { FilesystemMediaStore } from './media/store';
 import {
@@ -43,8 +43,13 @@ async function main() {
     );
   }
 
-  const config = await loadConfig('./config.json');
-  const profile = await loadProfile(config.profile);
+  // Cache de config+perfil que recarga desde disco. El arranque usa la primera
+  // versión; cada turno vuelve a leer (ConfigCache mantiene la última válida ante
+  // errores) para que los cambios guardados en el panel apliquen sin reiniciar.
+  const configCache = new ConfigCache('./config.json', {
+    warn: (m) => logger.warn(m),
+  });
+  const { config, profile } = await configCache.refresh();
   const prisma = getPrisma();
 
   logger.info({ tenantId, profile: config.profile }, 'bootstrap.config_loaded');
@@ -97,6 +102,7 @@ async function main() {
     mediaStore,
     agentFactory: defaultAgentFactory,
     now: () => new Date(),
+    reloadConfig: () => configCache.refresh(),
   });
 
   adapter = new BaileysAdapter({
