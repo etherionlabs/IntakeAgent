@@ -1,4 +1,5 @@
 import type { Message } from '@prisma/client';
+import type { Config, Profile } from '../config/schema';
 import type { PipelineDeps, RawInboundMessage } from './types';
 import { prefilter, alreadySeen } from './idempotency';
 import { normalizeAndPersistMessage } from './normalize';
@@ -23,6 +24,25 @@ export class InboundCoordinator {
       debounceMs: deps.config.debounceMs,
       onFlush: (contactId, messageIds) => this.flushBatch(contactId, messageIds),
     });
+  }
+
+  /**
+   * Config+perfil vigentes para este turno. Si hay `reloadConfig`, los recarga
+   * desde disco para reflejar cambios hechos en el panel sin reiniciar el worker;
+   * si la recarga falla, cae a los estáticos del arranque.
+   */
+  private async current(): Promise<{ config: Config; profile: Profile }> {
+    if (this.deps.reloadConfig) {
+      try {
+        return await this.deps.reloadConfig();
+      } catch (e) {
+        logger.warn(
+          { err: e instanceof Error ? e.message : String(e) },
+          'config.reload_failed',
+        );
+      }
+    }
+    return { config: this.deps.config, profile: this.deps.profile };
   }
 
   async handleInbound(raw: RawInboundMessage): Promise<void> {
@@ -51,12 +71,14 @@ export class InboundCoordinator {
       return;
     }
 
+    const { profile } = await this.current();
+
     const contactRes = await resolveContact(this.deps.prisma, tenantId, raw.fromPhoneE164);
 
     const jobRes = await resolveJobForMessage(
       this.deps.prisma,
       tenantId,
-      this.deps.profile.intakeSchema,
+      profile.intakeSchema,
       contactRes.contact.id,
       raw.whatsappMsgId,
     );
@@ -93,9 +115,9 @@ export class InboundCoordinator {
     }
 
     if (jobRes.isFirstMessage) {
-      const welcome = applyTemplate(this.deps.profile.welcome, {
-        businessName: this.deps.profile.intakeSchema.$businessName,
-        businessDomain: this.deps.profile.intakeSchema.$businessDomain,
+      const welcome = applyTemplate(profile.welcome, {
+        businessName: profile.intakeSchema.$businessName,
+        businessDomain: profile.intakeSchema.$businessDomain,
       });
       await this.deps.sender.sendText(contactRes.contact.phoneE164, welcome);
       // Persistirlo como mensaje outbound: el agente lo verá en el historial
@@ -127,6 +149,7 @@ export class InboundCoordinator {
   private async flushBatch(contactId: string, messageIds: string[]): Promise<void> {
     logger.debug({ contactId, count: messageIds.length }, 'inbound.flush');
     const tenantId = this.deps.tenantId;
+    const { config, profile } = await this.current();
     const contact = await this.deps.prisma.contact.findFirst({ where: { id: contactId, tenantId } });
     if (!contact) return;
     if (!contact.botActive || contact.flaggedNonIntake) return;
@@ -185,7 +208,7 @@ export class InboundCoordinator {
     // el describer sepa en qué fijarse. Cacheamos en Message.mediaDescription.
     const describer = this.deps.describer ?? new NoopDescriber();
     const describeBase = buildDescribeBaseContext(
-      this.deps.profile,
+      profile,
       recentHistory,
       batchMessages,
     );
@@ -236,8 +259,8 @@ export class InboundCoordinator {
       {
         prisma: this.deps.prisma,
         tenantId,
-        config: this.deps.config,
-        profile: this.deps.profile,
+        config,
+        profile,
         notifier: this.deps.notifier,
         createAgent: this.deps.agentFactory,
         mediaStore: this.deps.mediaStore,
