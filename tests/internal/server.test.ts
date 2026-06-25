@@ -14,6 +14,8 @@ const dispatcher: TenantDispatcher = {
   getStatus: (id) => (id === 'tenant-a' ? STATUS_A : null),
   logout: async (id) => { calls.push(`logout:${id}`); },
   reconnect: async (id) => { calls.push(`reconnect:${id}`); },
+  suspendTenant: async (id) => { calls.push(`suspend:${id}`); },
+  resumeTenant: async (id) => { calls.push(`resume:${id}`); },
 };
 
 describe('internal status server (dispatch por tenant)', () => {
@@ -59,5 +61,13 @@ describe('internal status server (dispatch por tenant)', () => {
   it('POST sin token → 401', async () => {
     const res = await server.app.inject({ method: 'POST', url: '/internal/wa-logout', payload: { tenantId: 'x' } });
     expect(res.statusCode).toBe(401);
+  });
+
+  it('suspend/resume despachan por tenantId', async () => {
+    calls.length = 0;
+    await server.app.inject({ method: 'POST', url: '/internal/tenant/suspend', headers: auth, payload: { tenantId: 'tenant-a' } });
+    await server.app.inject({ method: 'POST', url: '/internal/tenant/resume', headers: auth, payload: { tenantId: 'tenant-a' } });
+    expect(calls).toContain('suspend:tenant-a');
+    expect(calls).toContain('resume:tenant-a');
   });
 });

@@ -10,6 +10,8 @@ export interface TenantDispatcher {
   getStatus(tenantId: string): TenantStatus | null;
   logout(tenantId: string): Promise<void>;
   reconnect(tenantId: string): Promise<void>;
+  suspendTenant(tenantId: string): Promise<void>;
+  resumeTenant(tenantId: string): Promise<void>;
 }
 
 export interface InternalServerDeps {
@@ -76,6 +78,21 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
     } catch (e) {
       return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) });
     }
+  });
+
+  // Enforcement de billing (Fase 3): suspender/reactivar el bot del tenant.
+  app.post('/internal/tenant/suspend', async (request, reply) => {
+    const tenantId = tenantIdOf(request.body);
+    if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
+    try { await deps.dispatcher.suspendTenant(tenantId); return { ok: true }; }
+    catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
+  });
+
+  app.post('/internal/tenant/resume', async (request, reply) => {
+    const tenantId = tenantIdOf(request.body);
+    if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
+    try { await deps.dispatcher.resumeTenant(tenantId); return { ok: true }; }
+    catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
   });
 
   const port = Number(process.env.INTERNAL_PORT ?? 3002);

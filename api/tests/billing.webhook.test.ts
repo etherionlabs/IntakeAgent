@@ -27,7 +27,7 @@ describe('billing webhook (firma + idempotencia + estados)', () => {
     process.env.STRIPE_WEBHOOK_SECRET = WHSEC;
     process.env.BILLING_GRACE_DAYS = '3';
     delete process.env.TENANT_MANAGER_URL; delete process.env.WORKER_INTERNAL_URL;
-    await seedTenantAndUser();
+    await seedTenantAndUser({ activeSub: false });
     await seedTestPlan();
     app = await buildServer({ jwtSecret: TEST_JWT_SECRET, stripe: realStripe as unknown as StripeLike });
   });
@@ -93,6 +93,17 @@ describe('billing webhook (firma + idempotencia + estados)', () => {
     const sub = await testPrisma.subscription.findUnique({ where: { tenantId: TEST_TENANT_ID } });
     expect(sub?.status).toBe('active');
     expect(sub?.gracePeriodEndsAt).toBeNull();
+  });
+
+  it('transición a no-operativo dispara /internal/tenant/suspend en el worker', async () => {
+    process.env.TENANT_MANAGER_URL = 'http://worker:3002';
+    process.env.INTERNAL_API_TOKEN = 'tok';
+    const hits: string[] = [];
+    const fetcher = (async (url: any) => { hits.push(String(url)); return new Response('{}', { status: 200 }); }) as unknown as typeof fetch;
+    app = await buildServer({ jwtSecret: TEST_JWT_SECRET, stripe: realStripe as unknown as StripeLike, fetcher });
+    await seedSub('active');
+    await post(event('evt_susp', 'customer.subscription.deleted', { customer: 'cus_x' }));
+    expect(hits.some((u) => u.endsWith('/internal/tenant/suspend'))).toBe(true);
   });
 
   it('subscription.updated fuera de orden (periodo más viejo) se ignora', async () => {

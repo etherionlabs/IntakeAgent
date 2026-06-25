@@ -13,6 +13,8 @@ function fakeRuntime(tenantId: string, opts: { failStart?: boolean } = {}): Tena
     stop: vi.fn(async () => { started = false; }),
     logout: vi.fn(async () => {}),
     reconnect: vi.fn(async () => {}),
+    suspend: vi.fn(async () => { started = false; }),
+    resume: vi.fn(async () => { started = true; }),
     getStatus: (): TenantStatus => ({
       tenantId, connected: started, qr: null, phone: started ? '+521' : '',
       status: started ? 'connected' : 'disconnected', lastConnectedAt: null, lastError: null,
@@ -67,6 +69,18 @@ describe('TenantManager', () => {
     expect(m.getStatus(TEST_TENANT_ID)?.status).toBe('connected');
     expect(m.getStatus(TENANT_B)).toBeNull(); // no es de este shard
     expect(m.getStatus(TENANT_C)).toBeNull(); // inactivo
+  });
+
+  it('suspendTenant/resumeTenant delegan al runtime', async () => {
+    const rt = fakeRuntime(TENANT_B);
+    const m = new TenantManagerImpl({ prisma: testPrisma, runtimeFactory: () => rt, owns: () => true });
+    await m.addTenant(TENANT_B);
+    await m.suspendTenant(TENANT_B);
+    expect(rt.suspend).toHaveBeenCalled();
+    expect(m.getStatus(TENANT_B)?.connected).toBe(false);
+    await m.resumeTenant(TENANT_B);
+    expect(rt.resume).toHaveBeenCalled();
+    expect(m.getStatus(TENANT_B)?.connected).toBe(true);
   });
 
   it('stop() apaga todos los runtimes', async () => {

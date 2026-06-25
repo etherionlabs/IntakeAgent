@@ -82,6 +82,14 @@ export class TenantManagerImpl implements TenantManager {
     await this.entries.get(tenantId)?.runtime?.reconnect();
   }
 
+  async suspendTenant(tenantId: string): Promise<void> {
+    await this.entries.get(tenantId)?.runtime?.suspend();
+  }
+
+  async resumeTenant(tenantId: string): Promise<void> {
+    await this.entries.get(tenantId)?.runtime?.resume();
+  }
+
   async stop(): Promise<void> {
     const ids = [...this.entries.keys()];
     await Promise.allSettled(ids.map((id) => this.removeTenant(id)));

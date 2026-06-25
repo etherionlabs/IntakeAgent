@@ -28,6 +28,10 @@ export interface TenantRuntime {
   getStatus(): TenantStatus;
   logout(): Promise<void>;
   reconnect(): Promise<void>;
+  /** Pausa el bot (cierra conexión, conserva la sesión) — enforcement de billing. */
+  suspend(): Promise<void>;
+  /** Reactiva el bot tras un pago. */
+  resume(): Promise<void>;
 }
 
 /** Construye el runtime de un tenant. Inyectable (tests usan un runtime falso). */
@@ -45,5 +49,7 @@ export interface TenantManager {
   getStatus(tenantId: string): TenantStatus | null;
   logout(tenantId: string): Promise<void>;
   reconnect(tenantId: string): Promise<void>;
+  suspendTenant(tenantId: string): Promise<void>;
+  resumeTenant(tenantId: string): Promise<void>;
   stop(): Promise<void>;
 }

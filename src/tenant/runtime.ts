@@ -85,6 +85,7 @@ class TenantRuntimeImpl implements TenantRuntime {
   private startError: string | null = null;
   private reconnectAttempts = 0;
   private stopped = false;
+  private suspended = false;
 
   constructor(
     private readonly tenantId: string,
@@ -96,9 +97,23 @@ class TenantRuntimeImpl implements TenantRuntime {
     await this.attempt();
   }
 
+  /** Pausa el bot (enforcement de billing): cierra la conexión, conserva la sesión. */
+  async suspend(): Promise<void> {
+    this.suspended = true;
+    await this.source.stop();
+  }
+
+  /** Reactiva el bot tras un pago. */
+  async resume(): Promise<void> {
+    if (!this.suspended) return;
+    this.suspended = false;
+    this.reconnectAttempts = 0;
+    await this.attempt();
+  }
+
   /** Arranca la fuente; ante fallo catastrófico programa un reintento aislado (no lanza). */
   private async attempt(): Promise<void> {
-    if (this.stopped) return;
+    if (this.stopped || this.suspended) return;
     try {
       await this.source.start();
       this.startError = null;

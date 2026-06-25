@@ -1,16 +1,21 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { buildTestApp, loginCookie, testPrisma, cleanupDb, seedTestTenant, TEST_TENANT_ID } from './helpers/app';
+import { seedTestPlan, TEST_PLAN_ID } from '../../tests/helpers/db';
 import bcrypt from 'bcryptjs';
 
 const TENANT_B = '00000000-0000-0000-0000-0000000000b2';
 
-/** Siembra el tenant A (con su admin) y un tenant B con datos propios (job + contact). */
+/** Siembra el tenant A (con su admin + suscripción activa) y un tenant B con datos propios. */
 async function seedTwoTenants() {
   await cleanupDb();
   await seedTestTenant(); // tenant A = TEST_TENANT_ID
   const hash = await bcrypt.hash('pw1234567890', 8);
   await testPrisma.panelUser.create({
     data: { tenantId: TEST_TENANT_ID, username: 'a-admin', email: 'a@test.local', passwordHash: hash, role: 'admin' },
+  });
+  await seedTestPlan();
+  await testPrisma.subscription.create({
+    data: { tenantId: TEST_TENANT_ID, planId: TEST_PLAN_ID, stripeCustomerId: 'cus_a', status: 'active' },
   });
   await testPrisma.tenant.create({
     data: { id: TENANT_B, slug: 'tenant-b', name: 'Tenant B', industry: 'test', profileDir: './profiles/tapiceria' },

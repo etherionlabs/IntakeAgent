@@ -6,6 +6,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { getCorsOrigin, requireEnv } from './env';
 import { getPrisma } from './db';
+import { isTenantActive } from './billing/access';
 import { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/auth-cookies';
 import { authRoutes } from './routes/auth';
 import { profileRoutes } from './routes/profile';
@@ -111,6 +112,18 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
       if (!user) return reply.code(401).send({ error: 'unauthorized' });
       if (user.passwordChangedAt && iatMs < user.passwordChangedAt.getTime()) {
         return reply.code(401).send({ error: 'sesión expirada' });
+      }
+      // Enforcement de suscripción (402) en rutas de negocio. Exentas: /auth/*,
+      // /billing/* (para poder pagar) y /health.
+      const url = request.routeOptions?.url ?? '';
+      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/health')) {
+        const sub = await getPrisma().subscription.findUnique({
+          where: { tenantId: request.tenantId },
+          select: { status: true, gracePeriodEndsAt: true },
+        });
+        if (!isTenantActive(request.tenantId, sub)) {
+          return reply.code(402).send({ error: 'subscription_inactive', portalHint: true });
+        }
       }
     } catch {
       reply.code(401).send({ error: 'unauthorized' });

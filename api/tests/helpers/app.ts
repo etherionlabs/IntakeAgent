@@ -1,5 +1,5 @@
 import { buildServer } from '../../src/server';
-import { testPrisma, cleanupDb, seedTestTenant, TEST_TENANT_ID } from '../../../tests/helpers/db';
+import { testPrisma, cleanupDb, seedTestTenant, seedTestPlan, TEST_TENANT_ID, TEST_PLAN_ID } from '../../../tests/helpers/db';
 import bcrypt from 'bcryptjs';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
@@ -10,14 +10,28 @@ export async function buildTestApp() {
   return buildServer({ jwtSecret: TEST_JWT_SECRET });
 }
 
-/** Limpia, siembra tenant + un PanelUser admin (con email), devuelve el id del user. */
-export async function seedTenantAndUser(): Promise<string> {
+/**
+ * Limpia, siembra tenant + PanelUser admin (con email) y, por defecto, una
+ * suscripción ACTIVA (para que el enforcement 402 no bloquee las rutas de
+ * negocio). Los tests de billing/enforcement pasan `{ activeSub: false }`.
+ */
+export async function seedTenantAndUser(opts: { activeSub?: boolean } = {}): Promise<string> {
+  const activeSub = opts.activeSub ?? true;
   await cleanupDb();
   await seedTestTenant();
   const passwordHash = await bcrypt.hash(TEST_USER.password, 8);
   const user = await testPrisma.panelUser.create({
     data: { tenantId: TEST_TENANT_ID, username: TEST_USER.username, email: TEST_USER.email, passwordHash, role: TEST_USER.role },
   });
+  if (activeSub) {
+    await seedTestPlan();
+    await testPrisma.subscription.create({
+      data: {
+        tenantId: TEST_TENANT_ID, planId: TEST_PLAN_ID, stripeCustomerId: 'cus_seed',
+        status: 'active', currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+      },
+    });
+  }
   return user.id;
 }
 

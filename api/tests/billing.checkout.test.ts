@@ -20,7 +20,7 @@ describe('billing checkout/portal/status', () => {
   let mock: ReturnType<typeof mockStripe>;
 
   beforeEach(async () => {
-    await seedTenantAndUser();
+    await seedTenantAndUser({ activeSub: false });
     await seedTestPlan();
     mock = mockStripe();
     app = await buildServer({ jwtSecret: TEST_JWT_SECRET, stripe: mock.stripe });
