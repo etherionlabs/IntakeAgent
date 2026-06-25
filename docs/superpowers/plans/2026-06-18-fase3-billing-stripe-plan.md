@@ -538,27 +538,37 @@ repo.**
 
 ## Checklist final (criterios de aceptación del spec)
 
-- [ ] Existen `Plan`, `Subscription`, `StripeEvent` con migración aplicada y
+- [x] Existen `Plan`, `Subscription`, `StripeEvent` con migración aplicada y
       relación 1‑a‑1 con `Tenant`. (Tarea 1)
-- [ ] Un cliente puede suscribirse con tarjeta real (modo test) vía Checkout y la
-      `Subscription` queda `active` (o `trialing`). (Tareas 2–3)
-- [ ] El cliente abre el Customer Portal desde la SPA y cambia tarjeta / cancela.
-      (Tareas 2, 5)
-- [ ] El webhook **verifica la firma** (firma inválida → `400`) y es
-      **idempotente** (reenvío del mismo `event.id` no reprocesa) — con test.
-      (Tarea 3)
-- [ ] Falla de pago → `past_due`; tras la gracia, el bot deja de operar (vía
-      `TenantManager`) y se deja el hook de aviso. (Tareas 3–4)
-- [ ] Cancelación desde el Portal refleja `canceled` y corta acceso **al fin del
-      periodo pagado**, no antes. (Tareas 3–4)
-- [ ] El middleware bloquea panel/bot cuando la suscripción no está
-      `active`/`trialing` (ni en gracia) con `402`, salvo `/billing/*`,
-      `/auth/*`, `/health`. (Tarea 4)
-- [ ] La SPA muestra estado del plan, banner en `past_due`, enlaces a
-      Checkout/Portal, e intercepta `402`. (Tarea 5)
-- [ ] Las claves de Stripe viven solo en el backend, fuera de logs y del repo; la
-      API falla al arrancar si faltan las secretas. (Tarea 6)
-- [ ] Suite completa y typecheck verdes tras cada tarea. (Todas)
+- [~] Un cliente puede suscribirse vía Checkout y la `Subscription` queda
+      `active`/`trialing`. **Lógica + tests con Stripe mock listos; el pago real
+      (tarjeta de prueba) lo verifica el agente con Docker/Stripe.** (Tareas 2–3)
+- [x] El cliente abre el Customer Portal desde la SPA (ruta + UI). El redirect
+      real lo valida el agente con Stripe. (Tareas 2, 5)
+- [x] El webhook **verifica la firma** (firma inválida → `400`) y es
+      **idempotente** (reenvío del mismo `event.id` no reprocesa) — test con firma
+      real offline (`generateTestHeaderString`). (Tarea 3)
+- [x] Falla de pago → `past_due`; tras la gracia, el bot deja de operar (vía
+      `TenantManager` suspend/resume) — con test. Hook de aviso (email) → Fase 6. (Tareas 3–4)
+- [x] Cancelación → `canceled` y enforcement corta el acceso; `cancelAtPeriodEnd`
+      mantiene operativo hasta `currentPeriodEnd` (máquina de estados + tests). (Tareas 3–4)
+- [x] El middleware bloquea negocio con `402` salvo `/billing/*`, `/auth/*`,
+      `/health` — con test de enforcement. (Tarea 4)
+- [x] La SPA muestra estado del plan, banner en `past_due`, enlaces a
+      Checkout/Portal, e intercepta `402` — con tests. (Tarea 5)
+- [x] Claves de Stripe solo en backend, redactadas en logs, fuera del repo; la
+      API hace **fail-fast** al arrancar si faltan (`api/src/index.ts`). (Tarea 6)
+- [x] Suite completa y typecheck verdes (raíz 316, SPA 36). (Todas)
+
+### Pendiente para el agente con Docker + Stripe real (no verificable en sandbox)
+- [ ] Crear `Product`/`Price` en Stripe (modo test) y sembrar **un** registro
+      `Plan` con el `price_…` real; setear `STRIPE_PRICE_ID`/`STRIPE_SECRET_KEY`/
+      `STRIPE_WEBHOOK_SECRET`.
+- [ ] E2E de webhooks con `stripe listen --forward-to localhost:3001/billing/webhook`
+      + `stripe trigger` (firma/entrega reales).
+- [ ] Flujo de pago real: Checkout con tarjeta de prueba → `active`; Portal →
+      cambiar tarjeta/cancelar; confirmar corte al fin de periodo.
+- [ ] `docker compose config`/`up` y fail-fast en el contenedor.
 
 ---
 

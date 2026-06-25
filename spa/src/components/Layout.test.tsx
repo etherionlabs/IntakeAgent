@@ -8,7 +8,11 @@ vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
   return {
     ...actual,
-    api: { me: vi.fn().mockRejectedValue(new Error('no session')), logout: vi.fn().mockResolvedValue({ ok: true }) },
+    api: {
+      me: vi.fn().mockRejectedValue(new Error('no session')),
+      logout: vi.fn().mockResolvedValue({ ok: true }),
+      getBillingStatus: vi.fn().mockResolvedValue({ status: 'active', planName: 'Plan Test' }),
+    },
   };
 });
 

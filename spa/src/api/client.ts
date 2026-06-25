@@ -7,6 +7,9 @@ export class ApiError extends Error {
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 
+let onPaymentRequired: (() => void) | null = null;
+export function setPaymentRequiredHandler(fn: () => void) { onPaymentRequired = fn; }
+
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 // La cookie CSRF (intake_csrf) NO es HttpOnly: la reflejamos en el header
@@ -34,6 +37,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) { onUnauthorized?.(); throw new ApiError(401, 'no autorizado'); }
+  // 402: suscripción inactiva. Solo lo emiten rutas de negocio (no /billing/*).
+  if (res.status === 402) { onPaymentRequired?.(); throw new ApiError(402, 'suscripción inactiva'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `error ${res.status}`);
   return data as T;
@@ -74,12 +79,26 @@ export const api = {
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
   waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
+  getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
+  startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
+  openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
   getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
     request<{ ok: boolean; config: ConfigSettings }>('PUT', '/settings/config', payload),
 };
+
+export interface BillingStatus {
+  status: 'none' | 'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+  planName: string | null;
+  amountCents?: number;
+  currency?: string;
+  interval?: string;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  gracePeriodEndsAt?: string | null;
+}
 
 export interface BusinessFact {
   topic: string;

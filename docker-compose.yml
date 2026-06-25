@@ -52,6 +52,13 @@ services:
       SHARD_COUNT: 1
       CORS_ORIGIN: ${CORS_ORIGIN}
       API_PORT: 3001
+      # Billing (Fase 3) — Stripe. Secretas solo en backend, nunca en la SPA ni en logs.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID}
+      SPA_URL: ${CORS_ORIGIN}
+      BILLING_GRACE_DAYS: ${BILLING_GRACE_DAYS:-3}
+      BILLING_EXEMPT_TENANT_IDS: ${BILLING_EXEMPT_TENANT_IDS:-}
     ports: ["3001:3001"]
     depends_on:
       postgres:

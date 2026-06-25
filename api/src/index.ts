@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { buildServer } from './server';
-import { PORT } from './env';
+import { PORT, requireEnv } from './env';
 import { disconnectPrisma } from './db';
 
 // En Railway la red (pública y privada) usa IPv6; set HOST=:: en el servicio.
@@ -8,6 +8,11 @@ import { disconnectPrisma } from './db';
 const HOST = process.env.HOST ?? '0.0.0.0';
 
 async function main() {
+  // Fail-fast de secretas al arrancar (no en el primer request). Los tests usan
+  // buildServer directamente con un cliente Stripe mock, por lo que no pasan por aquí.
+  requireEnv('JWT_SECRET');
+  requireEnv('STRIPE_SECRET_KEY');
+  requireEnv('STRIPE_WEBHOOK_SECRET');
   const app = await buildServer();
   await app.listen({ port: PORT, host: HOST });
   const shutdown = async () => { await app.close(); await disconnectPrisma(); process.exit(0); };

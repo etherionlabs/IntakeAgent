@@ -9,6 +9,7 @@ import Contacts from './pages/Contacts';
 import Usage from './pages/Usage';
 import WhatsApp from './pages/WhatsApp';
 import Settings from './pages/Settings';
+import Billing from './pages/Billing';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/usage" element={<Usage />} />
             <Route path="/whatsapp" element={<WhatsApp />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/billing" element={<Billing />} />
           </Route>
         </Route>
       </Routes>
