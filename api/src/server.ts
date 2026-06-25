@@ -14,10 +14,13 @@ import { contactsRoutes } from './routes/contacts';
 import { usageRoutes } from './routes/usage';
 import { waStatusRoutes } from './routes/wa-status';
 import { settingsRoutes } from './routes/settings';
+import { billingRoutes } from './routes/billing';
+import type { StripeLike } from './billing/stripe';
 
 export interface BuildOptions {
   jwtSecret?: string;
   fetcher?: typeof fetch;
+  stripe?: StripeLike;
 }
 
 // Rutas mutadoras exentas de CSRF: no pueden tener cookie CSRF aún (login/recuperación)
@@ -112,6 +115,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(usageRoutes);
   await app.register(waStatusRoutes, { fetcher: opts.fetcher });
   await app.register(settingsRoutes);
+  await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher });
 
   return app;
 }

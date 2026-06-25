@@ -24,3 +24,13 @@ export function getCorsOrigin(): string | string[] {
 // Ruta del config.json global del deployment (compartido por el worker).
 // La API lo lee/escribe para las pantallas de configuración del panel.
 export const CONFIG_PATH = process.env.CONFIG_PATH ?? './config.json';
+
+// --- Billing (Fase 3) ---
+// Base de la SPA para las URLs de retorno de Stripe (Checkout/Portal).
+export const SPA_URL = process.env.SPA_URL ?? process.env.CORS_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:5173';
+// Días de gracia en past_due antes de bloquear.
+export const BILLING_GRACE_DAYS = Number(process.env.BILLING_GRACE_DAYS ?? 3);
+// Tenants exentos de cobro (transición/piloto). CSV de tenantIds.
+export function billingExemptTenantIds(): Set<string> {
+  return new Set((process.env.BILLING_EXEMPT_TENANT_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+}

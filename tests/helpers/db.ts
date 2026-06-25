@@ -35,8 +35,32 @@ export async function cleanupDb(): Promise<void> {
   await testPrisma.contact.deleteMany();
   await testPrisma.passwordResetToken.deleteMany();
   await testPrisma.panelUser.deleteMany();
+  await testPrisma.subscription.deleteMany();
+  await testPrisma.stripeEvent.deleteMany();
   await testPrisma.tenantSettings.deleteMany();
   await testPrisma.tenant.deleteMany();
+  await testPrisma.plan.deleteMany();
+}
+
+export const TEST_PLAN_ID = '00000000-0000-0000-0000-0000000000a1';
+
+/** Siembra un Plan activo de prueba. El monto real lo manda Stripe; aquí es display. */
+export async function seedTestPlan(overrides: Record<string, unknown> = {}): Promise<string> {
+  const plan = await testPrisma.plan.upsert({
+    where: { id: TEST_PLAN_ID },
+    update: {},
+    create: {
+      id: TEST_PLAN_ID,
+      stripePriceId: 'price_test',
+      name: 'Plan Test',
+      amountCents: 4900,
+      currency: 'usd',
+      interval: 'month',
+      trialDays: 0,
+      ...overrides,
+    },
+  });
+  return plan.id;
 }
 
 /** Siembra una fila mínima válida de TenantSettings para el tenant dado. */

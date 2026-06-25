@@ -18,12 +18,61 @@ model Tenant {
   createdAt   DateTime @default(now())
 
   settings      TenantSettings?
+  subscription  Subscription?
   panelUsers    PanelUser[]
   contacts      Contact[]
   jobs          Job[]
   messages      Message[]
   agentRuns     AgentRun[]
   notifications Notification[]
+}
+
+/// Plan de suscripción (espejo del Product/Price de Stripe). El importe real lo
+/// manda Stripe; amountCents/currency son solo para display.
+model Plan {
+  id            String   @id @default(uuid())
+  stripePriceId String   @unique
+  name          String
+  amountCents   Int
+  currency      String   @default("usd")
+  interval      String   @default("month") // 'month' | 'year'
+  trialDays     Int      @default(0)
+  maxContacts   Int?
+  maxJobsMonth  Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+/// Espejo del estado de la suscripción del tenant. Stripe es la fuente de verdad;
+/// esta tabla SOLO la pueblan los webhooks (1:1 opcional con Tenant).
+model Subscription {
+  id                   String    @id @default(uuid())
+  tenantId             String    @unique
+  planId               String
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  status               String    // 'incomplete'|'trialing'|'active'|'past_due'|'canceled'|'unpaid'
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  gracePeriodEndsAt    DateTime?
+  lastEventId          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([status])
+}
+
+/// Idempotencia de webhooks: la PK es el `evt_…` de Stripe. Insertar dos veces el
+/// mismo evento viola la PK → se ignora el duplicado.
+model StripeEvent {
+  id          String   @id // evt_… de Stripe
+  type        String
+  processedAt DateTime @default(now())
 }
 
 /// Config operativa del bot por tenant (1:1 con Tenant). Reemplaza config.json +
