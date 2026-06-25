@@ -30,6 +30,7 @@ const CSRF_EXEMPT = new Set([
   '/auth/logout',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/billing/webhook',
   '/health',
 ]);
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -38,6 +39,16 @@ const isTest = process.env.NODE_ENV === 'test';
 export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInstance> {
   // bodyLimit: la media va por el worker, no por la API; 256 KB cubre los JSON.
   const app = Fastify({ logger: false, bodyLimit: 256 * 1024 });
+
+  // Parser de application/json que conserva el Buffer crudo (request.rawBody) y
+  // además parsea JSON normal. La verificación de firma de Stripe (webhook) exige
+  // el cuerpo crudo exacto; el resto de rutas siguen recibiendo el objeto parseado.
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+    (req as any).rawBody = body;
+    const text = (body as Buffer).toString('utf8');
+    if (!text) return done(null, undefined);
+    try { done(null, JSON.parse(text)); } catch (e) { done(e as Error, undefined); }
+  });
 
   await app.register(cookie);
   await app.register(helmet, { contentSecurityPolicy: false }); // API JSON: sin CSP de HTML
