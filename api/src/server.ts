@@ -17,6 +17,7 @@ import { waStatusRoutes } from './routes/wa-status';
 import { settingsRoutes } from './routes/settings';
 import { billingRoutes } from './routes/billing';
 import { onboardingRoutes } from './routes/onboarding';
+import { adminRoutes } from './routes/admin';
 import { provisionTenant, workerAddTenant } from './onboarding/provision';
 import { captureError } from '../../src/lib/observability';
 import { incHttp, renderMetrics } from '../../src/lib/metrics';
@@ -143,7 +144,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
       // Enforcement de suscripción (402) en rutas de negocio. Exentas: /auth/*,
       // /billing/* (para poder pagar) y /health.
       const url = request.routeOptions?.url ?? '';
-      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/health')) {
+      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/admin') && !url.startsWith('/health')) {
         const sub = await getPrisma().subscription.findUnique({
           where: { tenantId: request.tenantId },
           select: { status: true, gracePeriodEndsAt: true },
@@ -158,6 +159,13 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   });
 
   // Health enriquecido: estado de DB (SELECT 1) + versión + uptime. 503 si DB cae.
+  // Rol de plataforma: protege /admin/*. Un admin/viewer de tenant → 403.
+  app.decorate('requireOperator', async (request: any, reply: any) => {
+    if (request.authUser?.role !== 'operator') {
+      return reply.code(403).send({ error: 'operator_required' });
+    }
+  });
+
   app.get('/health', async (_request, reply) => {
     const started = Date.now();
     try {
@@ -192,6 +200,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(settingsRoutes);
   await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher, provision });
   await app.register(onboardingRoutes);
+  await app.register(adminRoutes, { fetcher: opts.fetcher });
 
   return app;
 }

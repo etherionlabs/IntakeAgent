@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, setUnauthorizedHandler } from '../api/client';
+import { setTenantTag, clearTenantTag } from '../lib/sentry';
 
 interface AuthState {
   user: any | null;
@@ -19,16 +20,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     const res = await api.login(email, password);
     setUser(res.user);
+    if (res.user?.tenantId) setTenantTag(res.user.tenantId);
   }
 
   async function logout() {
-    try { await api.logout(); } finally { setUser(null); }
+    try { await api.logout(); } finally { setUser(null); clearTenantTag(); }
   }
 
   useEffect(() => {
     setUnauthorizedHandler(() => setUser(null));
     api.me()
-      .then((res) => setUser(res.user))
+      .then((res) => { setUser(res.user); if (res.user?.tenantId) setTenantTag(res.user.tenantId); })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);

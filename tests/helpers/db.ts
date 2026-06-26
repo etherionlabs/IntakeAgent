@@ -39,6 +39,7 @@ export async function cleanupDb(): Promise<void> {
   await testPrisma.subscription.deleteMany();
   await testPrisma.stripeEvent.deleteMany();
   await testPrisma.tenantSettings.deleteMany();
+  await testPrisma.operatorAuditLog.deleteMany();
   await testPrisma.tenant.deleteMany();
   await testPrisma.plan.deleteMany();
 }

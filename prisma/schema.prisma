@@ -250,3 +250,15 @@ model Setting {
   key   String  @id
   value String  // JSON serializado
 }
+
+/// Auditoría de acciones del operador de plataforma (Fase 5). Quién, sobre qué
+/// tenant, qué acción y cuándo. Sin FK para no acoplar el borrado.
+model OperatorAuditLog {
+  id             String   @id @default(uuid())
+  operatorUserId String
+  tenantId       String
+  action         String   // 'suspend' | 'reactivate' | 'bot_reconnect'
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId])
+}

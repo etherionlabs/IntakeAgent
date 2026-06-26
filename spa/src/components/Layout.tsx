@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api, setPaymentRequiredHandler, type BillingStatus } from '../api/client';
 
 export default function Layout() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
 
@@ -30,6 +30,7 @@ export default function Layout() {
           <NavLink to="/whatsapp">WhatsApp</NavLink>
           <NavLink to="/settings">Configuración</NavLink>
           <NavLink to="/billing">Facturación</NavLink>
+          {user?.role === 'operator' && <NavLink to="/admin">Operador</NavLink>}
         </nav>
         <button type="button" className="logout" onClick={handleLogout}>
           Salir

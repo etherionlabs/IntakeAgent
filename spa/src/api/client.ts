@@ -91,6 +91,10 @@ export const api = {
   onboardingFlag: (flag: { whatsappLinked?: boolean; testDone?: boolean }) =>
     request<{ ok: boolean }>('POST', '/onboarding/flag', flag),
   completeOnboarding: () => request<{ ok: boolean }>('POST', '/onboarding/complete'),
+  getAdminTenants: () => request<{ tenants: AdminTenant[] }>('GET', '/admin/tenants'),
+  adminSuspend: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/suspend`),
+  adminReactivate: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/reactivate`),
+  adminReconnect: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/bot/reconnect`),
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
@@ -100,6 +104,12 @@ export const api = {
   updateConfigSettings: (payload: ConfigSettings) =>
     request<{ ok: boolean; config: ConfigSettings }>('PUT', '/settings/config', payload),
 };
+
+export interface AdminTenant {
+  id: string; slug: string; name: string; industry: string;
+  status: string; createdAt: string;
+  subscription: string | null; currentPeriodEnd: string | null;
+}
 
 export interface OnboardingState {
   step: 'verify_email' | 'subscription' | 'provisioning' | 'business' | 'welcome' | 'schema' | 'whatsapp' | 'test' | 'checklist' | 'done';

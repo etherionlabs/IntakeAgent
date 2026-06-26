@@ -385,15 +385,19 @@
 
 ## Checklist final de aceptación
 
-- [ ] Existe `.github/workflows/ci.yml`; un PR **no es mergeable** si fallan tests (raíz+api en un `npm test`, y SPA) o `typecheck` (raíz y SPA).
-- [ ] CI construye `Dockerfile.api` y `Dockerfile.worker` en cada PR; un fallo de build bloquea el merge.
-- [ ] Merge a `main` despliega automáticamente a **staging** (`prisma migrate deploy` + smoke `/health`).
-- [ ] Deploy a **producción** es manual y requiere aprobación (Environment `production` con reviewer), promoviendo la imagen ya probada en staging.
-- [ ] Un error en producción aparece en Sentry con el `tenantId` correcto, en **api, worker y spa**.
-- [ ] `/health` reporta estado de DB y versión; un **uptime monitor externo** alerta si la API no responde.
-- [ ] Hay métricas de mensajes/min, errores LLM y bots conectados en un endpoint protegido (`/internal/metrics`).
-- [ ] Una **caída de bot dispara alerta al operador en < 5 min**.
-- [ ] Existen alertas para pago fallido (cableada cuando Fase 3 exista), error rate alto, saldo OpenRouter bajo y disco/DB.
-- [ ] Los logs están centralizados y cada línea lleva `tenantId` y `service`; soporte puede filtrar por tenant. Ningún log contiene secretos.
-- [ ] El **panel de operador** lista tenants con estado de bot y de suscripción y permite suspender/reactivar, conectado a `TenantManager` (Fase 2) y `Subscription` (Fase 3); acciones auditadas y restringidas al rol `operator`.
-- [ ] Suite raíz+api (`npm test`) y SPA (`cd spa && npm test`) verdes; `npm run typecheck` (raíz y SPA) sin errores.
+- [x] Existe `.github/workflows/ci.yml` (test-root raíz+api en un `npm test`, test-spa, typecheck) — *validación real al correr en GitHub*.
+- [x] CI construye `Dockerfile.api` y `Dockerfile.worker` (job `docker-build`, sin push).
+- [x] `deploy-staging.yml`: merge a `main` → GHCR + SSH + `migrate deploy` + smoke `/health`. *(Requiere secretos/host del agente con infra.)*
+- [x] `deploy-prod.yml`: `workflow_dispatch` + `environment: production` (required reviewers) promoviendo la misma imagen. *(Requiere configurar reviewers.)*
+- [x] Error tracking con `tenantId` en **api** (`setErrorHandler` 5xx), **worker** (coordinator/unhandledRejection) y **spa** (`setTenantTag` tras login); Sentry no-op sin DSN.
+- [x] `/health` reporta DB (`SELECT 1` → 503 si cae), versión y uptime. *(Uptime monitor externo = config, en el runbook.)*
+- [x] Métricas (mensajes, errores LLM, http, bots_connected) en `/internal/metrics` protegido (worker y API).
+- [x] Lógica de **alerta de bot caído < 5 min** (histéresis) + error rate + OpenRouter + deduper, con tests. *(Envío al canal = config externa.)*
+- [x] Alertas de pago fallido **cableables** (estado `past_due` de Fase 3 ya existe) — disparador definido; envío externo pendiente de canal.
+- [x] Logs con `tenantId` y `service`; `redact`/`scrub` de secretos y teléfonos. *(Centralización = driver Docker, runbook.)*
+- [x] **Panel de operador**: `/admin/*` (lista con estado de bot+suscripción, suspender/reactivar/reconnect) conectado a `TenantManager` (Fase 2) y `Subscription` (Fase 3); auditado en `OperatorAuditLog`; restringido a rol `operator`; sección `/admin` en la SPA.
+- [x] Suite raíz+api (351) y SPA (44) verdes; `typecheck` limpio en ambos.
+
+### Configuración pendiente para el agente con infra (no es código)
+- [ ] Secretos de CI (GHCR, SSH staging/prod, hosts) y branch protection en `main`.
+- [ ] `SENTRY_DSN` / `VITE_SENTRY_DSN` reales; uptime monitor externo; canal de alertas (email/Telegram); centralización de logs.
