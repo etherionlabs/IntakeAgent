@@ -64,6 +64,12 @@ describe('internal status server (dispatch por tenant)', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it('GET /internal/metrics con token → texto Prometheus con bots_connected', async () => {
+    const res = await server.app.inject({ method: 'GET', url: '/internal/metrics', headers: auth });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('intake_bots_connected');
+  });
+
   it('suspend/resume despachan por tenantId', async () => {
     calls.length = 0;
     await server.app.inject({ method: 'POST', url: '/internal/tenant/suspend', headers: auth, payload: { tenantId: 'tenant-a' } });

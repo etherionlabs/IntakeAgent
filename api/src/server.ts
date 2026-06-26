@@ -18,6 +18,8 @@ import { settingsRoutes } from './routes/settings';
 import { billingRoutes } from './routes/billing';
 import { onboardingRoutes } from './routes/onboarding';
 import { provisionTenant, workerAddTenant } from './onboarding/provision';
+import { captureError } from '../../src/lib/observability';
+import { incHttp, renderMetrics } from '../../src/lib/metrics';
 import type { StripeLike } from './billing/stripe';
 import type { EmailSender } from './lib/email';
 
@@ -45,7 +47,26 @@ const isTest = process.env.NODE_ENV === 'test';
 
 export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInstance> {
   // bodyLimit: la media va por el worker, no por la API; 256 KB cubre los JSON.
-  const app = Fastify({ logger: false, bodyLimit: 256 * 1024 });
+  // Logger pino con service='api' (silenciado en test para no ensuciar la salida).
+  const app = Fastify({
+    bodyLimit: 256 * 1024,
+    logger: isTest ? false : {
+      level: process.env.LOG_LEVEL ?? 'info',
+      base: { service: 'api' },
+      redact: { paths: ['req.headers.authorization', 'req.headers.cookie'], censor: '[redacted]' },
+    },
+  });
+
+  // Métrica HTTP por clase de estado + tag de tenant en el log del request.
+  app.addHook('onResponse', async (request: any, reply) => { incHttp(reply.statusCode); });
+
+  // 5xx → error tracking con el tenantId del request (si lo hubo).
+  app.setErrorHandler((error, request: any, reply) => {
+    if ((reply.statusCode ?? 500) >= 500 || !reply.statusCode) {
+      captureError(error, { tenantId: request.tenantId, service: 'api' });
+    }
+    reply.send(error);
+  });
 
   // Parser de application/json que conserva el Buffer crudo (request.rawBody) y
   // además parsea JSON normal. La verificación de firma de Stripe (webhook) exige
@@ -136,7 +157,26 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
     }
   });
 
-  app.get('/health', async () => ({ ok: true }));
+  // Health enriquecido: estado de DB (SELECT 1) + versión + uptime. 503 si DB cae.
+  app.get('/health', async (_request, reply) => {
+    const started = Date.now();
+    try {
+      await getPrisma().$queryRaw`SELECT 1`;
+    } catch {
+      return reply.code(503).send({ ok: false, db: 'down' });
+    }
+    return { ok: true, db: 'up', version: process.env.GIT_SHA ?? 'dev', uptimeSec: Math.round(process.uptime()), checkedInMs: Date.now() - started };
+  });
+
+  // Métricas de la API (Prometheus text), protegidas por INTERNAL_API_TOKEN.
+  app.get('/internal/metrics', async (request, reply) => {
+    const token = process.env.INTERNAL_API_TOKEN;
+    if (!token || request.headers.authorization !== `Bearer ${token}`) {
+      return reply.code(401).send({ error: 'unauthorized' });
+    }
+    reply.header('content-type', 'text/plain; version=0.0.4');
+    return renderMetrics();
+  });
 
   // Provisioning por defecto: siembra TenantSettings desde plantilla + alta en el
   // worker. Inyectable en tests para no pegarle al worker real.

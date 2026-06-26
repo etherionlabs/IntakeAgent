@@ -18,8 +18,11 @@ import { createTenantRuntime } from './tenant/runtime';
 import { startInternalServer } from './internal/server';
 import { getShardId, getShardCount } from './tenant/shard';
 import { logger } from './lib/logger';
+import { initErrorTracking, captureError } from './lib/observability';
 
 async function main() {
+  await initErrorTracking({ service: 'worker' });
+  process.on('unhandledRejection', (e) => captureError(e, { service: 'worker' }));
   const prisma = getPrisma();
   logger.info({ shardId: getShardId(), shardCount: getShardCount() }, 'bootstrap.worker_starting');
 
@@ -30,7 +33,7 @@ async function main() {
 
   // Endpoint interno (solo red Docker, protegido con INTERNAL_API_TOKEN). El
   // manager ES el dispatcher: getStatus/logout/reconnect por tenantId.
-  const internalServer = await startInternalServer({ dispatcher: manager });
+  const internalServer = await startInternalServer({ dispatcher: manager, connectedCount: () => manager.connectedCount() });
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {

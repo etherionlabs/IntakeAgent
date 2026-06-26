@@ -4,6 +4,7 @@ import { buildTools } from './tools';
 import { recordAgentRun } from './audit';
 import { classifyLlmError, isActionableLlmError, type LlmErrorKind } from './errors';
 import { logger } from '../lib/logger';
+import { incLlmError } from '../lib/metrics';
 
 export async function runAgentTurn(
   ctx: TurnContext,
@@ -70,6 +71,7 @@ export async function runAgentTurn(
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
     errorKind = classifyLlmError(e);
+    incLlmError(errorKind);
     // Degradación sin perder el mensaje: el inbound ya está persistido; al cliente
     // le devolvemos el fallback neutral y registramos el AgentRun con el error.
     responseText = deps.config.fallbackOnError;

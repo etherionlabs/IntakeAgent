@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { logger } from '../lib/logger';
+import { setBotsConnected, renderMetrics } from '../lib/metrics';
 import type { TenantStatus } from '../tenant/types';
 
 /**
@@ -17,6 +18,8 @@ export interface TenantDispatcher {
 
 export interface InternalServerDeps {
   dispatcher: TenantDispatcher;
+  /** Número de bots conectados (para la métrica). Opcional. */
+  connectedCount?: () => number;
 }
 
 export interface InternalServer {
@@ -94,6 +97,13 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
     if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
     try { await deps.dispatcher.resumeTenant(tenantId); return { ok: true }; }
     catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
+  });
+
+  // Métricas (Prometheus text), protegidas por el mismo bearer. Observabilidad Fase 5.
+  app.get('/internal/metrics', async (_request, reply) => {
+    if (deps.connectedCount) setBotsConnected(deps.connectedCount());
+    reply.header('content-type', 'text/plain; version=0.0.4');
+    return renderMetrics();
   });
 
   // Aprovisionamiento self-service (Fase 4): alta del tenant en caliente.

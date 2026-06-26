@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { buildServer } from './server';
 import { PORT, requireEnv } from './env';
 import { disconnectPrisma } from './db';
+import { initErrorTracking } from '../../src/lib/observability';
 
 // En Railway la red (pública y privada) usa IPv6; set HOST=:: en el servicio.
 // Local/Docker-compose: 0.0.0.0 por defecto.
@@ -13,6 +14,7 @@ async function main() {
   requireEnv('JWT_SECRET');
   requireEnv('STRIPE_SECRET_KEY');
   requireEnv('STRIPE_WEBHOOK_SECRET');
+  await initErrorTracking({ service: 'api' });
   const app = await buildServer();
   await app.listen({ port: PORT, host: HOST });
   const shutdown = async () => { await app.close(); await disconnectPrisma(); process.exit(0); };

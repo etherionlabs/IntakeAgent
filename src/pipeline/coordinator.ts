@@ -8,6 +8,8 @@ import { InboundDebouncer } from './debouncer';
 import { parseJobIntake } from '../services/job';
 import { runAgentTurn } from '../agent/runner';
 import { logger } from '../lib/logger';
+import { incMessage } from '../lib/metrics';
+import { captureError } from '../lib/observability';
 import type { BatchMessage, AvailablePhoto } from '../agent/types';
 import {
   buildDescribeBaseContext,
@@ -21,7 +23,11 @@ export class InboundCoordinator {
   constructor(private readonly deps: PipelineDeps) {
     this.debouncer = new InboundDebouncer({
       debounceMs: deps.config.debounceMs,
-      onFlush: (contactId, messageIds) => this.flushBatch(contactId, messageIds),
+      onFlush: (contactId, messageIds) =>
+        this.flushBatch(contactId, messageIds).catch((e) => {
+          captureError(e, { tenantId: this.deps.tenantId, service: 'worker', extra: { contactId } });
+          logger.error({ tenantId: this.deps.tenantId, err: e instanceof Error ? e.message : String(e) }, 'pipeline.flush_failed');
+        }),
     });
   }
 
@@ -73,6 +79,7 @@ export class InboundCoordinator {
       where: { id: messageWithoutJob.id, tenantId },
       data: { jobId: jobRes.job.id },
     });
+    incMessage(tenantId);
 
     if (message.kind === 'image' || message.kind === 'audio') {
       const intake = parseJobIntake(jobRes.job);

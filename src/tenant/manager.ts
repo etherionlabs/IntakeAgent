@@ -62,6 +62,13 @@ export class TenantManagerImpl implements TenantManager {
     }
   }
 
+  /** Número de tenants con conexión activa (para la métrica bots_connected). */
+  connectedCount(): number {
+    let n = 0;
+    for (const e of this.entries.values()) if (e.runtime?.getStatus().connected) n++;
+    return n;
+  }
+
   getStatus(tenantId: string): TenantStatus | null {
     const entry = this.entries.get(tenantId);
     if (!entry) return null;
