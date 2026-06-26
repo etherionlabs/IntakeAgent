@@ -15,11 +15,16 @@ model Tenant {
   /// ventana de migración (backfill); ningún código nuevo lo lee.
   profileDir  String
   active      Boolean  @default(true)
+  /// Estado del onboarding self-service (Fase 4).
+  status      String   @default("pending_verification") // pending_verification|verified|provisioning|active|suspended
+  /// Flags del wizard reanudable: { step, businessDone, welcomeDone, schemaDone, whatsappLinked, testDone, completed }
+  onboarding  Json?
   createdAt   DateTime @default(now())
 
-  settings      TenantSettings?
-  subscription  Subscription?
-  panelUsers    PanelUser[]
+  settings           TenantSettings?
+  subscription       Subscription?
+  emailVerifications EmailVerification[]
+  panelUsers         PanelUser[]
   contacts      Contact[]
   jobs          Job[]
   messages      Message[]
@@ -110,6 +115,21 @@ model PanelUser {
   resetTokens  PasswordResetToken[]
 
   @@unique([tenantId, username])
+}
+
+/// Verificación de email del signup self-service (token de un solo uso, expirable).
+model EmailVerification {
+  id         String    @id @default(uuid())
+  tenantId   String
+  email      String
+  token      String    @unique
+  verifiedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 model PasswordResetToken {

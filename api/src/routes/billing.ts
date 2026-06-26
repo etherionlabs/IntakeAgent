@@ -9,6 +9,8 @@ export interface BillingRouteOptions {
   stripe?: StripeLike;
   /** fetcher para llamar al worker (suspend/resume). Default: fetch global. */
   fetcher?: typeof fetch;
+  /** Aprovisionamiento del tenant al confirmarse el Checkout (Fase 4). */
+  provision?: (tenantId: string) => Promise<void>;
 }
 
 export async function billingRoutes(app: FastifyInstance, opts: BillingRouteOptions = {}) {
@@ -117,6 +119,10 @@ export async function billingRoutes(app: FastifyInstance, opts: BillingRouteOpti
         });
         // Tarea 4: el efecto suspend/resume se propaga al worker (TenantManager).
         if (result.effect) await applyEffect(sub.tenantId, result.effect);
+        // Fase 4: el alta confirmada aprovisiona el tenant (idempotente).
+        if (event.type === 'checkout.session.completed' && opts.provision) {
+          await opts.provision(sub.tenantId).catch(() => {});
+        }
       }
     }
     return { received: true };

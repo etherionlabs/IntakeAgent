@@ -34,3 +34,12 @@ export const BILLING_GRACE_DAYS = Number(process.env.BILLING_GRACE_DAYS ?? 3);
 export function billingExemptTenantIds(): Set<string> {
   return new Set((process.env.BILLING_EXEMPT_TENANT_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
 }
+
+// --- Onboarding (Fase 4) ---
+// Base pública de la app (para enlaces de verificación de email). Default: SPA_URL.
+export const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL ?? SPA_URL;
+// Si el trial requiere tarjeta: el provisioning lo dispara el webhook de Checkout;
+// si no, lo dispara la verificación de email. Default recomendado: true.
+export function trialRequiresCard(): boolean {
+  return (process.env.TRIAL_REQUIRES_CARD ?? 'true') !== 'false';
+}

@@ -13,11 +13,21 @@ import {
 } from '../lib/auth-cookies';
 import { checkPassword } from '../lib/password-policy';
 import { getEmailSender, type EmailSender } from '../lib/email';
+import { uniqueSlug } from '../lib/slug';
+import { randomToken, in24h } from '../lib/tokens';
+import { verificationEmail, welcomeEmail } from '../email/templates';
+import { trialRequiresCard } from '../env';
 
 const LoginZ = z.object({ email: z.string().email(), password: z.string().min(1) });
 const ForgotZ = z.object({ email: z.string().email() });
 const ResetZ = z.object({ token: z.string().min(1), newPassword: z.string().min(1) });
 const ChangeZ = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(1) });
+const SignupZ = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  businessName: z.string().min(1).max(120),
+  industry: z.enum(['tapiceria', 'paqueteria', 'generico']),
+});
 
 const RESET_TTL_MS = 45 * 60 * 1000; // 45 min
 const SPA_URL = process.env.CORS_ORIGIN?.split(',')[0]?.trim() || 'http://localhost:5173';
@@ -30,8 +40,92 @@ function publicUser(u: { id: string; username: string; email: string | null; rol
   return { id: u.id, username: u.username, email: u.email, role: u.role, tenantId: u.tenantId };
 }
 
-export async function authRoutes(app: FastifyInstance, opts: { emailSender?: EmailSender } = {}) {
+export async function authRoutes(
+  app: FastifyInstance,
+  opts: { emailSender?: EmailSender; provision?: (tenantId: string) => Promise<void> } = {},
+) {
   const emailSender = opts.emailSender ?? getEmailSender();
+
+  // Signup self-service: crea Tenant + PanelUser admin + EmailVerification de forma
+  // atómica, y envía el correo de verificación. Anti-abuso por rate-limit.
+  app.post('/auth/signup', {
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
+    const parse = SignupZ.safeParse(request.body);
+    if (!parse.success) return reply.code(400).send({ error: 'datos de registro inválidos' });
+    const { email, password, businessName, industry } = parse.data;
+    const policy = checkPassword(password);
+    if (!policy.ok) return reply.code(400).send({ error: policy.error });
+
+    const prisma = getPrisma();
+    const slug = await uniqueSlug(prisma, businessName);
+    const passwordHash = await bcrypt.hash(password, 10);
+    const token = randomToken();
+    try {
+      const tenant = await prisma.$transaction(async (tx) => {
+        const t = await tx.tenant.create({
+          data: { slug, name: businessName, industry, profileDir: '', status: 'pending_verification' },
+        });
+        await tx.panelUser.create({
+          data: { tenantId: t.id, username: email.split('@')[0], email, passwordHash, role: 'admin' },
+        });
+        await tx.emailVerification.create({
+          data: { tenantId: t.id, email, token, expiresAt: in24h() },
+        });
+        return t;
+      });
+      const { subject, body } = verificationEmail(token);
+      await emailSender.send(email, subject, body);
+      return reply.code(201).send({ tenantId: tenant.id, status: 'pending_verification' });
+    } catch (e: any) {
+      if (e?.code === 'P2002') return reply.code(409).send({ error: 'email ya registrado' });
+      throw e;
+    }
+  });
+
+  // Verificación de email (token de un solo uso). Obligatoria antes de operar.
+  app.get('/auth/verify-email', async (request, reply) => {
+    const token = (request.query as any)?.token as string | undefined;
+    if (!token) return reply.code(400).send({ error: 'token requerido' });
+    const prisma = getPrisma();
+    const rec = await prisma.emailVerification.findUnique({ where: { token } });
+    if (!rec || rec.verifiedAt || rec.expiresAt.getTime() < Date.now()) {
+      return reply.code(400).send({ error: 'token inválido o expirado' });
+    }
+    const [, tenant] = await prisma.$transaction([
+      prisma.emailVerification.update({ where: { id: rec.id }, data: { verifiedAt: new Date() } }),
+      prisma.tenant.update({ where: { id: rec.tenantId }, data: { status: 'verified' } }),
+    ]);
+    const wel = welcomeEmail(tenant.name);
+    await emailSender.send(rec.email, wel.subject, wel.body).catch(() => {});
+    // Trial sin tarjeta: la verificación dispara el provisioning. Con tarjeta, lo
+    // dispara el webhook de Checkout (Fase 3), no aquí.
+    if (!trialRequiresCard() && opts.provision) {
+      await opts.provision(rec.tenantId).catch(() => {});
+    }
+    return { status: 'verified' };
+  });
+
+  // Reenvío de verificación: 200 genérico (no revela si el email existe).
+  app.post('/auth/resend-verification', {
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
+    const parse = ForgotZ.safeParse(request.body);
+    if (!parse.success) return reply.code(400).send({ error: 'email requerido' });
+    const prisma = getPrisma();
+    const user = await prisma.panelUser.findUnique({ where: { email: parse.data.email } });
+    if (user) {
+      const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+      if (tenant && tenant.status === 'pending_verification') {
+        await prisma.emailVerification.deleteMany({ where: { tenantId: tenant.id, verifiedAt: null } });
+        const token = randomToken();
+        await prisma.emailVerification.create({ data: { tenantId: tenant.id, email: parse.data.email, token, expiresAt: in24h() } });
+        const { subject, body } = verificationEmail(token);
+        await emailSender.send(parse.data.email, subject, body);
+      }
+    }
+    return { ok: true };
+  });
 
   // Emite cookies de sesión (HttpOnly) + CSRF (legible) y NO devuelve el token.
   function issueSession(reply: any, claims: { userId: string; tenantId: string; role: string }) {

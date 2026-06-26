@@ -12,6 +12,7 @@ export interface TenantDispatcher {
   reconnect(tenantId: string): Promise<void>;
   suspendTenant(tenantId: string): Promise<void>;
   resumeTenant(tenantId: string): Promise<void>;
+  addTenant(tenantId: string): Promise<void>;
 }
 
 export interface InternalServerDeps {
@@ -92,6 +93,14 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
     const tenantId = tenantIdOf(request.body);
     if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
     try { await deps.dispatcher.resumeTenant(tenantId); return { ok: true }; }
+    catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
+  });
+
+  // Aprovisionamiento self-service (Fase 4): alta del tenant en caliente.
+  app.post('/internal/tenant/add', async (request, reply) => {
+    const tenantId = tenantIdOf(request.body);
+    if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
+    try { await deps.dispatcher.addTenant(tenantId); return { ok: true }; }
     catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
   });
 

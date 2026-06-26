@@ -16,12 +16,18 @@ import { usageRoutes } from './routes/usage';
 import { waStatusRoutes } from './routes/wa-status';
 import { settingsRoutes } from './routes/settings';
 import { billingRoutes } from './routes/billing';
+import { onboardingRoutes } from './routes/onboarding';
+import { provisionTenant, workerAddTenant } from './onboarding/provision';
 import type { StripeLike } from './billing/stripe';
+import type { EmailSender } from './lib/email';
 
 export interface BuildOptions {
   jwtSecret?: string;
   fetcher?: typeof fetch;
   stripe?: StripeLike;
+  emailSender?: EmailSender;
+  /** Provisioning del tenant (inyectable en tests). Default: TemplateLoader + worker. */
+  provision?: (tenantId: string) => Promise<void>;
 }
 
 // Rutas mutadoras exentas de CSRF: no pueden tener cookie CSRF aún (login/recuperación)
@@ -116,7 +122,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
       // Enforcement de suscripción (402) en rutas de negocio. Exentas: /auth/*,
       // /billing/* (para poder pagar) y /health.
       const url = request.routeOptions?.url ?? '';
-      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/health')) {
+      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/health')) {
         const sub = await getPrisma().subscription.findUnique({
           where: { tenantId: request.tenantId },
           select: { status: true, gracePeriodEndsAt: true },
@@ -132,14 +138,20 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
 
   app.get('/health', async () => ({ ok: true }));
 
-  await app.register(authRoutes);
+  // Provisioning por defecto: siembra TenantSettings desde plantilla + alta en el
+  // worker. Inyectable en tests para no pegarle al worker real.
+  const provision = opts.provision ??
+    ((tenantId: string) => provisionTenant(getPrisma(), tenantId, { addTenant: workerAddTenant(opts.fetcher ?? fetch) }).then(() => {}));
+
+  await app.register(authRoutes, { emailSender: opts.emailSender, provision });
   await app.register(profileRoutes);
   await app.register(jobsRoutes);
   await app.register(contactsRoutes);
   await app.register(usageRoutes);
   await app.register(waStatusRoutes, { fetcher: opts.fetcher });
   await app.register(settingsRoutes);
-  await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher });
+  await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher, provision });
+  await app.register(onboardingRoutes);
 
   return app;
 }

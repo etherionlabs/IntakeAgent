@@ -16,6 +16,7 @@ const dispatcher: TenantDispatcher = {
   reconnect: async (id) => { calls.push(`reconnect:${id}`); },
   suspendTenant: async (id) => { calls.push(`suspend:${id}`); },
   resumeTenant: async (id) => { calls.push(`resume:${id}`); },
+  addTenant: async (id) => { calls.push(`add:${id}`); },
 };
 
 describe('internal status server (dispatch por tenant)', () => {
