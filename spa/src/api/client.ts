@@ -79,6 +79,18 @@ export const api = {
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
   waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
+  signup: (payload: { email: string; password: string; businessName: string; industry: string }) =>
+    request<{ tenantId: string; status: string }>('POST', '/auth/signup', payload),
+  verifyEmail: (token: string) => request<{ status: string }>('GET', `/auth/verify-email?token=${encodeURIComponent(token)}`),
+  resendVerification: (email: string) => request<{ ok: boolean }>('POST', '/auth/resend-verification', { email }),
+  getOnboardingState: () => request<OnboardingState>('GET', '/onboarding/state'),
+  patchOnboardingBusiness: (payload: { businessName?: string; ownerPhoneE164?: string }) =>
+    request<{ ok: boolean }>('PATCH', '/onboarding/business', payload),
+  patchOnboardingWelcome: (welcome: string) => request<{ ok: boolean }>('PATCH', '/onboarding/welcome', { welcome }),
+  patchOnboardingSchema: (intakeSchema: unknown) => request<{ ok: boolean }>('PATCH', '/onboarding/schema', { intakeSchema }),
+  onboardingFlag: (flag: { whatsappLinked?: boolean; testDone?: boolean }) =>
+    request<{ ok: boolean }>('POST', '/onboarding/flag', flag),
+  completeOnboarding: () => request<{ ok: boolean }>('POST', '/onboarding/complete'),
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
@@ -88,6 +100,13 @@ export const api = {
   updateConfigSettings: (payload: ConfigSettings) =>
     request<{ ok: boolean; config: ConfigSettings }>('PUT', '/settings/config', payload),
 };
+
+export interface OnboardingState {
+  step: 'verify_email' | 'subscription' | 'provisioning' | 'business' | 'welcome' | 'schema' | 'whatsapp' | 'test' | 'checklist' | 'done';
+  tenantStatus: string;
+  subStatus: string | null;
+  flags: Record<string, boolean>;
+}
 
 export interface BillingStatus {
   status: 'none' | 'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';

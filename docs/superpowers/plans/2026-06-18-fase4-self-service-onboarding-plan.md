@@ -389,16 +389,19 @@ Las tareas están **ordenadas**: cada una deja el árbol compilando y los tests 
 
 ## Checklist final (criterios de aceptación, diseño §9 + roadmap)
 
-- [ ] Un usuario nuevo, sin que el operador toque nada, llega de signup a "bot vinculado y respondiendo" en staging.
-- [ ] `POST /auth/signup` crea `Tenant` + `PanelUser` admin **transaccionalmente** (o ambos, o ninguno) con validación zod.
-- [ ] Email verificado **obligatorio** antes de aprovisionar/operar; token de un solo uso con expiración (24 h).
-- [ ] Rate-limit activo en `/auth/signup` y `/auth/resend-verification`.
-- [ ] El aprovisionamiento llama `TenantManager.addTenant(tenantId)` sin editar `docker-compose.yml` ni reiniciar; **idempotente** ante webhooks duplicados.
-- [ ] La plantilla de la industria elegida se **precarga en `TenantSettings`** (schema, bienvenida, facts) con `{{businessName}}` sustituido; el wizard edita la copia, no el disco.
-- [ ] El wizard es **reanudable**: al volver, salta al primer paso incompleto según `Tenant.status` + `Subscription.status` + `Tenant.onboarding` + `wa-status`.
-- [ ] La SPA muestra el QR del tenant correcto (`GET /wa-status` ruteado por `tenantId`) y confirma un **mensaje de prueba** ida y vuelta.
-- [ ] El checklist "listo para operar" refleja: email verificado, suscripción activa/trial, bot vinculado, configuración guardada, prueba exitosa.
-- [ ] Proveedor de email transaccional integrado (verificación + bienvenida), reutilizable por la recuperación de contraseña de Fase 1.
-- [ ] Bandera `TRIAL_REQUIRES_CARD` soporta ambos órdenes (tarjeta requerida vs. trial sin tarjeta) con el default de lanzamiento elegido.
-- [ ] `npm test && npm run typecheck` verde en API y SPA.
-```
+- [x] Un usuario nuevo, sin que el operador toque nada, llega de signup a "bot vinculado y respondiendo" — **E2E automatizado** (`onboarding-e2e.test.ts`) en ambos modos de bandera. (El bot real respondiendo por WhatsApp se valida en staging con Docker/Baileys.)
+- [x] `POST /auth/signup` crea `Tenant` + `PanelUser` admin **transaccionalmente** con validación zod.
+- [x] Email verificado **obligatorio** antes de aprovisionar/operar; token de un solo uso, expiración 24 h.
+- [x] Rate-limit activo en `/auth/signup` y `/auth/resend-verification`.
+- [x] El aprovisionamiento llama `addTenant` (vía endpoint interno del worker) sin editar `docker-compose.yml`; **idempotente** ante webhooks duplicados (guard por `Tenant.status`).
+- [x] La plantilla de la industria se **precarga en `TenantSettings`** (schema, bienvenida) con la identidad del negocio sustituida; el wizard edita la copia DB. *(Edición de business-facts queda como follow-up: TenantSettings no modela facts/promptVars aún.)*
+- [x] El wizard es **reanudable**: `deriveStep` salta al primer paso incompleto según `Tenant.status` + `Subscription.status` + `Tenant.onboarding`.
+- [x] La SPA muestra el QR del tenant (`GET /wa-status` por `tenantId`, Fase 2) y confirma un **mensaje de prueba** (flag `testDone`).
+- [x] El checklist "listo para operar" refleja los hitos; `complete` → dashboard.
+- [x] Proveedor de email transaccional integrado tras una interfaz (`EmailSender`/templates), reutilizable por la recuperación de contraseña de Fase 1. *(Transporte real Resend/Postmark → Fase 6; en sandbox es `LogEmailSender`.)*
+- [x] Bandera `TRIAL_REQUIRES_CARD` soporta ambos órdenes con default `true`.
+- [x] `npm test && npm run typecheck` verde en API (338) y SPA (42).
+
+### Pendiente para el agente con Docker/infra real (no verificable en sandbox)
+- [ ] Bot real respondiendo por WhatsApp tras el onboarding completo en staging (Docker + Baileys + número real).
+- [ ] Transporte de email real (Resend/Postmark/SES) en lugar de `LogEmailSender` — se cierra en Fase 6.

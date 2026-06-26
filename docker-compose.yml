@@ -59,6 +59,9 @@ services:
       SPA_URL: ${CORS_ORIGIN}
       BILLING_GRACE_DAYS: ${BILLING_GRACE_DAYS:-3}
       BILLING_EXEMPT_TENANT_IDS: ${BILLING_EXEMPT_TENANT_IDS:-}
+      # Onboarding self-service (Fase 4)
+      PUBLIC_APP_URL: ${CORS_ORIGIN}
+      TRIAL_REQUIRES_CARD: ${TRIAL_REQUIRES_CARD:-true}
     ports: ["3001:3001"]
     depends_on:
       postgres:

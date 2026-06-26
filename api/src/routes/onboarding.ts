@@ -25,7 +25,8 @@ export function deriveStep(tenantStatus: string, subStatus: string | null, ob: O
 
 const BusinessZ = z.object({ businessName: z.string().min(1).max(120).optional(), ownerPhoneE164: z.string().min(5).optional() });
 const WelcomeZ = z.object({ welcome: z.string().min(1) });
-const SchemaZ = z.object({ intakeSchema: z.unknown() });
+// intakeSchema opcional: omitirlo confirma la plantilla precargada sin cambiarla.
+const SchemaZ = z.object({ intakeSchema: z.unknown().optional() });
 
 export async function onboardingRoutes(app: FastifyInstance) {
   const prisma = getPrisma();

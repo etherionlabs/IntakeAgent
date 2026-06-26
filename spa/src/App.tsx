@@ -10,13 +10,19 @@ import Usage from './pages/Usage';
 import WhatsApp from './pages/WhatsApp';
 import Settings from './pages/Settings';
 import Billing from './pages/Billing';
+import Signup from './pages/Signup';
+import VerifyEmail from './pages/VerifyEmail';
+import Onboarding from './pages/Onboarding';
 
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route element={<ProtectedRoute />}>
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/jobs/:id" element={<JobDetail />} />
