@@ -96,7 +96,7 @@ trial con tarjeta, Resend, Sentry, dirección API oficial de WhatsApp.
 
 ### 2.6 Fase 5 — Observabilidad / CI-CD
 - [ ] **Secretos de CI** (GitHub): `GHCR_TOKEN`/`GITHUB_TOKEN`, `STAGING_SSH_KEY`,
-      `PROD_SSH_KEY`, hosts, `DOMAIN`. Configurar **branch protection** en `main`
+      `PROD_SSH_KEY`, hosts, `DOMAIN`. Configurar **branch protection** en `master`
       (requerir `test-root`, `test-spa`, `docker-build`) y el **Environment `production`
       con required reviewers**. Workflows: `.github/workflows/{ci,deploy-staging,deploy-prod}.yml`.
 - [ ] `SENTRY_DSN` (api/worker) y `VITE_SENTRY_DSN` (spa) reales; `GIT_SHA` inyectado por CI.
