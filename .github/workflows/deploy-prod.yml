@@ -12,10 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     # Environment 'production' con required reviewers → gate de aprobación manual.
     environment: production
-    permissions: { contents: read, packages: write }
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: docker/login-action@v3
-        with: { registry: ghcr.io, username: ${{ github.actor }}, password: ${{ secrets.GITHUB_TOKEN }} }
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Promover la MISMA imagen (re-tag a :prod, sin reconstruir)
         run: |
           for svc in api worker; do
