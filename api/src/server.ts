@@ -18,6 +18,7 @@ import { settingsRoutes } from './routes/settings';
 import { billingRoutes } from './routes/billing';
 import { onboardingRoutes } from './routes/onboarding';
 import { adminRoutes } from './routes/admin';
+import { tenantDataRoutes } from './routes/tenant-data';
 import { provisionTenant, workerAddTenant } from './onboarding/provision';
 import { captureError } from '../../src/lib/observability';
 import { incHttp, renderMetrics } from '../../src/lib/metrics';
@@ -144,7 +145,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
       // Enforcement de suscripción (402) en rutas de negocio. Exentas: /auth/*,
       // /billing/* (para poder pagar) y /health.
       const url = request.routeOptions?.url ?? '';
-      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/admin') && !url.startsWith('/health')) {
+      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/admin') && !url.startsWith('/tenant/') && !url.startsWith('/health')) {
         const sub = await getPrisma().subscription.findUnique({
           where: { tenantId: request.tenantId },
           select: { status: true, gracePeriodEndsAt: true },
@@ -201,6 +202,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher, provision });
   await app.register(onboardingRoutes);
   await app.register(adminRoutes, { fetcher: opts.fetcher });
+  await app.register(tenantDataRoutes, { fetcher: opts.fetcher });
 
   return app;
 }

@@ -13,6 +13,8 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [industry, setIndustry] = useState('tapiceria');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedWhatsappRisk, setAcceptedWhatsappRisk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, setPending] = useState(false);
@@ -22,7 +24,7 @@ export default function Signup() {
     setError(null);
     setPending(true);
     try {
-      await api.signup({ email, password, businessName, industry });
+      await api.signup({ email, password, businessName, industry, acceptedTerms, acceptedWhatsappRisk });
       setDone(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'error inesperado');
@@ -58,8 +60,16 @@ export default function Signup() {
           {INDUSTRIES.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
         </select>
       </label>
+      <label className="checkbox">
+        <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
+        Acepto los <Link to="/terms">Términos</Link>, la <Link to="/privacy">Privacidad</Link> y el <Link to="/dpa">DPA</Link>.
+      </label>
+      <label className="checkbox">
+        <input type="checkbox" checked={acceptedWhatsappRisk} onChange={(e) => setAcceptedWhatsappRisk(e.target.checked)} />
+        Entiendo y acepto el <Link to="/whatsapp-policy">riesgo del canal de WhatsApp</Link> (no oficial).
+      </label>
       {error && <p role="alert" className="error">{error}</p>}
-      <button type="submit" disabled={pending}>{pending ? 'Creando…' : 'Crear cuenta'}</button>
+      <button type="submit" disabled={pending || !acceptedTerms || !acceptedWhatsappRisk}>{pending ? 'Creando…' : 'Crear cuenta'}</button>
       <p>¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link></p>
     </form>
   );

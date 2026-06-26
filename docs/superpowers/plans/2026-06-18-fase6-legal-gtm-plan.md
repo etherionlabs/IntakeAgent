@@ -262,18 +262,23 @@ Documentar **dominio verificado** (SPF + DKIM + DMARC); solo correo **transaccio
 
 ## Resumen de criterios de aceptación cubiertos (spec §8)
 
-- [ ] ToS + Privacidad publicados y aceptados en signup (Tareas 2, 3).
-- [ ] ToS incorpora/referencia un DPA (responsable/encargado + sub-encargados) (Tarea 3).
-- [ ] Aceptación registrada en `LegalAcceptance` dentro de la transacción de tenant (Tarea 2).
-- [ ] Aceptación **separada** del riesgo WhatsApp/Baileys en el signup (Tareas 2, 3).
-- [ ] Política de uso de WhatsApp publicada y enlazada (Tarea 3).
-- [ ] Migración a API oficial registrada como deuda (Tarea 3, no se construye).
-- [ ] Export de datos por tenant (ZIP por entidad, URL firmada y expirable) (Tarea 1).
-- [ ] Borrado por tenant (cliente final + total, auditado e idempotente, dispara `removeTenant`) (Tarea 1).
-- [ ] Política de retención implementada y documentada, incluido matiz de backups (Tareas 1, 3).
-- [ ] Landing en vivo en Netlify con precios y CTA a signup (Tarea 4).
-- [ ] Documentación de cliente publicada (guía, FAQ, soporte) (Tarea 5).
-- [ ] Email transaccional integrado, dominio verificado, claves por env (Tarea 6).
+- [x] Aceptación de ToS/Privacidad/DPA + casilla **separada** de riesgo WhatsApp en signup; bloquea si falta (Tareas 2, 3).
+- [x] ToS/DPA (responsable/encargado + sub-encargados) — borradores en `docs/legal/` + páginas públicas de render (Tarea 3).
+- [x] Aceptación registrada en `LegalAcceptance` **dentro de la transacción** de creación del tenant, una fila por documento, con versión/ip/userAgent (Tarea 2).
+- [x] Política de uso de WhatsApp publicada (`/whatsapp-policy`) y enlazada desde signup/landing (Tarea 3).
+- [x] Migración a API oficial registrada como deuda (decisión #10, Fase 2/roadmap).
+- [x] Export de datos por tenant, **solo del tenantId del JWT**, rol admin (Tarea 1). *(Bundle JSON; ZIP+URL firmada = mejora de producción.)*
+- [x] Borrado por tenant (cliente final + total, auditado e idempotente; conserva `LegalAcceptance`; dispara `removeTenant` del worker) (Tarea 1).
+- [x] Política de retención (`messageRetentionMonths`) + job `purgeOldMessages` por tenant (Tarea 1). *(Matiz de backups → declarar en Privacidad.)*
+- [x] Landing pública con propuesta de valor, precios y CTA a signup (`/landing`) (Tarea 4). *(Deploy Netlify = config.)*
+- [x] Documentación de cliente (guía de inicio + FAQ) ya en `docs/gtm/` (Tarea 5).
+- [x] Email transaccional: `EmailService` con proveedor **Resend** elegible por env, claves solo en env (Tarea 6).
+
+### Pendiente (decisión de negocio / infra, no código) `[LEGAL-EXT]`
+- [ ] Fijar **jurisdicción** y validar los textos legales con abogado antes de cobrar.
+- [ ] Confirmar ventana de retención (12 meses / 30 días de gracia).
+- [ ] Configurar dominio de email (SPF/DKIM/DMARC) + `EMAIL_*`; deploy de la landing en Netlify; canal/SLA de soporte.
+- [ ] ZIP + URL firmada/expirable para el export (mejora sobre el bundle JSON actual).
 
 ## Decisiones abiertas que bloquean el cierre definitivo (spec §9)
 

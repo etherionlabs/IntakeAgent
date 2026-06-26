@@ -10,7 +10,7 @@ import type { EmailSender } from '../src/lib/email';
 const WHSEC = 'whsec_testsecret';
 const realStripe = new Stripe('sk_test_dummy', { apiVersion: '2025-08-27.basil' as any });
 const sink: EmailSender = { async send() {} };
-const SIGNUP = { email: 'dueno@negocio.com', password: 'pw1234567890', businessName: 'Tapicería Sol', industry: 'tapiceria' };
+const SIGNUP = { email: 'dueno@negocio.com', password: 'pw1234567890', businessName: 'Tapicería Sol', industry: 'tapiceria', acceptedTerms: true, acceptedWhatsappRisk: true };
 
 async function loginCookieFor(app: any, email: string, password: string) {
   const res = await app.inject({ method: 'POST', url: '/auth/login', payload: { email, password } });

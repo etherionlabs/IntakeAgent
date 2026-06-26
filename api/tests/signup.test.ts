@@ -9,7 +9,7 @@ function fakeEmail() {
   return { sender, sent };
 }
 
-const VALID = { email: 'nuevo@negocio.com', password: 'pw1234567890', businessName: 'Tapicería Luz', industry: 'tapiceria' };
+const VALID = { email: 'nuevo@negocio.com', password: 'pw1234567890', businessName: 'Tapicería Luz', industry: 'tapiceria', acceptedTerms: true, acceptedWhatsappRisk: true };
 
 describe('POST /auth/signup', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;

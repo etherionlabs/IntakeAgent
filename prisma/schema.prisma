@@ -96,9 +96,26 @@ model TenantSettings {
   whisperModel    String?
   visionModel     String?
   panelUrl        String?
+  /// Ventana de retención de mensajes (meses). El job de retención purga lo más viejo.
+  messageRetentionMonths Int @default(12)
   updatedAt       DateTime @updatedAt
 
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+/// Rastro auditable de aceptación legal (Fase 6). Una fila por documento aceptado.
+/// SOBREVIVE al borrado total del tenant (defensa legal).
+model LegalAcceptance {
+  id         String   @id @default(uuid())
+  tenantId   String
+  userId     String
+  document   String   // 'terms' | 'privacy' | 'dpa' | 'whatsapp_policy'
+  version    String
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([tenantId])
 }
 
 model PanelUser {

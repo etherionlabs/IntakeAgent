@@ -14,6 +14,7 @@ export interface TenantDispatcher {
   suspendTenant(tenantId: string): Promise<void>;
   resumeTenant(tenantId: string): Promise<void>;
   addTenant(tenantId: string): Promise<void>;
+  removeTenant(tenantId: string): Promise<void>;
 }
 
 export interface InternalServerDeps {
@@ -111,6 +112,14 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
     const tenantId = tenantIdOf(request.body);
     if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
     try { await deps.dispatcher.addTenant(tenantId); return { ok: true }; }
+    catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
+  });
+
+  // Borrado total (Fase 6): cierra la conexión y la saca del manager.
+  app.post('/internal/tenant/remove', async (request, reply) => {
+    const tenantId = tenantIdOf(request.body);
+    if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
+    try { await deps.dispatcher.removeTenant(tenantId); return { ok: true }; }
     catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
   });
 

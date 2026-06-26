@@ -17,6 +17,7 @@ import { uniqueSlug } from '../lib/slug';
 import { randomToken, in24h } from '../lib/tokens';
 import { verificationEmail, welcomeEmail } from '../email/templates';
 import { trialRequiresCard } from '../env';
+import { LEGAL_DOCUMENTS, LEGAL_VERSIONS } from '../legal/versions';
 
 const LoginZ = z.object({ email: z.string().email(), password: z.string().min(1) });
 const ForgotZ = z.object({ email: z.string().email() });
@@ -27,6 +28,9 @@ const SignupZ = z.object({
   password: z.string().min(1),
   businessName: z.string().min(1).max(120),
   industry: z.enum(['tapiceria', 'paqueteria', 'generico']),
+  // Aceptación legal obligatoria; el riesgo WhatsApp es una casilla SEPARADA.
+  acceptedTerms: z.literal(true),
+  acceptedWhatsappRisk: z.literal(true),
 });
 
 const RESET_TTL_MS = 45 * 60 * 1000; // 45 min
@@ -61,16 +65,24 @@ export async function authRoutes(
     const slug = await uniqueSlug(prisma, businessName);
     const passwordHash = await bcrypt.hash(password, 10);
     const token = randomToken();
+    const ipAddress = request.ip ?? null;
+    const userAgent = (request.headers['user-agent'] as string | undefined) ?? null;
     try {
       const tenant = await prisma.$transaction(async (tx) => {
         const t = await tx.tenant.create({
           data: { slug, name: businessName, industry, profileDir: '', status: 'pending_verification' },
         });
-        await tx.panelUser.create({
+        const user = await tx.panelUser.create({
           data: { tenantId: t.id, username: email.split('@')[0], email, passwordHash, role: 'admin' },
         });
         await tx.emailVerification.create({
           data: { tenantId: t.id, email, token, expiresAt: in24h() },
+        });
+        // Rastro legal: una fila por documento, dentro de la MISMA transacción.
+        await tx.legalAcceptance.createMany({
+          data: LEGAL_DOCUMENTS.map((document) => ({
+            tenantId: t.id, userId: user.id, document, version: LEGAL_VERSIONS[document], ipAddress, userAgent,
+          })),
         });
         return t;
       });

@@ -24,7 +24,9 @@ test('submit válido muestra "revisa tu correo"', async () => {
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'a@b.com' } });
   fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: 'pw1234567890' } });
   fireEvent.change(screen.getByLabelText(/nombre del negocio/i), { target: { value: 'Mi Negocio' } });
+  fireEvent.click(screen.getByLabelText(/acepto los/i));
+  fireEvent.click(screen.getByLabelText(/riesgo del canal/i));
   fireEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
   expect(await screen.findByText(/revisa tu correo/i)).toBeInTheDocument();
-  expect(mockSignup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw1234567890', businessName: 'Mi Negocio', industry: 'tapiceria' });
+  expect(mockSignup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw1234567890', businessName: 'Mi Negocio', industry: 'tapiceria', acceptedTerms: true, acceptedWhatsappRisk: true });
 });

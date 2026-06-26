@@ -14,6 +14,8 @@ import Signup from './pages/Signup';
 import VerifyEmail from './pages/VerifyEmail';
 import Onboarding from './pages/Onboarding';
 import Admin from './pages/Admin';
+import Landing from './pages/Landing';
+import Legal from './pages/Legal';
 
 export default function App() {
   return (
@@ -22,6 +24,11 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/landing" element={<Landing />} />
+        <Route path="/terms" element={<Legal doc="terms" />} />
+        <Route path="/privacy" element={<Legal doc="privacy" />} />
+        <Route path="/dpa" element={<Legal doc="dpa" />} />
+        <Route path="/whatsapp-policy" element={<Legal doc="whatsapp_policy" />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route element={<Layout />}>

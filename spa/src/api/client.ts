@@ -79,7 +79,7 @@ export const api = {
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
   waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
-  signup: (payload: { email: string; password: string; businessName: string; industry: string }) =>
+  signup: (payload: { email: string; password: string; businessName: string; industry: string; acceptedTerms: boolean; acceptedWhatsappRisk: boolean }) =>
     request<{ tenantId: string; status: string }>('POST', '/auth/signup', payload),
   verifyEmail: (token: string) => request<{ status: string }>('GET', `/auth/verify-email?token=${encodeURIComponent(token)}`),
   resendVerification: (email: string) => request<{ ok: boolean }>('POST', '/auth/resend-verification', { email }),
