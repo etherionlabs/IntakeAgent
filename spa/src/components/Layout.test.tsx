@@ -1,8 +1,23 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, test, expect } from 'vitest';
+import { beforeEach, test, expect, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthContext';
 import Layout from './Layout';
+
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
+  return {
+    ...actual,
+    api: {
+      me: vi.fn().mockRejectedValue(new Error('no session')),
+      logout: vi.fn().mockResolvedValue({ ok: true }),
+      getBillingStatus: vi.fn().mockResolvedValue({ status: 'active', planName: 'Plan Test' }),
+    },
+  };
+});
+
+import { api } from '../api/client';
+const mockLogout = api.logout as unknown as ReturnType<typeof vi.fn>;
 
 function renderLayout() {
   return render(
@@ -15,8 +30,7 @@ function renderLayout() {
 }
 
 beforeEach(() => {
-  localStorage.clear();
-  localStorage.setItem('intake_token', 'tok123');
+  mockLogout.mockClear();
 });
 
 test('renders the nav links', () => {
@@ -28,9 +42,8 @@ test('renders the nav links', () => {
   expect(screen.getByRole('link', { name: 'Configuración' })).toBeInTheDocument();
 });
 
-test('clicking logout clears the token', () => {
+test('clicking logout calls api.logout', async () => {
   renderLayout();
-  expect(localStorage.getItem('intake_token')).toBe('tok123');
   fireEvent.click(screen.getByRole('button', { name: /salir/i }));
-  expect(localStorage.getItem('intake_token')).toBeNull();
+  await waitFor(() => expect(mockLogout).toHaveBeenCalledTimes(1));
 });

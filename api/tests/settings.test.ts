@@ -3,6 +3,7 @@ import { mkdtemp, copyFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildTestApp, testPrisma, cleanupDb } from './helpers/app';
+import { seedTestPlan, TEST_PLAN_ID } from '../../tests/helpers/db';
 
 const TEST_JWT_SECRET = 'test-jwt-secret';
 
@@ -17,6 +18,10 @@ async function seedTenantWithTempProfile() {
   });
   const user = await testPrisma.panelUser.create({
     data: { tenantId: tenant.id, username: `u-${Date.now()}`, passwordHash: 'x', role: 'admin' },
+  });
+  await seedTestPlan();
+  await testPrisma.subscription.create({
+    data: { tenantId: tenant.id, planId: TEST_PLAN_ID, stripeCustomerId: `cus_${tenant.id}`, status: 'active' },
   });
   return { tenantId: tenant.id, userId: user.id, profileDir: dir };
 }

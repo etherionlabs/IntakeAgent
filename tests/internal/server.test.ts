@@ -1,71 +1,81 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { startInternalServer, type InternalServer } from '../../src/internal/server';
+import { startInternalServer, type InternalServer, type TenantDispatcher } from '../../src/internal/server';
+import type { TenantStatus } from '../../src/tenant/types';
 
 const TOKEN = 'test-internal-token';
 let server: InternalServer;
 
-const fakeState = () => ({ connected: true, qr: null as string | null, phone: '+5215551234567' });
+const STATUS_A: TenantStatus = {
+  tenantId: 'tenant-a', connected: true, qr: null, phone: '+5215551234567',
+  status: 'connected', lastConnectedAt: null, lastError: null,
+};
 const calls: string[] = [];
-const actions = {
-  logout: async () => { calls.push('logout'); },
-  reconnect: async () => { calls.push('reconnect'); },
+const dispatcher: TenantDispatcher = {
+  getStatus: (id) => (id === 'tenant-a' ? STATUS_A : null),
+  logout: async (id) => { calls.push(`logout:${id}`); },
+  reconnect: async (id) => { calls.push(`reconnect:${id}`); },
+  suspendTenant: async (id) => { calls.push(`suspend:${id}`); },
+  resumeTenant: async (id) => { calls.push(`resume:${id}`); },
+  addTenant: async (id) => { calls.push(`add:${id}`); },
+  removeTenant: async (id) => { calls.push(`remove:${id}`); },
 };
 
-describe('internal status server', () => {
+describe('internal status server (dispatch por tenant)', () => {
   beforeAll(async () => {
     process.env.INTERNAL_API_TOKEN = TOKEN;
-    process.env.INTERNAL_PORT = '0'; // puerto efímero
-    server = await startInternalServer({ adapterState: { state: fakeState }, actions });
+    process.env.INTERNAL_PORT = '0';
+    server = await startInternalServer({ dispatcher });
   });
   afterAll(() => server.close());
 
+  const auth = { authorization: `Bearer ${TOKEN}` };
+
   it('401 sin token', async () => {
-    const res = await server.app.inject({ method: 'GET', url: '/internal/wa-status' });
+    const res = await server.app.inject({ method: 'GET', url: '/internal/wa-status?tenantId=tenant-a' });
     expect(res.statusCode).toBe(401);
   });
 
-  it('401 con token incorrecto', async () => {
-    const res = await server.app.inject({
-      method: 'GET',
-      url: '/internal/wa-status',
-      headers: { authorization: 'Bearer wrong' },
-    });
+  it('200 + estado del tenant pedido', async () => {
+    const res = await server.app.inject({ method: 'GET', url: '/internal/wa-status?tenantId=tenant-a', headers: auth });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().phone).toBe('+5215551234567');
+    expect(res.json().connected).toBe(true);
+  });
+
+  it('404 para un tenant sin runtime (no devuelve el estado de otro)', async () => {
+    const res = await server.app.inject({ method: 'GET', url: '/internal/wa-status?tenantId=desconocido', headers: auth });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('400 sin tenantId', async () => {
+    const res = await server.app.inject({ method: 'GET', url: '/internal/wa-status', headers: auth });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('logout/reconnect despachan al tenantId correcto', async () => {
+    calls.length = 0;
+    await server.app.inject({ method: 'POST', url: '/internal/wa-logout', headers: auth, payload: { tenantId: 'tenant-a' } });
+    await server.app.inject({ method: 'POST', url: '/internal/wa-reconnect', headers: auth, payload: { tenantId: 'tenant-b' } });
+    expect(calls).toContain('logout:tenant-a');
+    expect(calls).toContain('reconnect:tenant-b');
+  });
+
+  it('POST sin token → 401', async () => {
+    const res = await server.app.inject({ method: 'POST', url: '/internal/wa-logout', payload: { tenantId: 'x' } });
     expect(res.statusCode).toBe(401);
   });
 
-  it('200 + estado con token correcto', async () => {
-    const res = await server.app.inject({
-      method: 'GET',
-      url: '/internal/wa-status',
-      headers: { authorization: `Bearer ${TOKEN}` },
-    });
+  it('GET /internal/metrics con token → texto Prometheus con bots_connected', async () => {
+    const res = await server.app.inject({ method: 'GET', url: '/internal/metrics', headers: auth });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ connected: true, qr: null, phone: '+5215551234567' });
+    expect(res.body).toContain('intake_bots_connected');
   });
 
-  it('POST /internal/wa-logout con token ejecuta la acción', async () => {
-    const res = await server.app.inject({ method: 'POST', url: '/internal/wa-logout', headers: { authorization: `Bearer ${TOKEN}` } });
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true });
-    expect(calls).toContain('logout');
-  });
-
-  it('POST /internal/wa-reconnect con token ejecuta la acción', async () => {
-    const res = await server.app.inject({ method: 'POST', url: '/internal/wa-reconnect', headers: { authorization: `Bearer ${TOKEN}` } });
-    expect(res.statusCode).toBe(200);
-    expect(calls).toContain('reconnect');
-  });
-
-  it('POST /internal/wa-logout sin token → 401', async () => {
-    const res = await server.app.inject({ method: 'POST', url: '/internal/wa-logout' });
-    expect(res.statusCode).toBe(401);
-  });
-
-  it('503 si el server no tiene actions', async () => {
-    process.env.INTERNAL_PORT = '0';
-    const noActions = await startInternalServer({ adapterState: { state: fakeState } });
-    const res = await noActions.app.inject({ method: 'POST', url: '/internal/wa-logout', headers: { authorization: `Bearer ${TOKEN}` } });
-    expect(res.statusCode).toBe(503);
-    await noActions.close();
+  it('suspend/resume despachan por tenantId', async () => {
+    calls.length = 0;
+    await server.app.inject({ method: 'POST', url: '/internal/tenant/suspend', headers: auth, payload: { tenantId: 'tenant-a' } });
+    await server.app.inject({ method: 'POST', url: '/internal/tenant/resume', headers: auth, payload: { tenantId: 'tenant-a' } });
+    expect(calls).toContain('suspend:tenant-a');
+    expect(calls).toContain('resume:tenant-a');
   });
 });

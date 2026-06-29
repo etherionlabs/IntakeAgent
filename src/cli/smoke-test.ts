@@ -183,7 +183,7 @@ async function runScenario(
           direction: 'inbound',
           kind: 'text',
           body: userText,
-          whatsappMsgId: `smoke_${scenario.name}_${i}_${Date.now()}`,
+          externalMsgId: `smoke_${scenario.name}_${i}_${Date.now()}`,
           raw: JSON.stringify({ source: 'smoke-test', scenario: scenario.name }),
         },
       });

@@ -1,0 +1,23 @@
+{
+  "$businessName": "{{businessName}}",
+  "$businessDomain": "{{businessDomain}}",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "client",
+      "label": "Cliente",
+      "fields": [
+        { "key": "name", "label": "Nombre", "type": "string", "required": true },
+        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": false }
+      ]
+    },
+    {
+      "key": "request",
+      "label": "Solicitud",
+      "fields": [
+        { "key": "summary", "label": "¿Qué necesita?", "type": "string", "required": true },
+        { "key": "details", "label": "Detalles", "type": "string", "required": false }
+      ]
+    }
+  ]
+}

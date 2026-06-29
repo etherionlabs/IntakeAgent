@@ -7,25 +7,52 @@ export class ApiError extends Error {
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 
-function getToken(): string | null { return localStorage.getItem('intake_token'); }
+let onPaymentRequired: (() => void) | null = null;
+export function setPaymentRequiredHandler(fn: () => void) { onPaymentRequired = fn; }
+
+const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+// La cookie CSRF (intake_csrf) NO es HttpOnly: la reflejamos en el header
+// x-csrf-token en las mutaciones (double-submit).
+function readCsrfCookie(): string | null {
+  const m = document.cookie.match(/(?:^|;\s*)intake_csrf=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   // OJO: solo enviar content-type cuando HAY body. Fastify responde 400 si llega
   // content-type:application/json con body vacío (pasa en DELETE y POST sin cuerpo,
   // ej. eliminar contacto o desvincular WhatsApp).
   const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers.authorization = `Bearer ${token}`;
   if (body !== undefined) headers['content-type'] = 'application/json';
-  const res = await fetch(`${BASE}${path}`, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+  if (MUTATING.has(method)) {
+    const csrf = readCsrfCookie();
+    if (csrf) headers['x-csrf-token'] = csrf;
+  }
+  // credentials:'include' envía/recibe la cookie de sesión HttpOnly cross-site.
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers,
+    credentials: 'include',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
   if (res.status === 401) { onUnauthorized?.(); throw new ApiError(401, 'no autorizado'); }
+  // 402: suscripción inactiva. Solo lo emiten rutas de negocio (no /billing/*).
+  if (res.status === 402) { onPaymentRequired?.(); throw new ApiError(402, 'suscripción inactiva'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `error ${res.status}`);
   return data as T;
 }
 
 export const api = {
-  login: (username: string, password: string) => request<{ token: string; user: any }>('POST', '/auth/login', { username, password }),
+  login: (email: string, password: string) => request<{ user: any }>('POST', '/auth/login', { email, password }),
+  logout: () => request<{ ok: boolean }>('POST', '/auth/logout'),
+  me: () => request<{ user: any }>('GET', '/auth/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('POST', '/auth/change-password', { currentPassword, newPassword }),
+  forgotPassword: (email: string) => request<{ ok: boolean }>('POST', '/auth/forgot-password', { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ ok: boolean }>('POST', '/auth/reset-password', { token, newPassword }),
   getProfile: () => request<{ intakeSchema: any }>('GET', '/profile'),
   getJobs: (status?: string, includeArchived = false) => {
     const params = new URLSearchParams();
@@ -52,12 +79,55 @@ export const api = {
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
   waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
+  signup: (payload: { email: string; password: string; businessName: string; industry: string; acceptedTerms: boolean; acceptedWhatsappRisk: boolean }) =>
+    request<{ tenantId: string; status: string }>('POST', '/auth/signup', payload),
+  verifyEmail: (token: string) => request<{ status: string }>('GET', `/auth/verify-email?token=${encodeURIComponent(token)}`),
+  resendVerification: (email: string) => request<{ ok: boolean }>('POST', '/auth/resend-verification', { email }),
+  getOnboardingState: () => request<OnboardingState>('GET', '/onboarding/state'),
+  patchOnboardingBusiness: (payload: { businessName?: string; ownerPhoneE164?: string }) =>
+    request<{ ok: boolean }>('PATCH', '/onboarding/business', payload),
+  patchOnboardingWelcome: (welcome: string) => request<{ ok: boolean }>('PATCH', '/onboarding/welcome', { welcome }),
+  patchOnboardingSchema: (intakeSchema: unknown) => request<{ ok: boolean }>('PATCH', '/onboarding/schema', { intakeSchema }),
+  onboardingFlag: (flag: { whatsappLinked?: boolean; testDone?: boolean }) =>
+    request<{ ok: boolean }>('POST', '/onboarding/flag', flag),
+  completeOnboarding: () => request<{ ok: boolean }>('POST', '/onboarding/complete'),
+  getAdminTenants: () => request<{ tenants: AdminTenant[] }>('GET', '/admin/tenants'),
+  adminSuspend: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/suspend`),
+  adminReactivate: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/reactivate`),
+  adminReconnect: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/bot/reconnect`),
+  getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
+  startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
+  openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
   getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
     request<{ ok: boolean; config: ConfigSettings }>('PUT', '/settings/config', payload),
 };
+
+export interface AdminTenant {
+  id: string; slug: string; name: string; industry: string;
+  status: string; createdAt: string;
+  subscription: string | null; currentPeriodEnd: string | null;
+}
+
+export interface OnboardingState {
+  step: 'verify_email' | 'subscription' | 'provisioning' | 'business' | 'welcome' | 'schema' | 'whatsapp' | 'test' | 'checklist' | 'done';
+  tenantStatus: string;
+  subStatus: string | null;
+  flags: Record<string, boolean>;
+}
+
+export interface BillingStatus {
+  status: 'none' | 'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+  planName: string | null;
+  amountCents?: number;
+  currency?: string;
+  interval?: string;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  gracePeriodEndsAt?: string | null;
+}
 
 export interface BusinessFact {
   topic: string;

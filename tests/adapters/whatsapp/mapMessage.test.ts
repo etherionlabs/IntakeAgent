@@ -19,7 +19,7 @@ describe('mapWAMessageToRaw', () => {
     expect(out!.kind).toBe('text');
     expect(out!.text).toBe('Hola, tengo un sillón');
     expect(out!.fromPhoneE164).toBe('+5215555555555');
-    expect(out!.whatsappMsgId).toBe('WAID_1');
+    expect(out!.externalMsgId).toBe('WAID_1');
     expect(out!.chatKind).toBe('individual');
     expect(out!.fromMe).toBe(false);
     expect(out!.media).toBeNull();

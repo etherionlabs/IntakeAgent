@@ -87,4 +87,25 @@ describe('wa-status', () => {
     const res = await app.inject({ method: 'POST', url: '/wa-status/logout' });
     expect(res.statusCode).toBe(401);
   });
+
+  it('reenvía el tenantId del JWT al worker (GET ?tenantId, POST body); ignora el del cliente', async () => {
+    process.env.WORKER_INTERNAL_URL = 'http://worker-x:3002';
+    process.env.INTERNAL_API_TOKEN = 't';
+    let capturedUrl = '';
+    let capturedBody = '';
+    const capturing = (async (url: any, init: any) => {
+      capturedUrl = String(url);
+      capturedBody = init?.body ?? '';
+      return new Response(JSON.stringify({ ok: true, connected: true, qr: null, phone: '' }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+    const app2 = await buildServer({ jwtSecret: TEST_JWT_SECRET, fetcher: capturing });
+
+    await app2.inject({ method: 'GET', url: '/wa-status', headers: { authorization: `Bearer ${tokenFor(app2, userId)}` } });
+    expect(capturedUrl).toContain(`tenantId=${TEST_TENANT_ID}`);
+
+    await app2.inject({ method: 'POST', url: '/wa-status/logout', headers: { authorization: `Bearer ${tokenFor(app2, userId)}` } });
+    expect(JSON.parse(capturedBody)).toEqual({ tenantId: TEST_TENANT_ID });
+  });
 });

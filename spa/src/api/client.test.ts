@@ -20,9 +20,25 @@ describe('api client', () => {
   });
 
   it('returns parsed body on 200', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse(200, { token: 'abc', user: { id: '1' } })));
-    const res = await api.login('u', 'p');
-    expect(res).toEqual({ token: 'abc', user: { id: '1' } });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse(200, { user: { id: '1' } })));
+    const res = await api.login('u@test.local', 'p');
+    expect(res).toEqual({ user: { id: '1' } });
+  });
+
+  it('siempre envía credentials:include (cookie cross-site)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(200, { user: { id: '1' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await api.me();
+    expect(fetchMock.mock.calls[0][1].credentials).toBe('include');
+  });
+
+  it('añade x-csrf-token en mutaciones cuando existe la cookie intake_csrf', async () => {
+    document.cookie = 'intake_csrf=tok123';
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(200, { ok: true, contact: {} }));
+    vi.stubGlobal('fetch', fetchMock);
+    await api.updateContact('c1', { displayName: 'X' });
+    expect(fetchMock.mock.calls[0][1].headers['x-csrf-token']).toBe('tok123');
+    document.cookie = 'intake_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   });
 
   it('throws ApiError(400, message) on 400 with {error}', async () => {

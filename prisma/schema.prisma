@@ -11,10 +11,20 @@ model Tenant {
   slug        String   @unique
   name        String
   industry    String
+  /// DEPRECADO: la config del bot vive en TenantSettings. Se conserva durante la
+  /// ventana de migración (backfill); ningún código nuevo lo lee.
   profileDir  String
+  active      Boolean  @default(true)
+  /// Estado del onboarding self-service (Fase 4).
+  status      String   @default("pending_verification") // pending_verification|verified|provisioning|active|suspended
+  /// Flags del wizard reanudable: { step, businessDone, welcomeDone, schemaDone, whatsappLinked, testDone, completed }
+  onboarding  Json?
   createdAt   DateTime @default(now())
 
-  panelUsers    PanelUser[]
+  settings           TenantSettings?
+  subscription       Subscription?
+  emailVerifications EmailVerification[]
+  panelUsers         PanelUser[]
   contacts      Contact[]
   jobs          Job[]
   messages      Message[]
@@ -22,17 +32,134 @@ model Tenant {
   notifications Notification[]
 }
 
+/// Plan de suscripción (espejo del Product/Price de Stripe). El importe real lo
+/// manda Stripe; amountCents/currency son solo para display.
+model Plan {
+  id            String   @id @default(uuid())
+  stripePriceId String   @unique
+  name          String
+  amountCents   Int
+  currency      String   @default("usd")
+  interval      String   @default("month") // 'month' | 'year'
+  trialDays     Int      @default(0)
+  maxContacts   Int?
+  maxJobsMonth  Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+/// Espejo del estado de la suscripción del tenant. Stripe es la fuente de verdad;
+/// esta tabla SOLO la pueblan los webhooks (1:1 opcional con Tenant).
+model Subscription {
+  id                   String    @id @default(uuid())
+  tenantId             String    @unique
+  planId               String
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  status               String    // 'incomplete'|'trialing'|'active'|'past_due'|'canceled'|'unpaid'
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  gracePeriodEndsAt    DateTime?
+  lastEventId          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([status])
+}
+
+/// Idempotencia de webhooks: la PK es el `evt_…` de Stripe. Insertar dos veces el
+/// mismo evento viola la PK → se ignora el duplicado.
+model StripeEvent {
+  id          String   @id // evt_… de Stripe
+  type        String
+  processedAt DateTime @default(now())
+}
+
+/// Config operativa del bot por tenant (1:1 con Tenant). Reemplaza config.json +
+/// profileDir estáticos; editable por UI. El TenantManager la carga en addTenant.
+model TenantSettings {
+  tenantId        String   @id
+  industry        String
+  businessName    String
+  businessDomain  String
+  ownerPhoneE164  String
+  welcomeTemplate String
+  intakeSchema    Json
+  debounceMs      Int      @default(8000)
+  transcribeAudio Boolean  @default(false)
+  describeImages  Boolean  @default(false)
+  whisperModel    String?
+  visionModel     String?
+  panelUrl        String?
+  /// Ventana de retención de mensajes (meses). El job de retención purga lo más viejo.
+  messageRetentionMonths Int @default(12)
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+/// Rastro auditable de aceptación legal (Fase 6). Una fila por documento aceptado.
+/// SOBREVIVE al borrado total del tenant (defensa legal).
+model LegalAcceptance {
+  id         String   @id @default(uuid())
+  tenantId   String
+  userId     String
+  document   String   // 'terms' | 'privacy' | 'dpa' | 'whatsapp_policy'
+  version    String
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([tenantId])
+}
+
 model PanelUser {
   id           String   @id @default(uuid())
   tenantId     String
   username     String
+  email        String?  @unique
   passwordHash String
+  passwordChangedAt DateTime?
   role         String   // 'admin' | 'viewer'
   createdAt    DateTime @default(now())
 
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  resetTokens  PasswordResetToken[]
 
   @@unique([tenantId, username])
+}
+
+/// Verificación de email del signup self-service (token de un solo uso, expirable).
+model EmailVerification {
+  id         String    @id @default(uuid())
+  tenantId   String
+  email      String
+  token      String    @unique
+  verifiedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      PanelUser @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Contact {
@@ -40,6 +167,7 @@ model Contact {
   phoneE164         String
   displayName       String?
   botActive         Boolean  @default(true)
+  channel           String   @default("whatsapp")
   flaggedNonIntake  Boolean  @default(false)
   flaggedReason     String?
   archivedAt        DateTime?
@@ -87,7 +215,8 @@ model Message {
   body            String?
   mediaPath       String?
   mediaDescription String? // descripción textual de la imagen (modelo de visión)
-  whatsappMsgId   String?
+  externalMsgId   String?  // ID del mensaje en el canal de origen (antes whatsappMsgId)
+  channel         String   @default("whatsapp")
   raw             String?  // JSON serializado
   createdAt       DateTime @default(now())
 
@@ -97,7 +226,7 @@ model Message {
   job             Job?     @relation(fields: [jobId], references: [id])
   contact         Contact  @relation(fields: [contactId], references: [id])
 
-  @@unique([tenantId, whatsappMsgId])
+  @@unique([tenantId, externalMsgId])
   @@index([contactId, createdAt])
 }
 
@@ -137,4 +266,16 @@ model Notification {
 model Setting {
   key   String  @id
   value String  // JSON serializado
+}
+
+/// Auditoría de acciones del operador de plataforma (Fase 5). Quién, sobre qué
+/// tenant, qué acción y cuándo. Sin FK para no acoplar el borrado.
+model OperatorAuditLog {
+  id             String   @id @default(uuid())
+  operatorUserId String
+  tenantId       String
+  action         String   // 'suspend' | 'reactivate' | 'bot_reconnect'
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId])
 }
