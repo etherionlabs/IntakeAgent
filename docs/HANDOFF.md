@@ -12,6 +12,12 @@ está el código, y cómo verificarlo**.
 > Mapa del trabajo: `docs/ROADMAP-PRODUCCION.md` (maestro), `docs/DECISIONES-PENDIENTES.md`,
 > y los specs/planes por fase en `docs/superpowers/`.
 
+> ⚠️ **Piloto en vivo:** el piloto se **auto-despliega desde `master`**. Mergear el
+> PR #8 a `master` dispara el cutover (single-tenant → multi-tenant) de forma
+> automática **e incompleta** (el deploy no corre el backfill de `TenantSettings`).
+> **No mergees a `master` hasta hacer el cutover ordenado:**
+> `docs/runbooks/cutover-piloto-fases-1-6.md`.
+
 ---
 
 ## 0. Cómo levantar el proyecto localmente (lo que yo usé)
