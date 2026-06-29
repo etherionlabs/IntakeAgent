@@ -173,6 +173,9 @@ export async function createTenantRuntime(tenantId: string, deps: RuntimeDeps): 
   const coordinator = new InboundCoordinator({
     prisma: deps.prisma, tenantId, config, profile, notifier, sender,
     transcriber, describer, mediaStore, agentFactory: defaultAgentFactory, now: () => new Date(),
+    // Hot-reload por turno: relee TenantSettings (panel ↔ worker comparten Postgres),
+    // así editar la config aplica sin reiniciar el tenant. Conserva la última válida.
+    reloadConfig: () => buildTenantConfig(deps.prisma, tenantId, configPath),
   });
 
   source = buildSource({

@@ -43,6 +43,7 @@ export async function cleanupDb(): Promise<void> {
   await testPrisma.legalAcceptance.deleteMany();
   await testPrisma.tenant.deleteMany();
   await testPrisma.plan.deleteMany();
+  await testPrisma.setting.deleteMany();
 }
 
 export const TEST_PLAN_ID = '00000000-0000-0000-0000-0000000000a1';

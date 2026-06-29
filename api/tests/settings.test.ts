@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { mkdtemp, mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, copyFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildTestApp, testPrisma, cleanupDb } from './helpers/app';
@@ -74,14 +74,14 @@ describe('settings', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('PUT /settings/profile escribe los archivos y refleja los cambios', async () => {
+  it('PUT /settings/profile persiste en DB (compartida con el worker) sin tocar archivos', async () => {
     const { tenantId, userId, profileDir } = await seedTenantWithTempProfile();
     const current = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
     const payload = {
       ...current.profile,
-      businessName: 'Tapicería Nueva',
-      businessDomain: 'tapicería premium',
-      welcome: '¡Bienvenido nuevo!',
+      businessName: 'Mecánica Nueva',
+      businessDomain: 'mecánica automotriz',
+      welcome: '¡Bienvenido al taller!',
       vars: { ...current.profile.vars, tone: 'Tono actualizado' },
       businessFacts: {
         facts: [{ topic: 'envíos', aliases: [], answer: 'Hacemos envíos a todo el país.' }],
@@ -90,17 +90,25 @@ describe('settings', () => {
     };
     const res = await app.inject({ method: 'PUT', url: '/settings/profile', headers: admin(tenantId, userId), payload });
     expect(res.statusCode).toBe(200);
-    expect(res.json().profile.businessName).toBe('Tapicería Nueva');
+    expect(res.json().profile.businessName).toBe('Mecánica Nueva');
 
-    // Verificar que efectivamente se escribió a disco.
+    // Un GET posterior (lo que vería el worker al releer la DB) refleja el cambio.
+    const after = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
+    expect(after.profile.businessName).toBe('Mecánica Nueva');
+    expect(after.profile.businessDomain).toBe('mecánica automotriz');
+    expect(after.profile.welcome).toBe('¡Bienvenido al taller!');
+    expect(after.profile.vars.tone).toBe('Tono actualizado');
+    expect(after.profile.businessFacts.facts[0].topic).toBe('envíos');
+
+    // El override se guardó en la tabla Setting (recurso compartido con el worker).
+    const row = await testPrisma.setting.findUnique({ where: { key: `profile:${tenantId}` } });
+    expect(row).not.toBeNull();
+    expect(JSON.parse(row!.value).businessDomain).toBe('mecánica automotriz');
+
+    // Los archivos base NO se mutan (defaults intactos; el override vive en DB).
     const schema = JSON.parse(await readFile(join(profileDir, 'intake-schema.json'), 'utf-8'));
-    expect(schema.$businessName).toBe('Tapicería Nueva');
-    expect(Array.isArray(schema.sections)).toBe(true); // sections preservadas
-    const promptVars = JSON.parse(await readFile(join(profileDir, 'prompt-vars.json'), 'utf-8'));
-    expect(promptVars.vars.tone).toBe('Tono actualizado');
-    expect(promptVars.promptTemplate).toBeTruthy(); // template preservado
-    const welcome = await readFile(join(profileDir, 'welcome.txt'), 'utf-8');
-    expect(welcome).toBe('¡Bienvenido nuevo!');
+    expect(schema.$businessName).toBe('Tapicería Demo');
+    expect(Array.isArray(schema.sections)).toBe(true);
   });
 
   it('PUT /settings/profile rechaza payload inválido → 400', async () => {
@@ -125,9 +133,9 @@ describe('settings', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it('PUT /settings/config fusiona y preserva campos no editables', async () => {
+  it('PUT /settings/config persiste el override editable en DB', async () => {
     const { tenantId, userId } = await seedTenantWithTempProfile();
-    const path = await useTempConfig();
+    await useTempConfig();
     const current = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
     const payload = {
       ...current.config,
@@ -139,14 +147,16 @@ describe('settings', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().config.model).toBe('openai/gpt-4o');
 
-    const written = JSON.parse(await readFile(path, 'utf-8'));
-    expect(written.model).toBe('openai/gpt-4o');
-    expect(written.temperature).toBe(0.7);
-    expect(written.limits.monthlyCostUsd).toBe(99);
-    // Campos no editables preservados.
-    expect(written.profile).toBe('./profiles/tapiceria');
-    expect(written.panel).toBeDefined();
-    expect(written.media).toBeDefined();
+    // Un GET posterior refleja los valores nuevos (lo que verá el worker).
+    const after = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
+    expect(after.config.model).toBe('openai/gpt-4o');
+    expect(after.config.temperature).toBe(0.7);
+    expect(after.config.limits.monthlyCostUsd).toBe(99);
+
+    // El override se guardó en la tabla Setting global.
+    const row = await testPrisma.setting.findUnique({ where: { key: 'config' } });
+    expect(row).not.toBeNull();
+    expect(JSON.parse(row!.value).model).toBe('openai/gpt-4o');
   });
 
   it('PUT /settings/config rechaza temperatura fuera de rango → 400', async () => {

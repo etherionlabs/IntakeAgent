@@ -1,13 +1,16 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { getPrisma } from '../db';
 import { getTenantProfileDir, clearTenantProfileCache } from '../lib/tenant-profile';
 import {
   readProfileSettings,
   readConfigSettings,
-  writeProfileSettings,
-  writeConfigSettings,
   ProfileSettingsInputZ,
   ConfigSettingsInputZ,
 } from '../lib/settings-io';
+import {
+  writeProfileOverride,
+  writeConfigOverride,
+} from '../../../src/config/overrides';
 
 /**
  * Ruta del config.json global. Se lee por-request (no como const cacheada) para
@@ -28,11 +31,13 @@ function requireAdmin(request: FastifyRequest, reply: FastifyReply): boolean {
 
 export async function settingsRoutes(app: FastifyInstance) {
   // Lectura: perfil del negocio (por-tenant) + config del sistema (global).
+  // Devuelve los ajustes EFECTIVOS = archivos base + override guardado en DB.
   app.get('/settings', { preHandler: app.authenticate }, async (request) => {
+    const prisma = getPrisma();
     const profileDir = await getTenantProfileDir(request.tenantId);
     const [profile, config] = await Promise.all([
-      readProfileSettings(profileDir),
-      readConfigSettings(configPath()),
+      readProfileSettings(prisma, request.tenantId, profileDir),
+      readConfigSettings(prisma, configPath()),
     ]);
     return { profile, config };
   });
@@ -41,15 +46,19 @@ export async function settingsRoutes(app: FastifyInstance) {
     if (!requireAdmin(request, reply)) return;
     const parse = ProfileSettingsInputZ.safeParse(request.body);
     if (!parse.success) return reply.code(400).send({ error: parse.error.message });
-    const profileDir = await getTenantProfileDir(request.tenantId);
+    const prisma = getPrisma();
     try {
-      await writeProfileSettings(profileDir, parse.data);
+      // Persistimos el override en DB (compartida con el worker), no en archivos.
+      await writeProfileOverride(prisma, request.tenantId, parse.data);
     } catch (e) {
       return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
     }
-    // El siguiente GET (aquí o en otras rutas) debe leer la versión nueva.
+    // Invalidar la caché de perfil de la API para que el siguiente GET (y las
+    // rutas que usan el perfil) lean la versión nueva. El worker la recoge en su
+    // próximo turno al releer el override de DB.
     clearTenantProfileCache(request.tenantId);
-    const profile = await readProfileSettings(profileDir);
+    const profileDir = await getTenantProfileDir(request.tenantId);
+    const profile = await readProfileSettings(prisma, request.tenantId, profileDir);
     return { ok: true, profile };
   });
 
@@ -57,12 +66,13 @@ export async function settingsRoutes(app: FastifyInstance) {
     if (!requireAdmin(request, reply)) return;
     const parse = ConfigSettingsInputZ.safeParse(request.body);
     if (!parse.success) return reply.code(400).send({ error: parse.error.message });
+    const prisma = getPrisma();
     try {
-      await writeConfigSettings(configPath(), parse.data);
+      await writeConfigOverride(prisma, parse.data);
     } catch (e) {
       return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
     }
-    const config = await readConfigSettings(configPath());
+    const config = await readConfigSettings(prisma, configPath());
     return { ok: true, config };
   });
 }

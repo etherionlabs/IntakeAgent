@@ -175,6 +175,28 @@ describe('InboundCoordinator', () => {
     expect(sender.sent.length).toBeGreaterThanOrEqual(2); // welcome + agente
   });
 
+  it('reloadConfig: usa el perfil recargado (welcome del dominio nuevo) sin reconstruir el coordinator', async () => {
+    // Simula que el dueño cambió en el panel businessDomain tapicería → mecánica.
+    // El worker no se reinicia: reloadConfig debe entregar el perfil fresco.
+    const reloaded: Profile = {
+      ...profile,
+      intakeSchema: { ...schema, $businessDomain: 'mecánica' },
+      welcome: 'Bienvenido al taller de {{businessDomain}}.',
+    };
+    const deps = await makeDeps({ reloadConfig: async () => ({ config, profile: reloaded }) });
+    const coord = new InboundCoordinator(deps);
+    // Saludo pelón → solo se envía el welcome (no corre el agente).
+    await coord.handleInbound(rawMsg({ text: 'Hola' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+    const sender = deps.sender as MemorySender;
+    expect(sender.sent).toHaveLength(1);
+    expect(sender.sent[0].text).toBe('Bienvenido al taller de mecánica.');
+    // No quedó rastro del perfil estático viejo.
+    expect(sender.sent[0].text).not.toContain('asistente');
+  });
+
   it('descarta mensajes de grupo sin tocar nada', async () => {
     const deps = await makeDeps();
     const coord = new InboundCoordinator(deps);

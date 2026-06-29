@@ -37,6 +37,13 @@ export interface PipelineDeps {
   mediaStore: MediaStore;
   agentFactory: AgentFactory;
   now: () => Date;
+  /**
+   * Recarga config+perfil frescos desde disco por turno (hot-reload tras editar
+   * los ajustes en el panel). Si falta, se usan los `config`/`profile` estáticos
+   * que se pasaron al construir el coordinator. Pensado para inyectar
+   * `ConfigCache.refresh()`, que mantiene la última versión válida ante errores.
+   */
+  reloadConfig?: () => Promise<{ config: Config; profile: Profile }>;
 }
 
 export type PrefilterResult =
