@@ -1,0 +1,24 @@
+{
+  "$businessName": "{{businessName}}",
+  "$businessDomain": "{{businessDomain}}",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "client",
+      "label": "Cliente",
+      "fields": [
+        { "key": "name", "label": "Nombre", "type": "string", "required": true },
+        { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
+      ]
+    },
+    {
+      "key": "shipment",
+      "label": "Envío",
+      "fields": [
+        { "key": "origin", "label": "Origen", "type": "string", "required": true },
+        { "key": "destination", "label": "Destino", "type": "string", "required": true },
+        { "key": "package", "label": "Qué se envía / medidas-peso", "type": "string", "required": true }
+      ]
+    }
+  ]
+}

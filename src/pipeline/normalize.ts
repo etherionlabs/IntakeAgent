@@ -18,7 +18,8 @@ export async function normalizeAndPersistMessage(
       direction: 'inbound',
       kind: raw.kind,
       body: raw.text,
-      whatsappMsgId: raw.whatsappMsgId,
+      externalMsgId: raw.externalMsgId,
+      channel: raw.channel,
       raw: JSON.stringify(raw.raw ?? {}),
     },
   });

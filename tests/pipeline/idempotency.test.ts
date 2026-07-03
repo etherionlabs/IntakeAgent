@@ -11,7 +11,8 @@ import type { RawInboundMessage } from '../../src/pipeline/types';
 
 function rawMsg(overrides: Partial<RawInboundMessage> = {}): RawInboundMessage {
   return {
-    whatsappMsgId: 'wa_1',
+    externalMsgId: 'wa_1',
+    channel: 'whatsapp',
     fromPhoneE164: '+5215555555555',
     chatKind: 'individual',
     fromMe: false,
@@ -59,7 +60,7 @@ describe('alreadySeen', () => {
     await prisma.$disconnect();
   });
 
-  it('false cuando whatsappMsgId no está en DB', async () => {
+  it('false cuando externalMsgId no está en DB', async () => {
     const seen = await alreadySeen(prisma, TEST_TENANT_ID, 'never_seen');
     expect(seen).toBe(false);
   });
@@ -73,14 +74,14 @@ describe('alreadySeen', () => {
         direction: 'inbound',
         kind: 'text',
         body: 'hola',
-        whatsappMsgId: 'wa_existing',
+        externalMsgId: 'wa_existing',
       },
     });
     const seen = await alreadySeen(prisma, TEST_TENANT_ID, 'wa_existing');
     expect(seen).toBe(true);
   });
 
-  it('un mensaje de OTRO tenant con el mismo whatsappMsgId no cuenta como visto', async () => {
+  it('un mensaje de OTRO tenant con el mismo externalMsgId no cuenta como visto', async () => {
     await prisma.tenant.create({
       data: {
         id: '00000000-0000-0000-0000-0000000000ff',
@@ -104,7 +105,7 @@ describe('alreadySeen', () => {
         direction: 'inbound',
         kind: 'text',
         body: 'x',
-        whatsappMsgId: 'WID-SHARED',
+        externalMsgId: 'WID-SHARED',
       },
     });
     expect(await alreadySeen(prisma, TEST_TENANT_ID, 'WID-SHARED')).toBe(false);

@@ -12,10 +12,10 @@ export function prefilter(msg: RawInboundMessage): PrefilterResult {
 export async function alreadySeen(
   prisma: PrismaClient,
   tenantId: string,
-  whatsappMsgId: string,
+  externalMsgId: string,
 ): Promise<boolean> {
   const existing = await prisma.message.findFirst({
-    where: { tenantId, whatsappMsgId },
+    where: { tenantId, externalMsgId },
     select: { id: true },
   });
   return existing !== null;

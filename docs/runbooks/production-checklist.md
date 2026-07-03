@@ -45,21 +45,27 @@ docker compose up -d api             # su entrypoint corre `prisma migrate deplo
 curl -s https://api.<dominio>/health # tras configurar nginx (paso 6) → {"ok":true}
 ```
 
-## 4. Sembrar tenant(s) + usuario(s) del panel
+## 4. Sembrar tenant(s) + settings + usuario(s) del panel
+**Fase 2:** agregar un tenant ya **no** toca `docker-compose.yml` ni `.env`. Se da
+de alta en la BD (Tenant + TenantSettings) y el `worker` (TenantManager) lo levanta.
 ```bash
-# Crear el tenant (devuelve su id):
+# Crear el tenant:
 docker compose run --rm api node -e "import('@prisma/client').then(async({PrismaClient})=>{const {PrismaPg}=await import('@prisma/adapter-pg');const p=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});const t=await p.tenant.create({data:{slug:'tapiceria-demo',name:'Tapicería Demo',industry:'tapiceria',profileDir:'./profiles/tapiceria'}});console.log('TENANT_ID=',t.id);process.exit(0)})"
-# Copia el TENANT_ID a TENANT_TAPICERIA_ID en .env.
-# Crear el usuario admin del panel:
-docker compose run --rm api npm run api:create-user -- tapiceria-demo admin 'ClaveFuerteDelDueño'
+# Crear su TenantSettings desde config.json + profileDir (backfill idempotente):
+docker compose run --rm api npx tsx scripts/backfill-tenant-settings.ts
+# Crear el usuario admin del panel (login por email):
+docker compose run --rm api npm run api:create-user -- tapiceria-demo dueño@negocio.com 'ClaveFuerteDelDueño'
 ```
 
-## 5. Iniciar el worker del tenant
+## 5. Iniciar el worker (atiende a TODOS los tenants activos del shard)
 ```bash
-docker compose up -d worker-tapiceria
-docker compose logs -f worker-tapiceria   # primera vez: escanea el QR de WhatsApp
+docker compose up -d worker
+docker compose logs -f worker   # primera vez por tenant: escanea el QR de WhatsApp
 ```
-(El QR también es consultable vía la API: `GET /wa-status`.)
+(El QR/estado por tenant se consulta vía la API autenticada: `GET /wa-status`,
+que rutea al worker por el `tenantId` del JWT.) Para escalar a varios shards, subir
+réplicas del servicio `worker` con su `SHARD_ID`/`SHARD_COUNT` y declarar
+`TENANT_MANAGER_URL_<n>` en la API.
 
 ## 6. nginx + TLS (host)
 ```bash

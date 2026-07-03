@@ -144,7 +144,7 @@ async function main() {
           direction: 'inbound',
           kind: 'text',
           body: userText,
-          whatsappMsgId: `cli_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          externalMsgId: `cli_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           raw: JSON.stringify({ source: 'cli-chat' }),
         },
       });

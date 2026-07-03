@@ -9,5 +9,5 @@ test('visiting /login renders the login form', () => {
     </MemoryRouter>,
   );
   expect(screen.getByRole('button', { name: /entrar/i })).toBeInTheDocument();
-  expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
 });

@@ -1,7 +1,6 @@
 import {
   makeWASocket,
   useMultiFileAuthState,
-  DisconnectReason,
   Browsers,
 } from 'baileys';
 import { mkdir, rm } from 'node:fs/promises';
@@ -9,6 +8,7 @@ import { resolve } from 'node:path';
 import qrcode from 'qrcode-terminal';
 import { logger } from '../../lib/logger';
 import { extractPhoneFromJid } from './jid';
+import { reconnectDelay, classifyDisconnect } from './reconnect';
 import type {
   AdapterStateSnapshot,
   ConnectionStatus,
@@ -39,6 +39,7 @@ export class BaileysConnection {
   private phone: string | null = null;
   private reconnecting = false;
   private stopped = false;
+  private reconnectAttempts = 0;
 
   constructor(private readonly opts: ConnectionOptions) {}
 
@@ -111,6 +112,7 @@ export class BaileysConnection {
         this.lastError = null;
         this.lastConnectedAt = new Date().toISOString();
         this.phone = extractPhoneFromJid(this.socket?.user?.id ?? '');
+        this.reconnectAttempts = 0; // reconectó: resetea el backoff
         this.setStatus('connected');
         logger.info('whatsapp.connected');
       }
@@ -118,20 +120,25 @@ export class BaileysConnection {
         const code = lastDisconnect?.error?.output?.statusCode;
         const reason = lastDisconnect?.error?.message ?? 'unknown';
         this.lastError = reason;
-        logger.warn({ code, reason }, 'whatsapp.disconnected');
-        if (code === DisconnectReason.loggedOut) {
+        const decision = classifyDisconnect(code);
+        logger.warn({ code, reason, decision: decision.action }, 'whatsapp.disconnected');
+        if (decision.action === 'logged_out') {
+          // Sesión inválida: no reintentar; requiere re-vincular QR.
           this.phone = null;
           this.setStatus('logged_out');
         } else {
           this.setStatus('disconnected');
           if (!this.reconnecting && !this.stopped) {
             this.reconnecting = true;
+            const delay = reconnectDelay(this.reconnectAttempts);
+            this.reconnectAttempts += 1;
+            logger.info({ attempt: this.reconnectAttempts, delayMs: delay }, 'whatsapp.reconnect_scheduled');
             setTimeout(() => {
               this.reconnecting = false;
               void this.connect().catch((e: Error) =>
                 logger.error({ err: e.message }, 'whatsapp.reconnect_failed'),
               );
-            }, 3000);
+            }, delay);
           }
         }
       }

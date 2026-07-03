@@ -1,4 +1,5 @@
-import type { OutboundSender } from '../../services/outbound';
+import type { ChannelOutboundSender } from '../../channels/types';
+import type { Channel } from '../../pipeline/types';
 import type { WASocket } from './types';
 
 /**
@@ -9,7 +10,8 @@ import type { WASocket } from './types';
  * - **JID directo** (ej. "166137958535379@lid"): se usa tal cual. Esto es
  *   necesario para responder a cuentas con LID (Baileys 7).
  */
-export class WhatsAppSender implements OutboundSender {
+export class WhatsAppSender implements ChannelOutboundSender {
+  readonly channel: Channel = 'whatsapp';
   constructor(private readonly getSocket: () => WASocket | null) {}
 
   async sendText(target: string, text: string): Promise<void> {

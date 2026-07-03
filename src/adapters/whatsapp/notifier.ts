@@ -1,12 +1,15 @@
 import type {
-  Notifier,
   OwnerReadyPayload,
   DisconnectPayload,
+  UsageLimitPayload,
 } from '../../services/notification';
 import type { OutboundSender } from '../../services/outbound';
+import type { ChannelNotifier } from '../../channels/types';
+import type { Channel } from '../../pipeline/types';
 import { logger } from '../../lib/logger';
 
-export class WhatsAppNotifier implements Notifier {
+export class WhatsAppNotifier implements ChannelNotifier {
+  readonly channel: Channel = 'whatsapp';
   constructor(
     private readonly sender: OutboundSender,
     private readonly ownerPhoneE164: string,
@@ -27,6 +30,14 @@ export class WhatsAppNotifier implements Notifier {
       `⚠️ WhatsApp desconectado.\n` +
       `Motivo: ${payload.reason}\n` +
       `Revisa el panel para reconectar.`;
+    await this.safeSend(text);
+  }
+
+  async notifyUsageLimit(payload: UsageLimitPayload): Promise<void> {
+    const text =
+      `🚦 Tu recepcionista alcanzó el límite mensual del plan gratuito ` +
+      `(${payload.limit} respuestas). Dejará de responder hasta el próximo mes; ` +
+      `los mensajes de tus clientes se siguen guardando en el panel.`;
     await this.safeSend(text);
   }
 

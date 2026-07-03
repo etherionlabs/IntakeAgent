@@ -3,6 +3,7 @@ import { mkdtemp, copyFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildTestApp, testPrisma, cleanupDb } from './helpers/app';
+import { seedTestPlan, TEST_PLAN_ID } from '../../tests/helpers/db';
 
 const TEST_JWT_SECRET = 'test-jwt-secret';
 
@@ -13,10 +14,15 @@ async function seedTenantWithTempProfile() {
     await copyFile(join('./profiles/tapiceria', f), join(dir, f));
   }
   const tenant = await testPrisma.tenant.create({
-    data: { slug: `s-${Date.now()}`, name: 'T', industry: 'test', profileDir: dir },
+    // approved: espejo del backfill (v1 free) para que el enforcement no dé 403.
+    data: { slug: `s-${Date.now()}`, name: 'T', industry: 'test', profileDir: dir, approvalStatus: 'approved' },
   });
   const user = await testPrisma.panelUser.create({
     data: { tenantId: tenant.id, username: `u-${Date.now()}`, passwordHash: 'x', role: 'admin' },
+  });
+  await seedTestPlan();
+  await testPrisma.subscription.create({
+    data: { tenantId: tenant.id, planId: TEST_PLAN_ID, stripeCustomerId: `cus_${tenant.id}`, status: 'active' },
   });
   return { tenantId: tenant.id, userId: user.id, profileDir: dir };
 }

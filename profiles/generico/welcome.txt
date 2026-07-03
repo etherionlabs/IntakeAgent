@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}. Voy a tomarte unos datos para que podamos atenderte mejor. ¿Me dices tu nombre y en qué te ayudamos?

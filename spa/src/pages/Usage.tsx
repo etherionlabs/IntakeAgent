@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { api, type UsagePlan } from '../api/client';
 
 type Totals = {
   runs: number;
@@ -34,6 +34,7 @@ function fmtTime(iso: string): string {
 export default function Usage() {
   const [totals, setTotals] = useState<Totals | null>(null);
   const [recent, setRecent] = useState<RecentRun[]>([]);
+  const [plan, setPlan] = useState<UsagePlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +45,7 @@ export default function Usage() {
       const data = await api.getUsage();
       setTotals(data.totals as Totals);
       setRecent((data.recent ?? []) as RecentRun[]);
+      setPlan(data.plan ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'error al cargar el uso');
     } finally {
@@ -69,6 +71,23 @@ export default function Usage() {
         <p className="error" role="alert">
           {error}
         </p>
+      )}
+
+      {!loading && !error && plan && (
+        <div className="usage-plan" data-testid="usage-plan">
+          <h2>Plan {plan.name}</h2>
+          {plan.monthlyLimit !== null ? (
+            <p>
+              Respuestas del bot este mes: <strong>{fmtNum(plan.monthUsed)}</strong> de{' '}
+              <strong>{fmtNum(plan.monthlyLimit)}</strong>
+              {plan.monthRemaining === 0 && (
+                <span className="usage-error"> — límite alcanzado: el bot pausó las respuestas hasta el próximo mes.</span>
+              )}
+            </p>
+          ) : (
+            <p>Sin límite mensual.</p>
+          )}
+        </div>
       )}
 
       {!loading && !error && totals && (

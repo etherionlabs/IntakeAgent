@@ -8,7 +8,10 @@ import { resolveJobForMessage } from './resolveJob';
 import { InboundDebouncer } from './debouncer';
 import { parseJobIntake } from '../services/job';
 import { runAgentTurn } from '../agent/runner';
+import { checkMonthlyLimit, notifyLimitOnce } from './usageLimit';
 import { logger } from '../lib/logger';
+import { incMessage } from '../lib/metrics';
+import { captureError } from '../lib/observability';
 import type { BatchMessage, AvailablePhoto } from '../agent/types';
 import {
   buildDescribeBaseContext,
@@ -22,7 +25,11 @@ export class InboundCoordinator {
   constructor(private readonly deps: PipelineDeps) {
     this.debouncer = new InboundDebouncer({
       debounceMs: deps.config.debounceMs,
-      onFlush: (contactId, messageIds) => this.flushBatch(contactId, messageIds),
+      onFlush: (contactId, messageIds) =>
+        this.flushBatch(contactId, messageIds).catch((e) => {
+          captureError(e, { tenantId: this.deps.tenantId, service: 'worker', extra: { contactId } });
+          logger.error({ tenantId: this.deps.tenantId, err: e instanceof Error ? e.message : String(e) }, 'pipeline.flush_failed');
+        }),
     });
   }
 
@@ -48,7 +55,7 @@ export class InboundCoordinator {
   async handleInbound(raw: RawInboundMessage): Promise<void> {
     logger.info(
       {
-        whatsappMsgId: raw.whatsappMsgId,
+        externalMsgId: raw.externalMsgId,
         from: raw.fromPhoneE164,
         kind: raw.kind,
         chatKind: raw.chatKind,
@@ -60,14 +67,14 @@ export class InboundCoordinator {
 
     const pf = prefilter(raw);
     if (pf.rejected) {
-      logger.info({ reason: pf.reason, whatsappMsgId: raw.whatsappMsgId }, 'inbound.prefiltered');
+      logger.info({ reason: pf.reason, externalMsgId: raw.externalMsgId }, 'inbound.prefiltered');
       return;
     }
 
     const tenantId = this.deps.tenantId;
 
-    if (await alreadySeen(this.deps.prisma, tenantId, raw.whatsappMsgId)) {
-      logger.info({ whatsappMsgId: raw.whatsappMsgId }, 'inbound.duplicate');
+    if (await alreadySeen(this.deps.prisma, tenantId, raw.externalMsgId)) {
+      logger.info({ externalMsgId: raw.externalMsgId }, 'inbound.duplicate');
       return;
     }
 
@@ -80,7 +87,7 @@ export class InboundCoordinator {
       tenantId,
       profile.intakeSchema,
       contactRes.contact.id,
-      raw.whatsappMsgId,
+      raw.externalMsgId,
     );
 
     const messageWithoutJob = await normalizeAndPersistMessage(
@@ -95,6 +102,7 @@ export class InboundCoordinator {
       where: { id: messageWithoutJob.id, tenantId },
       data: { jobId: jobRes.job.id },
     });
+    incMessage(tenantId);
 
     if (message.kind === 'image' || message.kind === 'audio') {
       const intake = parseJobIntake(jobRes.job);
@@ -163,6 +171,16 @@ export class InboundCoordinator {
     if (!jobId) return;
     const job = await this.deps.prisma.job.findFirst({ where: { id: jobId, tenantId } });
     if (!job) return;
+
+    // Plan gratuito (v1): si el tenant agotó sus respuestas del mes, no corre el
+    // agente (ni describer). El mensaje ya quedó registrado en handleInbound; se
+    // avisa al dueño una sola vez por mes.
+    const usage = await checkMonthlyLimit(this.deps.prisma, tenantId, this.deps.now());
+    if (usage.limited && usage.limit !== null) {
+      logger.info({ tenantId, used: usage.used, limit: usage.limit }, 'inbound.usage_limit_reached');
+      await notifyLimitOnce(this.deps.prisma, tenantId, job.id, this.deps.notifier, { used: usage.used, limit: usage.limit }, this.deps.now());
+      return;
+    }
 
     const allOpen = await this.deps.prisma.job.findMany({
       where: {

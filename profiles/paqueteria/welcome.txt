@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}. Te ayudo a cotizar tu envío. ¿Me dices tu nombre, de dónde a dónde es el envío y qué vas a mandar?

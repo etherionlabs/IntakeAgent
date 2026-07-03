@@ -41,3 +41,21 @@ test('renders totals from getUsage', async () => {
   expect(await screen.findByText('$1.2345')).toBeInTheDocument();
   expect(await screen.findByText('gpt-test')).toBeInTheDocument();
 });
+
+test('muestra el plan gratuito con consumo y aviso de límite alcanzado', async () => {
+  mockGetUsage.mockResolvedValue({
+    mode: 'approval',
+    plan: { name: 'Gratuito', monthlyLimit: 300, monthUsed: 300, monthRemaining: 0 },
+    totals: { runs: 300, costUsd: 0, inputTokens: 0, outputTokens: 0 },
+    recent: [],
+  });
+  render(
+    <MemoryRouter>
+      <Usage />
+    </MemoryRouter>,
+  );
+  const plan = await screen.findByTestId('usage-plan');
+  expect(plan).toHaveTextContent('Plan Gratuito');
+  expect(plan).toHaveTextContent('300');
+  expect(plan).toHaveTextContent(/límite alcanzado/i);
+});

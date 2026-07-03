@@ -7,8 +7,13 @@ import type { Describer } from '../media/describer';
 import type { MediaStore } from '../media/store';
 import type { AgentFactory } from '../agent/types';
 
+export type Channel = 'whatsapp' | 'sms' | 'voice';
+
 export interface RawInboundMessage {
-  whatsappMsgId: string;
+  /** ID del mensaje en el canal de origen (idempotencia). Antes `whatsappMsgId`. */
+  externalMsgId: string;
+  /** Canal por el que entró el mensaje. */
+  channel: Channel;
   fromPhoneE164: string;
   chatKind: 'individual' | 'group' | 'status' | 'other';
   fromMe: boolean;

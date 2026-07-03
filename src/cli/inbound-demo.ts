@@ -39,7 +39,8 @@ const stubFactory: AgentFactory = (cfg) => {
 
 function msg(idx: number, body: string): RawInboundMessage {
   return {
-    whatsappMsgId: `demo_msg_${Date.now()}_${idx}`,
+    externalMsgId: `demo_msg_${Date.now()}_${idx}`,
+    channel: 'whatsapp',
     fromPhoneE164: '+5210000000088',
     chatKind: 'individual',
     fromMe: false,

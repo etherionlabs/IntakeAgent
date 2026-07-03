@@ -6,7 +6,7 @@ import { ApiError } from '../api/client';
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -16,7 +16,7 @@ export default function Login() {
     setError(null);
     setPending(true);
     try {
-      await login(username, password);
+      await login(email, password);
       navigate('/');
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
@@ -30,11 +30,11 @@ export default function Login() {
     <form onSubmit={onSubmit} className="login-form">
       <h1>Intake</h1>
       <label>
-        Usuario
+        Email
         <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           autoComplete="username"
         />
       </label>

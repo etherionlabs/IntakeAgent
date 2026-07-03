@@ -3,15 +3,26 @@ import { BaileysConnection } from './connection';
 import { mapWAMessageToRaw } from './mapMessage';
 import type { Notifier } from '../../services/notification';
 import { logger } from '../../lib/logger';
+import type { Channel } from '../../pipeline/types';
+import type { InboundSource, ConnectionControl } from '../../channels/types';
 import type { AdapterStateSnapshot, ConnectionStatus, WASocket } from './types';
 
 export interface BaileysAdapterOptions {
   sessionDir: string;
   coordinator: InboundCoordinator;
   notifier: Notifier;
+  /** Tenant al que pertenece esta conexión (acompaña las alertas; forward-compat Fase 2). */
+  tenantId?: string;
+  /** Avisar al dueño por WhatsApp al desconectar (config.owner.notifyOnDisconnect). */
+  notifyOwner?: boolean;
+  /** Umbral (ms) de desconexión sostenida para alertar. Def. 5 min. */
+  alertThresholdMs?: number;
 }
 
-export class BaileysAdapter {
+const DEFAULT_ALERT_MS = Number(process.env.WA_DISCONNECT_ALERT_MS ?? 5 * 60 * 1000);
+
+export class BaileysAdapter implements InboundSource, ConnectionControl {
+  readonly channel: Channel = 'whatsapp';
   private readonly conn: BaileysConnection;
   private disconnectTimer: NodeJS.Timeout | null = null;
 
@@ -73,20 +84,34 @@ export class BaileysAdapter {
       return;
     }
     if (status === 'disconnected' || status === 'logged_out') {
-      // Programa la alerta a 2 minutos si no hay una pendiente.
+      // Programa la alerta si la desconexión persiste más del umbral.
       if (!this.disconnectTimer) {
-        this.disconnectTimer = setTimeout(
-          () => {
-            this.disconnectTimer = null;
-            if (this.conn.state().status !== 'connected') {
-              void this.opts.notifier
-                .notifyDisconnect({ reason: err ?? status })
-                .catch(() => {});
-            }
-          },
-          2 * 60 * 1000,
-        );
+        const threshold = this.opts.alertThresholdMs ?? DEFAULT_ALERT_MS;
+        this.disconnectTimer = setTimeout(() => {
+          this.disconnectTimer = null;
+          if (this.conn.state().status !== 'connected') {
+            this.fireDisconnectAlert(status, err);
+          }
+        }, threshold);
       }
+    }
+  }
+
+  private fireDisconnectAlert(status: ConnectionStatus, err: string | undefined): void {
+    const loggedOut = status === 'logged_out';
+    const reason = err ?? status;
+    // Canal de operador fiable aunque WhatsApp esté caído: log estructurado con
+    // tenantId y marca `alert` que la capa de observabilidad (Fase 5) recoge.
+    // `logged_out` exige acción humana (re-escanear QR).
+    logger.error(
+      { alert: true, tenantId: this.opts.tenantId, reason, loggedOut, action: loggedOut ? 'rescan_qr' : 'auto_reconnect' },
+      'whatsapp.disconnect_alert',
+    );
+    // Aviso adicional al dueño por WhatsApp (si el canal sigue vivo y está habilitado).
+    if (this.opts.notifyOwner !== false) {
+      void this.opts.notifier
+        .notifyDisconnect({ reason: loggedOut ? `${reason} (re-vincula el QR)` : reason })
+        .catch(() => {});
     }
   }
 }

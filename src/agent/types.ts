@@ -110,4 +110,6 @@ export interface TurnResult {
   outputTokens: number;
   costUsd: number | null;
   error: string | null;
+  /** Clasificación del error del LLM cuando `error` no es null. */
+  errorKind?: import('./errors').LlmErrorKind;
 }

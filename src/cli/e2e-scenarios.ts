@@ -475,7 +475,8 @@ async function runScenario(
     if (turn.kind === 'audio') transcriber.push(turn.transcript);
 
     const raw: RawInboundMessage = {
-      whatsappMsgId: `e2e_${s.name}_${i}_${Date.now()}`,
+      externalMsgId: `e2e_${s.name}_${i}_${Date.now()}`,
+      channel: 'whatsapp',
       fromPhoneE164: s.phone,
       chatKind: 'individual',
       fromMe: false,
