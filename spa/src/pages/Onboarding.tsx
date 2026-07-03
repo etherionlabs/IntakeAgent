@@ -15,10 +15,15 @@ export default function Onboarding() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Auto-poll mientras se aprovisiona o se espera el QR.
+  // Auto-poll mientras se aprovisiona, se espera el QR o la aprobación del operador
+  // (la aprobación llega "sola" desde el panel de la plataforma; poll más lento).
   useEffect(() => {
     if (state?.step === 'provisioning' || state?.step === 'whatsapp') {
       const t = setInterval(refresh, 4000);
+      return () => clearInterval(t);
+    }
+    if (state?.step === 'awaiting_approval') {
+      const t = setInterval(refresh, 15000);
       return () => clearInterval(t);
     }
   }, [state?.step, refresh]);
@@ -66,6 +71,14 @@ function Step({ state, busy, act, navigate, refresh }: {
     case 'schema':
       return <div><p>Tu formulario de intake viene precargado según tu giro. Puedes editarlo luego en Configuración.</p>
         <button disabled={busy} onClick={() => act(() => api.patchOnboardingSchema(undefined))}>Usar la plantilla y continuar</button></div>;
+    case 'awaiting_approval':
+      return <div data-testid="awaiting-approval">
+        <h2>Tu cuenta está en revisión</h2>
+        <p>Ya dejaste todo configurado. Nuestro equipo está revisando tu cuenta;
+          te avisaremos por correo cuando quede aprobada para conectar tu WhatsApp.
+          Normalmente toma menos de un día hábil.</p>
+        <button disabled={busy} onClick={() => refresh()}>Volver a comprobar</button>
+      </div>;
     case 'whatsapp':
       return <WhatsAppStep busy={busy} act={act} />;
     case 'test':
@@ -73,7 +86,7 @@ function Step({ state, busy, act, navigate, refresh }: {
         <button disabled={busy} onClick={() => act(() => api.onboardingFlag({ testDone: true }))}>Ya hice la prueba</button></div>;
     case 'checklist':
       return <div>
-        <p>¡Todo listo! Email verificado, suscripción activa, bot vinculado, configuración guardada y prueba exitosa.</p>
+        <p>¡Todo listo! Email verificado, {state.mode === 'approval' ? 'cuenta aprobada' : 'suscripción activa'}, bot vinculado, configuración guardada y prueba exitosa.</p>
         <button disabled={busy} onClick={() => act(async () => { await api.completeOnboarding(); navigate('/'); })}>Ir al panel</button>
       </div>;
     default:

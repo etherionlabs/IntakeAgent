@@ -75,7 +75,7 @@ export const api = {
   archiveContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/archive`),
   restoreContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/restore`),
   deleteContact: (id: string) => request<{ ok: boolean }>('DELETE', `/contacts/${id}`),
-  getUsage: () => request<{ totals: any; recent: any[] }>('GET', '/usage'),
+  getUsage: () => request<{ totals: any; recent: any[]; mode?: string; approvalStatus?: string; plan?: UsagePlan | null }>('GET', '/usage'),
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
   waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
@@ -95,6 +95,10 @@ export const api = {
   adminSuspend: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/suspend`),
   adminReactivate: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/reactivate`),
   adminReconnect: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/bot/reconnect`),
+  adminApprove: (id: string) => request<{ ok: boolean; approvalStatus: string }>('POST', `/admin/tenants/${id}/approve`),
+  adminReject: (id: string) => request<{ ok: boolean; approvalStatus: string }>('POST', `/admin/tenants/${id}/reject`),
+  adminSetLimit: (id: string, monthlyRunLimit: number | null) =>
+    request<{ ok: boolean; monthlyRunLimit: number | null }>('PATCH', `/admin/tenants/${id}/limit`, { monthlyRunLimit }),
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
@@ -108,14 +112,27 @@ export const api = {
 export interface AdminTenant {
   id: string; slug: string; name: string; industry: string;
   status: string; createdAt: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  approvedAt: string | null;
+  monthlyRunLimit: number | null;
+  monthUsed: number;
   subscription: string | null; currentPeriodEnd: string | null;
 }
 
 export interface OnboardingState {
-  step: 'verify_email' | 'subscription' | 'provisioning' | 'business' | 'welcome' | 'schema' | 'whatsapp' | 'test' | 'checklist' | 'done';
+  step: 'verify_email' | 'subscription' | 'provisioning' | 'business' | 'welcome' | 'schema' | 'awaiting_approval' | 'whatsapp' | 'test' | 'checklist' | 'done';
   tenantStatus: string;
   subStatus: string | null;
+  mode?: 'approval' | 'subscription';
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   flags: Record<string, boolean>;
+}
+
+export interface UsagePlan {
+  name: string;
+  monthlyLimit: number | null;
+  monthUsed: number;
+  monthRemaining: number | null;
 }
 
 export interface BillingStatus {

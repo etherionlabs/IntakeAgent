@@ -4,6 +4,17 @@
 **Estado:** Fases 1–6 del roadmap implementadas con tests (sandbox). Fases 7 (go-live)
 y 8 (SMS/voz) pendientes; varias tareas requieren infraestructura/decisiones reales.
 
+> 🔁 **Re-alcance v1 (2026-06-30, decisiones #11/#12 en `DECISIONES-PENDIENTES.md`):**
+> la v1 de mercado sale **sin pagos** — plan gratuito con límite mensual
+> (`FREE_MONTHLY_RUN_LIMIT`, override por tenant desde `/admin`) y **aprobación
+> manual de cuentas** (`ACCESS_MODE=approval`, default). En consecuencia:
+> - La sección **2.4 (Stripe real)** pasa a **siguiente iteración** — el código
+>   queda dormante e intacto; se reactiva con `ACCESS_MODE=subscription`.
+> - La **Fase 8 (SMS/voz)** y la **API oficial de Meta** también se difieren.
+> - Nuevas envs a setear en el deploy: `ACCESS_MODE`, `FREE_MONTHLY_RUN_LIMIT`.
+> - El flujo operativo nuevo: signup → verificación → wizard → **aprobación del
+>   operador en `/admin`** → vincular WhatsApp → activo.
+
 Este documento reúne **todo lo que NO se pudo cerrar en el entorno efímero** (sin
 Docker, sin Stripe/WhatsApp/dominios reales, sin secretos) para que se complete
 desde una sesión con un entorno local completo. Cada ítem dice **qué falta, dónde

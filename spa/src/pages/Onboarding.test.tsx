@@ -47,3 +47,11 @@ test('paso verify_email muestra instrucción de verificar', async () => {
   renderOnboarding();
   expect(await screen.findByText(/verifica tu correo/i)).toBeInTheDocument();
 });
+
+test('paso awaiting_approval (v1 free) muestra la pantalla de revisión', async () => {
+  mockState.mockResolvedValue({ step: 'awaiting_approval', tenantStatus: 'active', subStatus: null, mode: 'approval', approvalStatus: 'pending', flags: { businessDone: true, welcomeDone: true, schemaDone: true } });
+  renderOnboarding();
+  const box = await screen.findByTestId('awaiting-approval');
+  expect(box).toHaveTextContent(/cuenta está en revisión/i);
+  expect(screen.getByRole('button', { name: /volver a comprobar/i })).toBeInTheDocument();
+});

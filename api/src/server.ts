@@ -4,9 +4,9 @@ import jwt from '@fastify/jwt';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import { getCorsOrigin, requireEnv } from './env';
+import { accessMode, getCorsOrigin, requireEnv } from './env';
 import { getPrisma } from './db';
-import { isTenantActive } from './billing/access';
+import { checkTenantAccess } from './billing/access';
 import { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/auth-cookies';
 import { authRoutes } from './routes/auth';
 import { profileRoutes } from './routes/profile';
@@ -142,16 +142,30 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
       if (user.passwordChangedAt && iatMs < user.passwordChangedAt.getTime()) {
         return reply.code(401).send({ error: 'sesión expirada' });
       }
-      // Enforcement de suscripción (402) en rutas de negocio. Exentas: /auth/*,
-      // /billing/* (para poder pagar) y /health.
+      // Enforcement de acceso en rutas de negocio. Exentas: /auth/*, /billing/*
+      // (para poder pagar), /onboarding/* (wizard pre-aprobación), /admin, /tenant/,
+      // /health y /usage (el cliente debe ver su consumo aunque esté pendiente).
+      // Modo 'approval' (v1): 403 hasta que el operador apruebe la cuenta.
+      // Modo 'subscription' (Fase 3 dormante): 402 sin suscripción activa.
       const url = request.routeOptions?.url ?? '';
-      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/admin') && !url.startsWith('/tenant/') && !url.startsWith('/health')) {
-        const sub = await getPrisma().subscription.findUnique({
-          where: { tenantId: request.tenantId },
-          select: { status: true, gracePeriodEndsAt: true },
-        });
-        if (!isTenantActive(request.tenantId, sub)) {
-          return reply.code(402).send({ error: 'subscription_inactive', portalHint: true });
+      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/admin') && !url.startsWith('/tenant/') && !url.startsWith('/health') && !url.startsWith('/usage')) {
+        const prismaC = getPrisma();
+        const [tenant, sub] = await Promise.all([
+          prismaC.tenant.findUnique({
+            where: { id: request.tenantId },
+            select: { approvalStatus: true, status: true },
+          }),
+          prismaC.subscription.findUnique({
+            where: { tenantId: request.tenantId },
+            select: { status: true, gracePeriodEndsAt: true },
+          }),
+        ]);
+        const access = checkTenantAccess(request.tenantId, tenant, sub);
+        if (!access.allowed) {
+          if (access.reason === 'subscription_inactive') {
+            return reply.code(402).send({ error: 'subscription_inactive', portalHint: true });
+          }
+          return reply.code(403).send({ error: `account_${access.reason}` });
         }
       }
     } catch {
@@ -189,8 +203,18 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
 
   // Provisioning por defecto: siembra TenantSettings desde plantilla + alta en el
   // worker. Inyectable en tests para no pegarle al worker real.
+  // En modo approval el alta en el worker espera a la aprobación del operador:
+  // aquí solo se siembra la plantilla; /admin/tenants/:id/approve hace el add.
   const provision = opts.provision ??
-    ((tenantId: string) => provisionTenant(getPrisma(), tenantId, { addTenant: workerAddTenant(opts.fetcher ?? fetch) }).then(() => {}));
+    ((tenantId: string) => provisionTenant(getPrisma(), tenantId, {
+      addTenant: async (id: string) => {
+        if (accessMode() === 'approval') {
+          const t = await getPrisma().tenant.findUnique({ where: { id }, select: { approvalStatus: true } });
+          if (t?.approvalStatus !== 'approved') return; // se hará al aprobar
+        }
+        return workerAddTenant(opts.fetcher ?? fetch)(id);
+      },
+    }).then(() => {}));
 
   await app.register(authRoutes, { emailSender: opts.emailSender, provision });
   await app.register(profileRoutes);
@@ -201,7 +225,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(settingsRoutes);
   await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher, provision });
   await app.register(onboardingRoutes);
-  await app.register(adminRoutes, { fetcher: opts.fetcher });
+  await app.register(adminRoutes, { fetcher: opts.fetcher, emailSender: opts.emailSender });
   await app.register(tenantDataRoutes, { fetcher: opts.fetcher });
 
   return app;

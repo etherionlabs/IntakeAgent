@@ -1,6 +1,7 @@
 import type {
   OwnerReadyPayload,
   DisconnectPayload,
+  UsageLimitPayload,
 } from '../../services/notification';
 import type { OutboundSender } from '../../services/outbound';
 import type { ChannelNotifier } from '../../channels/types';
@@ -29,6 +30,14 @@ export class WhatsAppNotifier implements ChannelNotifier {
       `⚠️ WhatsApp desconectado.\n` +
       `Motivo: ${payload.reason}\n` +
       `Revisa el panel para reconectar.`;
+    await this.safeSend(text);
+  }
+
+  async notifyUsageLimit(payload: UsageLimitPayload): Promise<void> {
+    const text =
+      `🚦 Tu recepcionista alcanzó el límite mensual del plan gratuito ` +
+      `(${payload.limit} respuestas). Dejará de responder hasta el próximo mes; ` +
+      `los mensajes de tus clientes se siguen guardando en el panel.`;
     await this.safeSend(text);
   }
 

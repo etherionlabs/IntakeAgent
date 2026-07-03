@@ -16,7 +16,7 @@ import { getEmailSender, type EmailSender } from '../lib/email';
 import { uniqueSlug } from '../lib/slug';
 import { randomToken, in24h } from '../lib/tokens';
 import { verificationEmail, welcomeEmail } from '../email/templates';
-import { trialRequiresCard } from '../env';
+import { accessMode, trialRequiresCard } from '../env';
 import { LEGAL_DOCUMENTS, LEGAL_VERSIONS } from '../legal/versions';
 
 const LoginZ = z.object({ email: z.string().email(), password: z.string().min(1) });
@@ -69,8 +69,14 @@ export async function authRoutes(
     const userAgent = (request.headers['user-agent'] as string | undefined) ?? null;
     try {
       const tenant = await prisma.$transaction(async (tx) => {
+        // En modo approval el tenant nace inactivo (el worker no lo levanta en un
+        // reinicio); la aprobación del operador lo activa. En modo subscription se
+        // conserva el comportamiento histórico (active por defecto).
         const t = await tx.tenant.create({
-          data: { slug, name: businessName, industry, profileDir: '', status: 'pending_verification' },
+          data: {
+            slug, name: businessName, industry, profileDir: '', status: 'pending_verification',
+            ...(accessMode() === 'approval' ? { active: false } : {}),
+          },
         });
         const user = await tx.panelUser.create({
           data: { tenantId: t.id, username: email.split('@')[0], email, passwordHash, role: 'admin' },
@@ -108,11 +114,12 @@ export async function authRoutes(
       prisma.emailVerification.update({ where: { id: rec.id }, data: { verifiedAt: new Date() } }),
       prisma.tenant.update({ where: { id: rec.tenantId }, data: { status: 'verified' } }),
     ]);
-    const wel = welcomeEmail(tenant.name);
+    const wel = welcomeEmail(tenant.name, { pendingApproval: accessMode() === 'approval' && tenant.approvalStatus !== 'approved' });
     await emailSender.send(rec.email, wel.subject, wel.body).catch(() => {});
-    // Trial sin tarjeta: la verificación dispara el provisioning. Con tarjeta, lo
-    // dispara el webhook de Checkout (Fase 3), no aquí.
-    if (!trialRequiresCard() && opts.provision) {
+    // Modo approval (v1 free): la verificación SIEMPRE dispara el provisioning
+    // (siembra la plantilla; el alta en el worker espera a la aprobación).
+    // Modo subscription: trial sin tarjeta → aquí; con tarjeta → webhook Checkout.
+    if ((accessMode() === 'approval' || !trialRequiresCard()) && opts.provision) {
       await opts.provision(rec.tenantId).catch(() => {});
     }
     return { status: 'verified' };

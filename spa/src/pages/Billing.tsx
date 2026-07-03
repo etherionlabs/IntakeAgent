@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, ApiError, type BillingStatus } from '../api/client';
+import { Link } from 'react-router-dom';
+import { api, ApiError, type BillingStatus, type UsagePlan } from '../api/client';
 
 const LABEL: Record<BillingStatus['status'], string> = {
   none: 'Sin suscripción',
@@ -19,12 +20,33 @@ function formatPrice(s: BillingStatus): string | null {
 
 export default function Billing() {
   const [status, setStatus] = useState<BillingStatus | null>(null);
+  const [freePlan, setFreePlan] = useState<UsagePlan | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
+    // v1 free: si la cuenta está en modo approval, /usage trae el plan gratuito y
+    // esta página no ofrece checkout (el billing de Stripe queda dormante).
+    api.getUsage()
+      .then((u) => setFreePlan(u.mode === 'approval' ? (u.plan ?? null) : null))
+      .catch(() => setFreePlan(null));
     api.getBillingStatus().then(setStatus).catch(() => setError('No se pudo cargar el estado de facturación.'));
   }, []);
+
+  if (freePlan === 'loading') return <div className="billing"><p>Cargando…</p></div>;
+  if (freePlan) {
+    return (
+      <div className="billing">
+        <h1>Tu plan</h1>
+        <p>Estás en el plan <strong data-testid="billing-status">Gratuito</strong>.</p>
+        {freePlan.monthlyLimit !== null && (
+          <p>Incluye {freePlan.monthlyLimit.toLocaleString()} respuestas del bot al mes.
+            Este mes llevas {freePlan.monthUsed.toLocaleString()}.</p>
+        )}
+        <p><Link to="/usage">Ver detalle de uso</Link></p>
+      </div>
+    );
+  }
 
   async function go(action: () => Promise<{ url: string }>) {
     setError(null);

@@ -31,10 +31,13 @@ async function walkWizard(app: any, m: Record<string, string>, h: Record<string,
   return app.inject({ method: 'GET', url: '/onboarding/state', headers: h });
 }
 
-describe('onboarding E2E', () => {
+describe('onboarding E2E — ACCESS_MODE=subscription (flujo Stripe, dormante en v1)', () => {
   const addTenant = vi.fn(async () => {});
-  beforeEach(async () => { await cleanupDb(); await seedTestPlan(); addTenant.mockClear(); process.env.STRIPE_WEBHOOK_SECRET = WHSEC; });
-  afterAll(async () => { await cleanupDb(); });
+  beforeEach(async () => {
+    process.env.ACCESS_MODE = 'subscription';
+    await cleanupDb(); await seedTestPlan(); addTenant.mockClear(); process.env.STRIPE_WEBHOOK_SECRET = WHSEC;
+  });
+  afterAll(async () => { delete process.env.ACCESS_MODE; await cleanupDb(); });
 
   it('TRIAL_REQUIRES_CARD=true: signup → verify → webhook Checkout → provisioning → wizard → done', async () => {
     process.env.TRIAL_REQUIRES_CARD = 'true';

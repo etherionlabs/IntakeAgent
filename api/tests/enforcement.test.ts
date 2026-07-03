@@ -12,13 +12,14 @@ async function setSub(status: string, gracePeriodEndsAt: Date | null = null) {
   });
 }
 
-describe('enforcement de suscripción (402)', () => {
+describe('enforcement de suscripción (402) — ACCESS_MODE=subscription (dormante en v1)', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   beforeEach(async () => {
+    process.env.ACCESS_MODE = 'subscription';
     await seedTenantAndUser({ activeSub: false });
     app = await buildServer({ jwtSecret: TEST_JWT_SECRET });
   });
-  afterAll(async () => { await cleanupDb(); });
+  afterAll(async () => { delete process.env.ACCESS_MODE; await cleanupDb(); });
 
   it('sin suscripción → /jobs 402; /billing, /auth, /health accesibles', async () => {
     const { headers } = await loginCookie(app);

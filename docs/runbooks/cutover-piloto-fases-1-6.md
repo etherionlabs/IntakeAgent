@@ -22,7 +22,7 @@ nuevo sin sembrar datos". Por eso es un cutover atómico, no un deploy normal.
 |---|-----------|---------------------|------------|
 | **A** | Migración `20260620010000` **renombra** `Message.whatsappMsgId → externalMsgId` | El código viejo consulta `whatsappMsgId`; tras migrar, **rompe** | Desplegar código nuevo **junto** con la migración (misma ventana) |
 | **B** | Worker nuevo = `TenantManager`: levanta `Tenant` con `active=true` y **exige fila `TenantSettings`** por tenant | Sin `TenantSettings`, el bot lanza *"TenantSettings ausente"* y no conecta | Correr `scripts/backfill-tenant-settings.ts` **antes** de arrancar el worker |
-| **C** | API aplica enforcement `402` si el tenant no tiene suscripción activa | El panel del piloto quedaría bloqueado (no hay Stripe) | `BILLING_EXEMPT_TENANT_IDS=<tenantId piloto>` (rápido) **o** crear una `Subscription` real |
+| **C** | Enforcement de acceso según `ACCESS_MODE` | v1 corre en `ACCESS_MODE=approval` (default): **no hay 402 de Stripe**; la cuenta necesita `approvalStatus='approved'` — la migración `free_tier_approval` ya deja **approved** a los tenants existentes (piloto incluido). | Nada que hacer para el piloto. (Solo si activaras `ACCESS_MODE=subscription`: `BILLING_EXEMPT_TENANT_IDS=<tenantId>` o `Subscription` real.) |
 | **D** | Worker pasa de `TENANT_ID` a `SHARD_ID`/`SHARD_COUNT` | Sin shard env, no se define qué tenants posee | `SHARD_ID=0`, `SHARD_COUNT=1` (un solo shard para el piloto) |
 
 ---
@@ -85,8 +85,10 @@ docker compose run --rm api npx tsx scripts/backfill-tenant-settings.ts
 # 5) Set de env nuevas en el entorno del worker/api (puntos C y D):
 #    SHARD_ID=0
 #    SHARD_COUNT=1
-#    BILLING_EXEMPT_TENANT_IDS=<tenantId-del-piloto>
-#    (TENANT_ID del worker viejo ya no se usa; puedes quitarlo)
+#    ACCESS_MODE=approval            # default; explícito para dejarlo documentado
+#    FREE_MONTHLY_RUN_LIMIT=300      # límite global del plan gratuito (override por tenant en /admin)
+#    (TENANT_ID del worker viejo ya no se usa; puedes quitarlo.
+#     BILLING_EXEMPT_TENANT_IDS solo aplica si algún día vuelves a ACCESS_MODE=subscription.)
 
 # 6) Confirma el tenant activo
 docker compose run --rm api node -e "/* o psql */ SELECT id, active FROM \"Tenant\";"

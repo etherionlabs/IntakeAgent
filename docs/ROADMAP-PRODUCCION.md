@@ -1,9 +1,19 @@
 # Roadmap a producción — Intake SaaS
 
-**Fecha:** 2026-06-18
-**Estado:** Propuesta para aprobación
+**Fecha:** 2026-06-18 · **Re-alcance v1:** 2026-06-30
+**Estado:** Fases 1–6 implementadas; v1 de mercado re-alcanzada
 **Objetivo:** Llevar Intake de "MVP desplegable" a **producto vendible** (SaaS
 multi-tenant, self-service, con cobro recurrente) sin romper lo que ya funciona.
+
+> ⚠️ **Re-alcance de la v1 de mercado (2026-06-30, decisiones #11 y #12):**
+> la v1 sale **sin pagos**: plan **gratuito con límite de uso mensual**
+> (`FREE_MONTHLY_RUN_LIMIT`, override por tenant) y **aprobación manual de
+> cuentas** desde el panel `/admin` (`ACCESS_MODE=approval`). El signup sigue
+> siendo self-service, pero la cuenta no opera hasta que el operador la aprueba.
+> **Diferidos a la siguiente iteración:** Stripe (Fase 3, queda dormante e
+> intacta — se reactiva con `ACCESS_MODE=subscription`), API oficial de Meta,
+> y SMS + llamadas (Fase 8). Este documento conserva el plan completo original;
+> las secciones de billing y Fase 8 se leen como "siguiente iteración".
 
 ## Decisiones de negocio que guían este roadmap
 

@@ -12,7 +12,7 @@ export const testPrisma = new PrismaClient({ adapter });
 /** Tenant fijo usado por todos los tests que necesitan aislamiento. */
 export const TEST_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
-export async function seedTestTenant(): Promise<void> {
+export async function seedTestTenant(overrides: Record<string, unknown> = {}): Promise<void> {
   await testPrisma.tenant.upsert({
     where: { id: TEST_TENANT_ID },
     update: {},
@@ -22,6 +22,11 @@ export async function seedTestTenant(): Promise<void> {
       name: 'Test Tenant',
       industry: 'test',
       profileDir: './profiles/tapiceria',
+      // Espejo del backfill de la migración free_tier_approval: los tenants de
+      // test nacen aprobados (los de aprobación pendiente lo piden explícito).
+      approvalStatus: 'approved',
+      approvedAt: new Date(),
+      ...overrides,
     },
   });
 }

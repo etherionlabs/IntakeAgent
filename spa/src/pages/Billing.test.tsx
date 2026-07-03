@@ -1,9 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { vi, beforeEach, test, expect } from 'vitest';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
-  return { ...actual, api: { getBillingStatus: vi.fn(), startCheckout: vi.fn(), openBillingPortal: vi.fn() } };
+  return { ...actual, api: { getBillingStatus: vi.fn(), startCheckout: vi.fn(), openBillingPortal: vi.fn(), getUsage: vi.fn() } };
 });
 
 import { api } from '../api/client';
@@ -12,9 +13,17 @@ import Billing from './Billing';
 const mockStatus = api.getBillingStatus as unknown as ReturnType<typeof vi.fn>;
 const mockCheckout = api.startCheckout as unknown as ReturnType<typeof vi.fn>;
 const mockPortal = api.openBillingPortal as unknown as ReturnType<typeof vi.fn>;
+const mockUsage = api.getUsage as unknown as ReturnType<typeof vi.fn>;
+
+function renderBilling() {
+  return render(<MemoryRouter><Billing /></MemoryRouter>);
+}
 
 beforeEach(() => {
-  mockStatus.mockReset(); mockCheckout.mockReset(); mockPortal.mockReset();
+  mockStatus.mockReset(); mockCheckout.mockReset(); mockPortal.mockReset(); mockUsage.mockReset();
+  // Default: modo subscription (los tests del flujo Stripe siguen válidos; en v1
+  // el modo real es approval y se cubre en el test del plan gratuito).
+  mockUsage.mockResolvedValue({ mode: 'subscription', plan: null, totals: {}, recent: [] });
   // jsdom no implementa navegación; stub de window.location.href
   Object.defineProperty(window, 'location', { value: { href: '' }, writable: true });
 });
@@ -22,7 +31,7 @@ beforeEach(() => {
 test('sin suscripción muestra "Suscribirme" y redirige a Checkout', async () => {
   mockStatus.mockResolvedValue({ status: 'none', planName: null });
   mockCheckout.mockResolvedValue({ url: 'https://checkout/x' });
-  render(<Billing />);
+  renderBilling();
   const btn = await screen.findByRole('button', { name: /suscribirme/i });
   fireEvent.click(btn);
   await waitFor(() => expect(window.location.href).toBe('https://checkout/x'));
@@ -31,7 +40,7 @@ test('sin suscripción muestra "Suscribirme" y redirige a Checkout', async () =>
 test('con suscripción activa muestra estado y "Gestionar facturación"', async () => {
   mockStatus.mockResolvedValue({ status: 'active', planName: 'Plan Test', amountCents: 4900, currency: 'usd', interval: 'month' });
   mockPortal.mockResolvedValue({ url: 'https://portal/y' });
-  render(<Billing />);
+  renderBilling();
   expect(await screen.findByTestId('billing-status')).toHaveTextContent('Activa');
   fireEvent.click(screen.getByRole('button', { name: /gestionar facturación/i }));
   await waitFor(() => expect(window.location.href).toBe('https://portal/y'));
@@ -39,6 +48,19 @@ test('con suscripción activa muestra estado y "Gestionar facturación"', async 
 
 test('past_due muestra aviso de pago fallido', async () => {
   mockStatus.mockResolvedValue({ status: 'past_due', planName: 'Plan Test' });
-  render(<Billing />);
+  renderBilling();
   expect(await screen.findByRole('alert')).toHaveTextContent(/pago falló/i);
+});
+
+test('modo approval (v1): muestra el plan gratuito y NO ofrece checkout', async () => {
+  mockUsage.mockResolvedValue({
+    mode: 'approval',
+    plan: { name: 'Gratuito', monthlyLimit: 300, monthUsed: 12, monthRemaining: 288 },
+    totals: {}, recent: [],
+  });
+  mockStatus.mockResolvedValue({ status: 'none', planName: null });
+  renderBilling();
+  expect(await screen.findByTestId('billing-status')).toHaveTextContent('Gratuito');
+  expect(screen.getByText(/300/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /suscribirme/i })).toBeNull();
 });

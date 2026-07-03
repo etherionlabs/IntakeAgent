@@ -8,6 +8,7 @@ import { resolveJobForMessage } from './resolveJob';
 import { InboundDebouncer } from './debouncer';
 import { parseJobIntake } from '../services/job';
 import { runAgentTurn } from '../agent/runner';
+import { checkMonthlyLimit, notifyLimitOnce } from './usageLimit';
 import { logger } from '../lib/logger';
 import { incMessage } from '../lib/metrics';
 import { captureError } from '../lib/observability';
@@ -170,6 +171,16 @@ export class InboundCoordinator {
     if (!jobId) return;
     const job = await this.deps.prisma.job.findFirst({ where: { id: jobId, tenantId } });
     if (!job) return;
+
+    // Plan gratuito (v1): si el tenant agotó sus respuestas del mes, no corre el
+    // agente (ni describer). El mensaje ya quedó registrado en handleInbound; se
+    // avisa al dueño una sola vez por mes.
+    const usage = await checkMonthlyLimit(this.deps.prisma, tenantId, this.deps.now());
+    if (usage.limited && usage.limit !== null) {
+      logger.info({ tenantId, used: usage.used, limit: usage.limit }, 'inbound.usage_limit_reached');
+      await notifyLimitOnce(this.deps.prisma, tenantId, job.id, this.deps.notifier, { used: usage.used, limit: usage.limit }, this.deps.now());
+      return;
+    }
 
     const allOpen = await this.deps.prisma.job.findMany({
       where: {

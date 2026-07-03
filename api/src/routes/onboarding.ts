@@ -1,22 +1,41 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrisma } from '../db';
+import { accessMode, type AccessMode } from '../env';
 
 type Onboarding = {
   businessDone?: boolean; welcomeDone?: boolean; schemaDone?: boolean;
   whatsappLinked?: boolean; testDone?: boolean; completed?: boolean;
 };
 
-/** Deriva el primer paso pendiente del estado en servidor (reanudabilidad). */
-export function deriveStep(tenantStatus: string, subStatus: string | null, ob: Onboarding | null): string {
-  const subOk = subStatus === 'trialing' || subStatus === 'active';
+/**
+ * Deriva el primer paso pendiente del estado en servidor (reanudabilidad).
+ * Modo 'approval' (v1 free): no hay paso de suscripción; el cliente configura su
+ * negocio de inmediato, pero antes de vincular WhatsApp la cuenta debe estar
+ * aprobada por el operador → paso 'awaiting_approval'.
+ * Modo 'subscription' (dormante): flujo Fase 4 original con paso 'subscription'.
+ */
+export function deriveStep(
+  tenantStatus: string,
+  subStatus: string | null,
+  ob: Onboarding | null,
+  opts: { mode?: AccessMode; approvalStatus?: string } = {},
+): string {
+  const mode = opts.mode ?? 'subscription';
   if (tenantStatus === 'pending_verification') return 'verify_email';
-  if (tenantStatus === 'verified') return subOk ? 'provisioning' : 'subscription';
+  if (tenantStatus === 'verified') {
+    if (mode === 'approval') return 'provisioning';
+    const subOk = subStatus === 'trialing' || subStatus === 'active';
+    return subOk ? 'provisioning' : 'subscription';
+  }
   if (tenantStatus === 'provisioning') return 'provisioning';
   // active
   if (!ob?.businessDone) return 'business';
   if (!ob?.welcomeDone) return 'welcome';
   if (!ob?.schemaDone) return 'schema';
+  // La compuerta de aprobación va DESPUÉS de la config (el cliente deja todo
+  // listo) y ANTES de vincular el bot (nada opera sin tu visto bueno).
+  if (mode === 'approval' && opts.approvalStatus !== 'approved') return 'awaiting_approval';
   if (!ob?.whatsappLinked) return 'whatsapp';
   if (!ob?.testDone) return 'test';
   if (!ob?.completed) return 'checklist';
@@ -46,7 +65,12 @@ export async function onboardingRoutes(app: FastifyInstance) {
     const ob = (tenant?.onboarding as Onboarding | null) ?? null;
     const tenantStatus = tenant?.status ?? 'pending_verification';
     const subStatus = tenant?.subscription?.status ?? null;
-    return { step: deriveStep(tenantStatus, subStatus, ob), tenantStatus, subStatus, flags: ob ?? {} };
+    const mode = accessMode();
+    const approvalStatus = tenant?.approvalStatus ?? 'pending';
+    return {
+      step: deriveStep(tenantStatus, subStatus, ob, { mode, approvalStatus }),
+      tenantStatus, subStatus, mode, approvalStatus, flags: ob ?? {},
+    };
   });
 
   app.patch('/onboarding/business', { preHandler: app.authenticate }, async (request: any, reply) => {

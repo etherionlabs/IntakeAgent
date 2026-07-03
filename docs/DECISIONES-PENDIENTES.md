@@ -4,7 +4,7 @@ Las decisiones **tomadas** son autoritativas para specs, planes e implementació
 Las **pendientes** son de negocio y se irán cerrando; varias no bloquean código
 (quedan parametrizadas por configuración).
 
-Última actualización: 2026-06-19.
+Última actualización: 2026-06-30.
 
 ---
 
@@ -17,7 +17,9 @@ Las **pendientes** son de negocio y se irán cerrando; varias no bloquean códig
 | 3 | Trial de la suscripción | **Trial corto con tarjeta requerida** | Cada trial tiene costo marginal real (bot + OpenRouter) y es blanco de abuso si es público y gratis; la tarjeta filtra fraude y mejora conversión. | Fases 3, 4 |
 | 7 | Email transaccional | **Resend** | Simplicidad de integración para verificación/recuperación/avisos. | Fases 1, 4, 6 |
 | 8 | Error tracking / observabilidad | **Sentry** | Rastreo en API, worker y SPA con `tenantId`. | Fase 5 |
-| 10 | WhatsApp a escala *(dirección estratégica)* | **Adelantar evaluación de la API oficial de WhatsApp Business Cloud** | Baileys (no oficial) es el verdadero cuello de botella del self-service a escala: sesión con estado, riesgo de baneo, sockets por proceso. La API oficial es *stateless* y provisionable por API. No bloquea el lanzamiento; se evalúa como canal en paralelo antes de crecer. | Fase 2 (diseño), deuda |
+| 10 | WhatsApp a escala *(dirección estratégica)* | **Adelantar evaluación de la API oficial de WhatsApp Business Cloud** | Baileys (no oficial) es el verdadero cuello de botella del self-service a escala: sesión con estado, riesgo de baneo, sockets por proceso. La API oficial es *stateless* y provisionable por API. No bloquea el lanzamiento; se evalúa como canal en paralelo antes de crecer. **Re-alcance 2026-06-30: se pospone a la siguiente iteración** (ver #11). | Fase 2 (diseño), deuda |
+| 11 | **Alcance de la v1 de mercado** *(re-alcance 2026-06-30)* | **Plan gratuito con límite de uso mensual + aprobación manual de cuentas** (`ACCESS_MODE=approval`). Sin pagos en v1. | Salir al mercado sin fricción de cobro ni riesgo de abuso: el signup sigue siendo self-service, pero **la cuenta no opera hasta que el operador la aprueba desde `/admin`**; el consumo queda acotado por un límite mensual de respuestas del bot (global por env + override por tenant). El billing de Stripe (Fase 3) queda **dormante e intacto**: se reactiva con `ACCESS_MODE=subscription` en la siguiente iteración. La decisión #3 (trial con tarjeta) queda diferida junto con Stripe. | Fases 3, 4, 5 (admin) |
+| 12 | **Diferidos a la siguiente iteración** *(re-alcance 2026-06-30)* | Pagos (Stripe), **API oficial de Meta**, **SMS y llamadas (Fase 8)** | v1 sale solo con WhatsApp vía Baileys. El código de billing y la capa de canal ya construidos se conservan sin borrar nada. | Fases 3, 8 |
 
 ---
 
@@ -25,8 +27,9 @@ Las **pendientes** son de negocio y se irán cerrando; varias no bloquean códig
 
 | # | Decisión | Recomendación | Bloquea | Nota |
 | --- | --- | --- | --- | --- |
-| 4 | Precio del plan: monto + intervalo | — | Fase 3 (config, **no** código) | Billing queda parametrizado por env; es un dato al configurar Stripe. |
-| 5 | Mercado/moneda/impuestos (Stripe Tax) | — | Fases 3 y 6 | Define configuración de Stripe y parte del marco legal. |
+| 4 | Precio del plan: monto + intervalo | — | ~~Fase 3~~ **Diferida** (re-alcance #11: v1 sin pagos) | Billing queda parametrizado por env; es un dato al configurar Stripe. |
+| 5 | Mercado/moneda/impuestos (Stripe Tax) | — | ~~Fases 3 y 6~~ **Diferida** (re-alcance #11) | Define configuración de Stripe y parte del marco legal. |
+| — | Límite mensual del plan gratuito (valor por defecto) | Propuesta: **300 respuestas del bot/mes** (`FREE_MONTHLY_RUN_LIMIT`) | Nada (parametrizado por env + override por tenant desde `/admin`) | Ajustable en caliente sin deploy. |
 | 6 | Jurisdicción legal + ¿asesoría externa? | — | Fase 6 | Los borradores legales ya tienen placeholders `[Jurisdicción]` listos para rellenar. |
 | 9 | Voz (Fase 8): ¿plan base o **add-on**? + país para grabación | Add-on de precio | Fase 8 (post-lanzamiento) | Puede esperar hasta acercarse a la Fase 8. |
 
