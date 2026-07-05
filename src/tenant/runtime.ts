@@ -160,9 +160,12 @@ export async function createTenantRuntime(tenantId: string, deps: RuntimeDeps): 
   const apiKey = process.env.OPENROUTER_API_KEY ?? '';
 
   const mediaStore = new FilesystemMediaStore(config.media.storeDir);
-  const transcriber: Transcriber = config.media.transcribeAudio && apiKey
+  // Instancias reales siempre que haya API key: los toggles del panel
+  // (TenantSettings.describeImages/transcribeAudio) se aplican POR TURNO en el
+  // coordinator vía reloadConfig, así encender/apagar no exige reiniciar el tenant.
+  const transcriber: Transcriber = apiKey
     ? new WhisperTranscriber(apiKey, config.media.whisperModel) : new NoopTranscriber();
-  const describer: Describer = config.media.describeImages && apiKey
+  const describer: Describer = apiKey
     ? new VisionDescriber(apiKey, config.media.visionModel) : new NoopDescriber();
 
   // Lazy getter para el socket (igual que main() hoy): el sender se crea antes que el adapter.
