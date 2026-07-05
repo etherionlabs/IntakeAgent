@@ -316,8 +316,15 @@ describe('InboundCoordinator', () => {
   });
 
   it('describeImages=false (recargado por turno) desactiva el describer aunque esté inyectado', async () => {
+    let describeCalls = 0;
+    const spyDescriber: import('../../src/media/describer').Describer = {
+      describe: async () => {
+        describeCalls += 1;
+        return 'NO debería usarse';
+      },
+    };
     const deps = await makeDeps({
-      describer: new ScriptedDescriber(['NO debería usarse']),
+      describer: spyDescriber,
       reloadConfig: async () => ({
         config: { ...config, media: { ...config.media, describeImages: false } },
         profile,
@@ -336,7 +343,13 @@ describe('InboundCoordinator', () => {
     await vi.runAllTimersAsync();
     await flushAsyncIO();
 
+    // El describer real nunca fue llamado.
+    expect(describeCalls).toBe(0);
+    // No se guardó descripción en la DB.
     const msg = await prisma.message.findFirst({ where: { externalMsgId: 'wa_img_off' } });
     expect(msg!.mediaDescription).toBeNull();
+    // El flush sí corrió (el agente respondió).
+    const sender = deps.sender as MemorySender;
+    expect(sender.sent.length).toBeGreaterThanOrEqual(1);
   });
 });

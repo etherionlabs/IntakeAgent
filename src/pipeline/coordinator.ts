@@ -225,10 +225,13 @@ export class InboundCoordinator {
     // El contexto incluye historial reciente + texto del batch actual para que
     // el describer sepa en qué fijarse. Cacheamos en Message.mediaDescription.
     // Gating por turno: el toggle del panel (TenantSettings.describeImages) llega
-    // vía la config recargada; con el toggle apagado degradamos a Noop aunque el
-    // runtime haya inyectado un describer real.
+    // vía la config recargada; con el toggle apagado:
+    //   1. El loop ensureDescription usa Noop → no se genera ni guarda descripción.
+    //   2. El agente recibe undefined → buildTools no añade reanalyze_image, ocultando
+    //      la herramienta al modelo para evitar que malgaste turnos llamándola.
+    const describerEnabled = config.media.describeImages;
     const describer =
-      config.media.describeImages ? (this.deps.describer ?? new NoopDescriber()) : new NoopDescriber();
+      describerEnabled ? (this.deps.describer ?? new NoopDescriber()) : new NoopDescriber();
     const describeBase = buildDescribeBaseContext(
       profile,
       recentHistory,
@@ -286,7 +289,9 @@ export class InboundCoordinator {
         notifier: this.deps.notifier,
         createAgent: this.deps.agentFactory,
         mediaStore: this.deps.mediaStore,
-        describer,
+        // Pasar undefined cuando el toggle está apagado: buildTools omite
+        // reanalyze_image y el agente no ve la herramienta.
+        describer: describerEnabled ? describer : undefined,
       },
     );
 
