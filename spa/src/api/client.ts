@@ -6,6 +6,8 @@ export class ApiError extends Error {
 
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
+let onPlatformUnauthorized: (() => void) | null = null;
+export function setPlatformUnauthorizedHandler(fn: () => void) { onPlatformUnauthorized = fn; }
 
 let onPaymentRequired: (() => void) | null = null;
 export function setPaymentRequiredHandler(fn: () => void) { onPaymentRequired = fn; }
@@ -39,6 +41,24 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (res.status === 401) { onUnauthorized?.(); throw new ApiError(401, 'no autorizado'); }
   // 402: suscripción inactiva. Solo lo emiten rutas de negocio (no /billing/*).
   if (res.status === 402) { onPaymentRequired?.(); throw new ApiError(402, 'suscripción inactiva'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `error ${res.status}`);
+  return data as T;
+}
+
+function getPlatformToken(): string | null { return localStorage.getItem('intake_platform_token'); }
+
+async function platformRequest<T>(method: string, path: string, body?: unknown, tokenOverride?: string | null): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = tokenOverride === undefined ? getPlatformToken() : tokenOverride;
+  if (token) headers.authorization = `Bearer ${token}`;
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) { onPlatformUnauthorized?.(); throw new ApiError(401, 'no autorizado'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `error ${res.status}`);
   return data as T;
@@ -110,6 +130,54 @@ export const api = {
   updateMediaSettings: (payload: MediaSettings) =>
     request<{ ok: boolean; media: MediaSettings }>('PUT', '/settings/media', payload),
 };
+
+export const platformApi = {
+  login: (username: string, password: string) =>
+    platformRequest<{ token: string; user: PlatformUser }>('POST', '/platform/auth/login', { username, password }, null),
+  getTenants: () => platformRequest<{ tenants: PlatformTenant[] }>('GET', '/platform/tenants'),
+  createTenant: (payload: CreateTenantPayload) =>
+    platformRequest<{ tenant: PlatformTenant }>('POST', '/platform/tenants', payload),
+  getTenantUsers: (tenantId: string) =>
+    platformRequest<{ users: PlatformTenantUser[] }>('GET', `/platform/tenants/${tenantId}/users`),
+  createTenantUser: (tenantId: string, payload: CreateTenantUserPayload) =>
+    platformRequest<{ user: PlatformTenantUser }>('POST', `/platform/tenants/${tenantId}/users`, payload),
+};
+
+export interface PlatformUser {
+  id: string;
+  username: string;
+  role: 'superadmin';
+}
+
+export interface PlatformTenant {
+  id: string;
+  slug: string;
+  name: string;
+  industry: string;
+  profileDir: string;
+  createdAt: string;
+  _count?: { panelUsers: number; contacts: number; jobs: number };
+}
+
+export interface PlatformTenantUser {
+  id: string;
+  username: string;
+  role: 'admin' | 'viewer';
+  createdAt: string;
+}
+
+export interface CreateTenantPayload {
+  slug: string;
+  name: string;
+  industry: string;
+  profileDir: string;
+}
+
+export interface CreateTenantUserPayload {
+  username: string;
+  password: string;
+  role: 'admin' | 'viewer';
+}
 
 export interface AdminTenant {
   id: string; slug: string; name: string; industry: string;

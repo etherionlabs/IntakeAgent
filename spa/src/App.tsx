@@ -16,33 +16,46 @@ import Onboarding from './pages/Onboarding';
 import Admin from './pages/Admin';
 import Landing from './pages/Landing';
 import Legal from './pages/Legal';
+import { PlatformAuthProvider } from './auth/PlatformAuthContext';
+import PlatformProtectedRoute from './components/PlatformProtectedRoute';
+import PlatformLayout from './components/PlatformLayout';
+import PlatformLogin from './pages/PlatformLogin';
+import PlatformDashboard from './pages/PlatformDashboard';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/landing" element={<Landing />} />
-        <Route path="/terms" element={<Legal doc="terms" />} />
-        <Route path="/privacy" element={<Legal doc="privacy" />} />
-        <Route path="/dpa" element={<Legal doc="dpa" />} />
-        <Route path="/whatsapp-policy" element={<Legal doc="whatsapp_policy" />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/jobs/:id" element={<JobDetail />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/usage" element={<Usage />} />
-            <Route path="/whatsapp" element={<WhatsApp />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/admin" element={<Admin />} />
+    <PlatformAuthProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/platform/login" element={<PlatformLogin />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/landing" element={<Landing />} />
+          <Route path="/terms" element={<Legal doc="terms" />} />
+          <Route path="/privacy" element={<Legal doc="privacy" />} />
+          <Route path="/dpa" element={<Legal doc="dpa" />} />
+          <Route path="/whatsapp-policy" element={<Legal doc="whatsapp_policy" />} />
+          <Route element={<PlatformProtectedRoute />}>
+            <Route element={<PlatformLayout />}>
+              <Route path="/platform" element={<PlatformDashboard />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </AuthProvider>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route element={<Layout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/jobs/:id" element={<JobDetail />} />
+              <Route path="/contacts" element={<Contacts />} />
+              <Route path="/usage" element={<Usage />} />
+              <Route path="/whatsapp" element={<WhatsApp />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/admin" element={<Admin />} />
+            </Route>
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </PlatformAuthProvider>
   );
 }

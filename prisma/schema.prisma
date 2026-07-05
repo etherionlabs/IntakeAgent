@@ -125,6 +125,14 @@ model LegalAcceptance {
   @@index([tenantId])
 }
 
+model PlatformUser {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         String   // 'superadmin'
+  createdAt    DateTime @default(now())
+}
+
 model PanelUser {
   id           String   @id @default(uuid())
   tenantId     String

@@ -19,6 +19,7 @@ import { billingRoutes } from './routes/billing';
 import { onboardingRoutes } from './routes/onboarding';
 import { adminRoutes } from './routes/admin';
 import { tenantDataRoutes } from './routes/tenant-data';
+import { platformRoutes } from './routes/platform';
 import { provisionTenant, workerAddTenant } from './onboarding/provision';
 import { captureError } from '../../src/lib/observability';
 import { incHttp, renderMetrics } from '../../src/lib/metrics';
@@ -129,6 +130,10 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   app.decorate('authenticate', async (request: any, reply: any) => {
     try {
       await request.jwtVerify();
+      if (request.user.scope === 'platform' || !request.user.tenantId) {
+        reply.code(401).send({ error: 'unauthorized' });
+        return;
+      }
       request.tenantId = request.user.tenantId;
       request.authUser = request.user;
       // Invalidación por passwordChangedAt: un JWT con iat anterior al último
@@ -181,6 +186,19 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
     }
   });
 
+  app.decorate('authenticatePlatform', async (request: any, reply: any) => {
+    try {
+      await request.jwtVerify();
+      if (request.user.scope !== 'platform' || request.user.role !== 'superadmin') {
+        reply.code(401).send({ error: 'unauthorized' });
+        return;
+      }
+      request.platformUser = request.user;
+    } catch {
+      reply.code(401).send({ error: 'unauthorized' });
+    }
+  });
+
   app.get('/health', async (_request, reply) => {
     const started = Date.now();
     try {
@@ -227,6 +245,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(onboardingRoutes);
   await app.register(adminRoutes, { fetcher: opts.fetcher, emailSender: opts.emailSender });
   await app.register(tenantDataRoutes, { fetcher: opts.fetcher });
+  await app.register(platformRoutes);
 
   return app;
 }

@@ -55,6 +55,12 @@ a {
   cursor: pointer;
 }
 
+.platform-user {
+  flex: 1;
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
 .content {
   padding: 1.25rem;
 }
@@ -526,4 +532,50 @@ a {
 .settings-msg {
   font-size: 0.85rem;
   opacity: 0.8;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.platform .error {
+  color: #c0392b;
+}
+
+.platform-meta {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.platform-user-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  margin: 1rem 0;
+}
+
+.platform-user-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.platform-user-form input,
+.platform-user-form select {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+  font: inherit;
+}
+
+@media (max-width: 840px) {
+  .platform-grid,
+  .platform-user-form {
+    grid-template-columns: 1fr;
+  }
 }
