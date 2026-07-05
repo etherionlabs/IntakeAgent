@@ -352,4 +352,29 @@ describe('InboundCoordinator', () => {
     const sender = deps.sender as MemorySender;
     expect(sender.sent.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('transcribeAudio=false (recargado por turno) desactiva la transcripción', async () => {
+    const deps = await makeDeps({
+      transcriber: new ScriptedTranscriber(['transcripción que NO debería aplicarse']),
+      reloadConfig: async () => ({
+        config: { ...config, media: { ...config.media, transcribeAudio: false } },
+        profile,
+      }),
+    });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(
+      rawMsg({
+        externalMsgId: 'wa_audio_off',
+        kind: 'audio',
+        text: null,
+        media: { buffer: Buffer.from('fake-ogg'), mimetype: 'audio/ogg' },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    const msg = await prisma.message.findFirst({ where: { externalMsgId: 'wa_audio_off' } });
+    expect(msg!.body).toBeNull();
+  });
 });

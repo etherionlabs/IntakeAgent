@@ -18,6 +18,7 @@ import {
   ensureDescription,
 } from '../services/imageDescription';
 import { NoopDescriber } from '../media/describer';
+import { NoopTranscriber } from '../media/transcriber';
 
 export class InboundCoordinator {
   private readonly debouncer: InboundDebouncer;
@@ -78,7 +79,7 @@ export class InboundCoordinator {
       return;
     }
 
-    const { profile } = await this.current();
+    const { config, profile } = await this.current();
 
     const contactRes = await resolveContact(this.deps.prisma, tenantId, raw.fromPhoneE164);
 
@@ -94,7 +95,9 @@ export class InboundCoordinator {
       this.deps.prisma,
       tenantId,
       this.deps.mediaStore,
-      this.deps.transcriber,
+      // Gating por turno: el toggle del panel (TenantSettings.transcribeAudio)
+      // llega vía la config recargada.
+      config.media.transcribeAudio ? this.deps.transcriber : new NoopTranscriber(),
       raw,
       contactRes.contact.id,
     );
