@@ -47,15 +47,14 @@ export async function seedTenantSettingsFromTemplate(
     ownerPhoneE164: '', // se completa al vincular WhatsApp / en el wizard
     welcomeTemplate: welcome,
     intakeSchema: schema,
-    // Argumento de venta de la v1: el asistente entiende fotos y notas de voz.
-    // El límite mensual del plan gratuito ya acota el costo.
-    describeImages: true,
-    transcribeAudio: true,
   };
   await prisma.tenantSettings.upsert({
     where: { tenantId },
     update: data,
-    create: { tenantId, ...data },
+    // Los toggles de media solo en el CREATE: un re-seed no debe pisar lo que el
+    // tenant apagó desde el panel. Argumento de venta de la v1: el asistente
+    // entiende fotos y notas de voz; el límite mensual ya acota el costo.
+    create: { tenantId, ...data, describeImages: true, transcribeAudio: true },
   });
 }
 
