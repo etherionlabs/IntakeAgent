@@ -82,6 +82,12 @@ docker compose run --rm api npx prisma migrate deploy
 docker compose run --rm api npx tsx scripts/backfill-tenant-settings.ts
 #    Debe reportar "upserted: N" con N = nº de tenants del piloto.
 
+# 4b) Encender visión y transcripción para los tenants existentes (los nuevos ya
+#     nacen con true desde el onboarding; el backfill los crea con false):
+docker compose run --rm api npx prisma db execute --stdin <<'SQL'
+UPDATE "TenantSettings" SET "describeImages" = true, "transcribeAudio" = true;
+SQL
+
 # 5) Set de env nuevas en el entorno del worker/api (puntos C y D):
 #    SHARD_ID=0
 #    SHARD_COUNT=1
