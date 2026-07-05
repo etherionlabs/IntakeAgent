@@ -39,6 +39,15 @@ export function freeMonthlyRunLimit(): number {
   return Number.isFinite(n) && n > 0 ? n : 300;
 }
 
+// Secretos obligatorios al arrancar la API, según el modo de acceso. En la v1
+// gratuita (`approval`) Stripe está dormante, así que la API debe arrancar SIN
+// secretos de Stripe; solo se exigen al reactivar el billing (`subscription`).
+export function requiredBootSecrets(mode: AccessMode = accessMode()): string[] {
+  const secrets = ['JWT_SECRET'];
+  if (mode === 'subscription') secrets.push('STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET');
+  return secrets;
+}
+
 // --- Billing (Fase 3 — dormante en v1, se reactiva con ACCESS_MODE=subscription) ---
 // Base de la SPA para las URLs de retorno de Stripe (Checkout/Portal).
 export const SPA_URL = process.env.SPA_URL ?? process.env.CORS_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:5173';

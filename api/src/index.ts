@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { buildServer } from './server';
-import { PORT, requireEnv } from './env';
+import { PORT, requireEnv, requiredBootSecrets } from './env';
 import { disconnectPrisma } from './db';
 import { initErrorTracking } from '../../src/lib/observability';
 
@@ -11,9 +11,8 @@ const HOST = process.env.HOST ?? '0.0.0.0';
 async function main() {
   // Fail-fast de secretas al arrancar (no en el primer request). Los tests usan
   // buildServer directamente con un cliente Stripe mock, por lo que no pasan por aquí.
-  requireEnv('JWT_SECRET');
-  requireEnv('STRIPE_SECRET_KEY');
-  requireEnv('STRIPE_WEBHOOK_SECRET');
+  // En v1 free (ACCESS_MODE=approval) Stripe está dormante → no se exige.
+  for (const name of requiredBootSecrets()) requireEnv(name);
   await initErrorTracking({ service: 'api' });
   const app = await buildServer();
   await app.listen({ port: PORT, host: HOST });
