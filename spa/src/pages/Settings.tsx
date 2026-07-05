@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type ProfileSettings, type ConfigSettings, type BusinessFact } from '../api/client';
+import { api, type ProfileSettings, type ConfigSettings, type MediaSettings, type BusinessFact } from '../api/client';
 
 export default function Settings() {
   const [profile, setProfile] = useState<ProfileSettings | null>(null);
   const [config, setConfig] = useState<ConfigSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [media, setMedia] = useState<MediaSettings | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [savingMedia, setSavingMedia] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [configMsg, setConfigMsg] = useState<string | null>(null);
+  const [mediaMsg, setMediaMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -18,6 +21,7 @@ export default function Settings() {
       const data = await api.getSettings();
       setProfile(data.profile);
       setConfig(data.config);
+      setMedia(data.media);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'error al cargar configuración');
     } finally {
@@ -58,6 +62,21 @@ export default function Settings() {
       setSavingConfig(false);
     }
   }, [config]);
+
+  const saveMedia = useCallback(async () => {
+    if (!media) return;
+    setSavingMedia(true);
+    setMediaMsg(null);
+    try {
+      const data = await api.updateMediaSettings(media);
+      setMedia(data.media);
+      setMediaMsg('Guardado. Aplica en la siguiente conversación.');
+    } catch (err) {
+      setMediaMsg(err instanceof Error ? err.message : 'error al guardar');
+    } finally {
+      setSavingMedia(false);
+    }
+  }, [media]);
 
   if (loading) return <p>Cargando…</p>;
   if (error)
@@ -158,6 +177,35 @@ export default function Settings() {
           {profileMsg && <span className="settings-msg">{profileMsg}</span>}
         </div>
       </section>
+
+      {/* ---------- Imágenes y audio (por-tenant, TenantSettings) ---------- */}
+      {media && (
+        <section className="settings-section">
+          <h2>Imágenes y audio</h2>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={media.describeImages}
+              onChange={(e) => setMedia({ ...media, describeImages: e.target.checked })}
+            />
+            Describir las fotos del cliente (el asistente razona sobre ellas)
+          </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={media.transcribeAudio}
+              onChange={(e) => setMedia({ ...media, transcribeAudio: e.target.checked })}
+            />
+            Transcribir las notas de voz
+          </label>
+          <div className="settings-actions">
+            <button type="button" onClick={() => void saveMedia()} disabled={savingMedia}>
+              {savingMedia ? 'Guardando…' : 'Guardar imágenes y audio'}
+            </button>
+            {mediaMsg && <span className="settings-msg">{mediaMsg}</span>}
+          </div>
+        </section>
+      )}
 
       {/* ---------- Configuración del sistema ---------- */}
       <section className="settings-section">

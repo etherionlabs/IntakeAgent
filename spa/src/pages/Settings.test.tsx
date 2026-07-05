@@ -8,6 +8,7 @@ vi.mock('../api/client', () => ({
     getSettings: vi.fn(),
     updateProfileSettings: vi.fn(),
     updateConfigSettings: vi.fn(),
+    updateMediaSettings: vi.fn(),
   },
 }));
 
@@ -15,6 +16,7 @@ import { api } from '../api/client';
 const mockGet = api.getSettings as unknown as ReturnType<typeof vi.fn>;
 const mockUpdateProfile = api.updateProfileSettings as unknown as ReturnType<typeof vi.fn>;
 const mockUpdateConfig = api.updateConfigSettings as unknown as ReturnType<typeof vi.fn>;
+const mockUpdateMedia = api.updateMediaSettings as unknown as ReturnType<typeof vi.fn>;
 
 const PROFILE = {
   businessName: 'Tapicería Demo',
@@ -35,14 +37,17 @@ const CONFIG = {
   owner: { phoneE164: '+13058799511', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 };
+const MEDIA = { describeImages: false, transcribeAudio: true };
 
 beforeEach(() => {
   mockGet.mockReset();
   mockUpdateProfile.mockReset();
   mockUpdateConfig.mockReset();
-  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: structuredClone(CONFIG) });
+  mockUpdateMedia.mockReset();
+  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: structuredClone(CONFIG), media: { ...MEDIA } });
   mockUpdateProfile.mockResolvedValue({ ok: true, profile: structuredClone(PROFILE) });
   mockUpdateConfig.mockResolvedValue({ ok: true, config: structuredClone(CONFIG) });
+  mockUpdateMedia.mockResolvedValue({ ok: true, media: { describeImages: true, transcribeAudio: true } });
 });
 
 function renderSettings() {
@@ -76,4 +81,27 @@ test('editar el modelo y guardar llama a updateConfigSettings', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar sistema' }));
   await waitFor(() => expect(mockUpdateConfig).toHaveBeenCalledTimes(1));
   expect(mockUpdateConfig.mock.calls[0][0].model).toBe('openai/gpt-4o');
+});
+
+test('muestra los toggles de imágenes y audio', async () => {
+  renderSettings();
+  const img = await screen.findByLabelText(/Describir las fotos del cliente/);
+  expect(img).not.toBeChecked();
+  expect(screen.getByLabelText(/Transcribir las notas de voz/)).toBeChecked();
+});
+
+test('activar visión y guardar llama a updateMediaSettings', async () => {
+  renderSettings();
+  const img = await screen.findByLabelText(/Describir las fotos del cliente/);
+  fireEvent.click(img);
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar imágenes y audio' }));
+  await waitFor(() => expect(mockUpdateMedia).toHaveBeenCalledTimes(1));
+  expect(mockUpdateMedia.mock.calls[0][0]).toEqual({ describeImages: true, transcribeAudio: true });
+});
+
+test('sin fila de media (tenant legado) no muestra la sección', async () => {
+  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: structuredClone(CONFIG), media: null });
+  renderSettings();
+  await screen.findByDisplayValue('Tapicería Demo');
+  expect(screen.queryByText('Imágenes y audio')).not.toBeInTheDocument();
 });

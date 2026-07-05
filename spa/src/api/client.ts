@@ -102,11 +102,13 @@ export const api = {
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
-  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings }>('GET', '/settings'),
+  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings; media: MediaSettings | null }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
     request<{ ok: boolean; config: ConfigSettings }>('PUT', '/settings/config', payload),
+  updateMediaSettings: (payload: MediaSettings) =>
+    request<{ ok: boolean; media: MediaSettings }>('PUT', '/settings/media', payload),
 };
 
 export interface AdminTenant {
@@ -158,6 +160,11 @@ export interface ProfileSettings {
   welcome: string;
   vars: Record<string, string>;
   businessFacts: { facts: BusinessFact[]; freeContext: string };
+}
+
+export interface MediaSettings {
+  describeImages: boolean;
+  transcribeAudio: boolean;
 }
 
 export interface ConfigSettings {
