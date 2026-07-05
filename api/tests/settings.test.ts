@@ -172,4 +172,89 @@ describe('settings', () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  /** Crea la fila TenantSettings del tenant (los tenants provisionados siempre la tienen). */
+  async function seedTenantSettings(tenantId: string, over: Partial<{ describeImages: boolean; transcribeAudio: boolean }> = {}) {
+    await testPrisma.tenantSettings.create({
+      data: {
+        tenantId,
+        industry: 'tapiceria',
+        businessName: 'T',
+        businessDomain: 'tapicería de muebles',
+        ownerPhoneE164: '',
+        welcomeTemplate: 'hola',
+        intakeSchema: {},
+        describeImages: over.describeImages ?? false,
+        transcribeAudio: over.transcribeAudio ?? false,
+      },
+    });
+  }
+
+  it('GET /settings incluye media desde TenantSettings', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    await seedTenantSettings(tenantId, { describeImages: true });
+    await useTempConfig();
+    const res = await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false });
+  });
+
+  it('GET /settings sin fila TenantSettings → media null (tenant legado)', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    await useTempConfig();
+    const res = await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().media).toBeNull();
+  });
+
+  it('PUT /settings/media persiste los toggles en TenantSettings', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    await seedTenantSettings(tenantId);
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/settings/media',
+      headers: admin(tenantId, userId),
+      payload: { describeImages: true, transcribeAudio: true },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true });
+    const row = await testPrisma.tenantSettings.findUnique({ where: { tenantId } });
+    expect(row!.describeImages).toBe(true);
+    expect(row!.transcribeAudio).toBe(true);
+  });
+
+  it('PUT /settings/media con payload inválido → 400', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    await seedTenantSettings(tenantId);
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/settings/media',
+      headers: admin(tenantId, userId),
+      payload: { describeImages: 'sí' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('PUT /settings/media con rol viewer → 403', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    await seedTenantSettings(tenantId);
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/settings/media',
+      headers: viewer(tenantId, userId),
+      payload: { describeImages: true, transcribeAudio: true },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('PUT /settings/media sin fila TenantSettings → 404', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/settings/media',
+      headers: admin(tenantId, userId),
+      payload: { describeImages: true, transcribeAudio: true },
+    });
+    expect(res.statusCode).toBe(404);
+  });
 });

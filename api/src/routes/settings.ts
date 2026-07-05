@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { getPrisma } from '../db';
 import { getTenantProfileDir, clearTenantProfileCache } from '../lib/tenant-profile';
 import {
@@ -20,6 +21,13 @@ function configPath(): string {
   return process.env.CONFIG_PATH ?? './config.json';
 }
 
+/** Toggles de media por-tenant (TenantSettings). Los modelos NO se exponen:
+ *  quedan null → default del operador (config.json). */
+const MediaSettingsInputZ = z.object({
+  describeImages: z.boolean(),
+  transcribeAudio: z.boolean(),
+});
+
 /** Solo los usuarios admin pueden modificar la configuración. */
 function requireAdmin(request: FastifyRequest, reply: FastifyReply): boolean {
   if (request.authUser?.role !== 'admin') {
@@ -35,11 +43,15 @@ export async function settingsRoutes(app: FastifyInstance) {
   app.get('/settings', { preHandler: app.authenticate }, async (request) => {
     const prisma = getPrisma();
     const profileDir = await getTenantProfileDir(request.tenantId);
-    const [profile, config] = await Promise.all([
+    const [profile, config, ts] = await Promise.all([
       readProfileSettings(prisma, request.tenantId, profileDir),
       readConfigSettings(prisma, configPath()),
+      prisma.tenantSettings.findUnique({
+        where: { tenantId: request.tenantId },
+        select: { describeImages: true, transcribeAudio: true },
+      }),
     ]);
-    return { profile, config };
+    return { profile, config, media: ts ?? null };
   });
 
   app.put('/settings/profile', { preHandler: app.authenticate }, async (request, reply) => {
@@ -74,5 +86,22 @@ export async function settingsRoutes(app: FastifyInstance) {
     }
     const config = await readConfigSettings(prisma, configPath());
     return { ok: true, config };
+  });
+
+  // Toggles de media por-tenant. Escriben directo a TenantSettings (patrón de
+  // onboarding); el worker los recoge en su siguiente turno vía reloadConfig.
+  app.put('/settings/media', { preHandler: app.authenticate }, async (request, reply) => {
+    if (!requireAdmin(request, reply)) return;
+    const parse = MediaSettingsInputZ.safeParse(request.body);
+    if (!parse.success) return reply.code(400).send({ error: parse.error.message });
+    const prisma = getPrisma();
+    const existing = await prisma.tenantSettings.findUnique({ where: { tenantId: request.tenantId } });
+    if (!existing) return reply.code(404).send({ error: 'TenantSettings ausente para este tenant' });
+    const row = await prisma.tenantSettings.update({
+      where: { tenantId: request.tenantId },
+      data: parse.data,
+      select: { describeImages: true, transcribeAudio: true },
+    });
+    return { ok: true, media: row };
   });
 }
