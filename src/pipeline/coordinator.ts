@@ -224,7 +224,11 @@ export class InboundCoordinator {
     // Describir (lazy) las imágenes del batch que aún no tengan descripción.
     // El contexto incluye historial reciente + texto del batch actual para que
     // el describer sepa en qué fijarse. Cacheamos en Message.mediaDescription.
-    const describer = this.deps.describer ?? new NoopDescriber();
+    // Gating por turno: el toggle del panel (TenantSettings.describeImages) llega
+    // vía la config recargada; con el toggle apagado degradamos a Noop aunque el
+    // runtime haya inyectado un describer real.
+    const describer =
+      config.media.describeImages ? (this.deps.describer ?? new NoopDescriber()) : new NoopDescriber();
     const describeBase = buildDescribeBaseContext(
       profile,
       recentHistory,

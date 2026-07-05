@@ -314,4 +314,29 @@ describe('InboundCoordinator', () => {
     await flushAsyncIO();
     expect(calls).toBe(1);
   });
+
+  it('describeImages=false (recargado por turno) desactiva el describer aunque esté inyectado', async () => {
+    const deps = await makeDeps({
+      describer: new ScriptedDescriber(['NO debería usarse']),
+      reloadConfig: async () => ({
+        config: { ...config, media: { ...config.media, describeImages: false } },
+        profile,
+      }),
+    });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(
+      rawMsg({
+        externalMsgId: 'wa_img_off',
+        kind: 'image',
+        text: 'mi sillón',
+        media: { buffer: Buffer.from('fake-jpeg'), mimetype: 'image/jpeg' },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    const msg = await prisma.message.findFirst({ where: { externalMsgId: 'wa_img_off' } });
+    expect(msg!.mediaDescription).toBeNull();
+  });
 });
