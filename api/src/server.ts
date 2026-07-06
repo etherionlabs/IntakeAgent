@@ -245,7 +245,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(onboardingRoutes);
   await app.register(adminRoutes, { fetcher: opts.fetcher, emailSender: opts.emailSender });
   await app.register(tenantDataRoutes, { fetcher: opts.fetcher });
-  await app.register(platformRoutes);
+  await app.register(platformRoutes, { fetcher: opts.fetcher, emailSender: opts.emailSender });
 
   return app;
 }

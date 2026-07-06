@@ -2,6 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { getPrisma } from '../db';
+import { startOfMonthUtc } from '../lib/dates';
+import { workerCall } from '../lib/worker-client';
+import { approveTenant, rejectTenant } from '../services/tenantApproval';
+import { getEmailSender, type EmailSender } from '../lib/email';
+import { freeMonthlyRunLimit } from '../env';
 
 const PlatformLoginZ = z.object({
   username: z.string().min(1),
@@ -26,7 +31,9 @@ const UpdateTenantUserZ = z.object({
   password: z.string().min(8).optional(),
 });
 
-export async function platformRoutes(app: FastifyInstance) {
+export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typeof fetch; emailSender?: EmailSender } = {}) {
+  const doFetch = opts.fetcher ?? fetch;
+  const emailSender = opts.emailSender ?? getEmailSender();
   app.post('/platform/auth/login', async (request, reply) => {
     const parse = PlatformLoginZ.safeParse(request.body);
     if (!parse.success) return reply.code(400).send({ error: 'username y password requeridos' });
@@ -48,19 +55,27 @@ export async function platformRoutes(app: FastifyInstance) {
 
   app.get('/platform/tenants', { preHandler: app.authenticatePlatform }, async () => {
     const prisma = getPrisma();
-    const tenants = await prisma.tenant.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        industry: true,
-        profileDir: true,
-        createdAt: true,
-        _count: { select: { panelUsers: true, contacts: true, jobs: true } },
-      },
-    });
-    return { tenants };
+    const [tenants, usage] = await Promise.all([
+      prisma.tenant.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          subscription: { select: { status: true, currentPeriodEnd: true } },
+          _count: { select: { panelUsers: true, contacts: true, jobs: true } },
+        },
+      }),
+      prisma.agentRun.groupBy({ by: ['tenantId'], where: { createdAt: { gte: startOfMonthUtc() } }, _count: { _all: true } }),
+    ]);
+    const used = new Map(usage.map((u) => [u.tenantId, u._count._all]));
+    return {
+      defaultMonthlyLimit: freeMonthlyRunLimit(),
+      tenants: tenants.map((t) => ({
+        id: t.id, slug: t.slug, name: t.name, industry: t.industry, profileDir: t.profileDir,
+        status: t.status, createdAt: t.createdAt, approvalStatus: t.approvalStatus, approvedAt: t.approvedAt,
+        monthlyRunLimit: t.monthlyRunLimit, monthUsed: used.get(t.id) ?? 0,
+        subscription: t.subscription?.status ?? null, currentPeriodEnd: t.subscription?.currentPeriodEnd ?? null,
+        _count: t._count,
+      })),
+    };
   });
 
   app.post('/platform/tenants', { preHandler: app.authenticatePlatform }, async (request, reply) => {
@@ -147,6 +162,58 @@ export async function platformRoutes(app: FastifyInstance) {
       prisma.passwordResetToken.deleteMany({ where: { userId } }),
       prisma.panelUser.delete({ where: { id: userId } }),
     ]);
+    return { ok: true };
+  });
+
+  async function audit(platformUserId: string, tenantId: string, action: string) {
+    await getPrisma().operatorAuditLog.create({ data: { operatorUserId: platformUserId, tenantId, action } });
+  }
+
+  app.post('/platform/tenants/:id/approve', { preHandler: app.authenticatePlatform }, async (request: any, reply) => {
+    const t = await approveTenant(getPrisma(), { doFetch, emailSender }, request.params.id);
+    if (!t) return reply.code(404).send({ error: 'tenant no encontrado' });
+    await audit(request.platformUser.userId, request.params.id, 'approve');
+    return { ok: true, approvalStatus: 'approved' };
+  });
+
+  app.post('/platform/tenants/:id/reject', { preHandler: app.authenticatePlatform }, async (request: any, reply) => {
+    const t = await rejectTenant(getPrisma(), { doFetch, emailSender }, request.params.id);
+    if (!t) return reply.code(404).send({ error: 'tenant no encontrado' });
+    await audit(request.platformUser.userId, request.params.id, 'reject');
+    return { ok: true, approvalStatus: 'rejected' };
+  });
+
+  app.patch('/platform/tenants/:id/limit', { preHandler: app.authenticatePlatform }, async (request: any, reply) => {
+    const raw = request.body?.monthlyRunLimit;
+    const monthlyRunLimit = raw === null ? null : Number(raw);
+    if (monthlyRunLimit !== null && (!Number.isInteger(monthlyRunLimit) || monthlyRunLimit < 0)) {
+      return reply.code(400).send({ error: 'monthlyRunLimit debe ser entero >= 0 o null' });
+    }
+    const prisma = getPrisma();
+    const tenant = await prisma.tenant.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!tenant) return reply.code(404).send({ error: 'tenant no encontrado' });
+    await prisma.tenant.update({ where: { id: request.params.id }, data: { monthlyRunLimit } });
+    await audit(request.platformUser.userId, request.params.id, 'set_limit');
+    return { ok: true, monthlyRunLimit };
+  });
+
+  app.post('/platform/tenants/:id/suspend', { preHandler: app.authenticatePlatform }, async (request: any) => {
+    await workerCall(doFetch, 'POST', request.params.id, '/internal/tenant/suspend');
+    await getPrisma().tenant.update({ where: { id: request.params.id }, data: { status: 'suspended' } });
+    await audit(request.platformUser.userId, request.params.id, 'suspend');
+    return { ok: true };
+  });
+
+  app.post('/platform/tenants/:id/reactivate', { preHandler: app.authenticatePlatform }, async (request: any) => {
+    await workerCall(doFetch, 'POST', request.params.id, '/internal/tenant/resume');
+    await getPrisma().tenant.update({ where: { id: request.params.id }, data: { status: 'active' } });
+    await audit(request.platformUser.userId, request.params.id, 'reactivate');
+    return { ok: true };
+  });
+
+  app.post('/platform/tenants/:id/bot/reconnect', { preHandler: app.authenticatePlatform }, async (request: any) => {
+    await workerCall(doFetch, 'POST', request.params.id, '/internal/wa-reconnect');
+    await audit(request.platformUser.userId, request.params.id, 'bot_reconnect');
     return { ok: true };
   });
 }

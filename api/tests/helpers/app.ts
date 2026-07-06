@@ -1,13 +1,14 @@
 import { buildServer } from '../../src/server';
 import { testPrisma, cleanupDb, seedTestTenant, seedTestPlan, TEST_TENANT_ID, TEST_PLAN_ID } from '../../../tests/helpers/db';
 import bcrypt from 'bcryptjs';
+import type { EmailSender } from '../../src/lib/email';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
 export const TEST_USER = { username: 'admin', email: 'admin@test.local', password: 'pw1234567890', role: 'admin' };
 export { testPrisma, cleanupDb, seedTestTenant, TEST_TENANT_ID };
 
-export async function buildTestApp() {
-  return buildServer({ jwtSecret: TEST_JWT_SECRET });
+export async function buildTestApp(opts: { fetcher?: typeof fetch; emailSender?: EmailSender } = {}) {
+  return buildServer({ jwtSecret: TEST_JWT_SECRET, fetcher: opts.fetcher, emailSender: opts.emailSender });
 }
 
 /**

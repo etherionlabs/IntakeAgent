@@ -24,6 +24,14 @@ async function seedTenantRow() {
   });
 }
 
+async function seedPendingTenant() {
+  const tenant = await testPrisma.tenant.create({
+    data: { slug: `s-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, name: 'N', industry: 'tapiceria', profileDir: './profiles/tapiceria', status: 'provisioning', approvalStatus: 'pending', active: false },
+  });
+  await testPrisma.panelUser.create({ data: { tenantId: tenant.id, username: 'd', email: `d-${Date.now()}@x.com`, passwordHash: 'x', role: 'admin' } });
+  return tenant;
+}
+
 describe('platform admin', () => {
   beforeEach(async () => {
     await cleanupDb();
@@ -139,5 +147,47 @@ describe('platform admin', () => {
     const res = await app.inject({ method: 'DELETE', url: `/platform/tenants/${tenant.id}/users/${created.id}`, headers });
     expect(res.statusCode).toBe(200);
     expect(await testPrisma.panelUser.count({ where: { id: created.id } })).toBe(0);
+  }, 20000);
+
+  it('aprobar cuenta desde el superadmin', async () => {
+    const fetcher = (async () => ({ ok: true, json: async () => ({ ok: true }) })) as any;
+    const app = await buildTestApp({ fetcher });
+    const headers = await platformHeader(app);
+    const tenant = await seedPendingTenant();
+    const res = await app.inject({ method: 'POST', url: `/platform/tenants/${tenant.id}/approve`, headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().approvalStatus).toBe('approved');
+    const after = await testPrisma.tenant.findUnique({ where: { id: tenant.id } });
+    expect(after!.active).toBe(true);
+    expect(await testPrisma.operatorAuditLog.count({ where: { tenantId: tenant.id, action: 'approve' } })).toBe(1);
+  }, 20000);
+
+  it('rechazar cuenta', async () => {
+    const fetcher = (async () => ({ ok: true, json: async () => ({}) })) as any;
+    const app = await buildTestApp({ fetcher });
+    const headers = await platformHeader(app);
+    const tenant = await seedPendingTenant();
+    const res = await app.inject({ method: 'POST', url: `/platform/tenants/${tenant.id}/reject`, headers });
+    expect(res.statusCode).toBe(200);
+    expect((await testPrisma.tenant.findUnique({ where: { id: tenant.id } }))!.approvalStatus).toBe('rejected');
+  }, 20000);
+
+  it('editar límite mensual', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    const tenant = await seedPendingTenant();
+    const res = await app.inject({ method: 'PATCH', url: `/platform/tenants/${tenant.id}/limit`, headers, payload: { monthlyRunLimit: 500 } });
+    expect(res.statusCode).toBe(200);
+    expect((await testPrisma.tenant.findUnique({ where: { id: tenant.id } }))!.monthlyRunLimit).toBe(500);
+  }, 20000);
+
+  it('GET /platform/tenants incluye approvalStatus y monthUsed', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    await seedPendingTenant();
+    const res = await app.inject({ method: 'GET', url: '/platform/tenants', headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().tenants[0]).toHaveProperty('approvalStatus');
+    expect(res.json().tenants[0]).toHaveProperty('monthUsed');
   }, 20000);
 });
