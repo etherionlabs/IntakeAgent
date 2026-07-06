@@ -19,11 +19,13 @@ export default function PlatformDashboard() {
     industry: '',
     profileDir: './profiles/tapiceria',
   });
-  const [userForm, setUserForm] = useState({
-    username: 'admin',
-    password: '',
-    role: 'admin' as 'admin' | 'viewer',
-  });
+  const [userForm, setUserForm] = useState({ username: 'dueno', email: '', password: '' });
+  // Modal de borrado: exige escribir el slug del tenant.
+  const [deleting, setDeleting] = useState<PlatformTenant | null>(null);
+  const [deleteSlug, setDeleteSlug] = useState('');
+  // Edición inline del dueño (email + reset de contraseña).
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editUserForm, setEditUserForm] = useState({ email: '', password: '' });
 
   const loadTenants = useCallback(async () => {
     setLoading(true);
@@ -60,6 +62,23 @@ export default function PlatformDashboard() {
     void loadUsers();
   }, [loadUsers]);
 
+  /** Ejecuta una acción de plataforma, muestra resultado y recarga tenants + usuarios. */
+  const act = useCallback(
+    async (fn: () => Promise<unknown>, okMsg = 'Listo.') => {
+      setError(null);
+      setMessage(null);
+      try {
+        await fn();
+        setMessage(okMsg);
+        await loadTenants();
+        await loadUsers();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'error en la acción');
+      }
+    },
+    [loadTenants, loadUsers],
+  );
+
   async function createTenant(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -82,13 +101,35 @@ export default function PlatformDashboard() {
     setMessage(null);
     try {
       const res = await platformApi.createTenantUser(selectedTenantId, userForm);
-      setMessage(`Usuario tenant creado: ${res.user.username}`);
-      setUserForm({ username: 'admin', password: '', role: 'admin' });
+      setMessage(`Dueño creado: ${res.user.email ?? res.user.username}`);
+      setUserForm({ username: 'dueno', email: '', password: '' });
       await loadUsers();
       await loadTenants();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'error al crear usuario');
+      setError(err instanceof ApiError ? err.message : 'error al crear dueño');
     }
+  }
+
+  async function confirmDelete() {
+    if (!deleting || deleteSlug !== deleting.slug) return;
+    const id = deleting.id;
+    await act(() => platformApi.deleteTenant(id, deleteSlug), 'Tenant eliminado.');
+    setDeleting(null);
+    setDeleteSlug('');
+  }
+
+  function startEditUser(user: PlatformTenantUser) {
+    setEditUserId(user.id);
+    setEditUserForm({ email: user.email ?? '', password: '' });
+  }
+
+  async function saveEditUser() {
+    if (!selectedTenantId || !editUserId) return;
+    const payload: { email?: string; password?: string } = {};
+    if (editUserForm.email) payload.email = editUserForm.email;
+    if (editUserForm.password) payload.password = editUserForm.password;
+    await act(() => platformApi.updateTenantUser(selectedTenantId, editUserId, payload), 'Dueño actualizado.');
+    setEditUserId(null);
   }
 
   const selectedTenant = tenants.find((t) => t.id === selectedTenantId) ?? null;
@@ -144,7 +185,8 @@ export default function PlatformDashboard() {
                 <tr>
                   <th>Slug</th>
                   <th>Nombre</th>
-                  <th>Usuarios</th>
+                  <th>Estado</th>
+                  <th>Uso mes</th>
                   <th></th>
                 </tr>
               </thead>
@@ -153,11 +195,19 @@ export default function PlatformDashboard() {
                   <tr key={tenant.id}>
                     <td>{tenant.slug}</td>
                     <td>{tenant.name}</td>
-                    <td>{tenant._count?.panelUsers ?? 0}</td>
-                    <td>
-                      <button type="button" onClick={() => setSelectedTenantId(tenant.id)}>
-                        Abrir
-                      </button>
+                    <td><span className={`badge badge-${tenant.approvalStatus}`}>{tenant.approvalStatus}</span></td>
+                    <td>{tenant.monthUsed}{tenant.monthlyRunLimit !== null ? ` / ${tenant.monthlyRunLimit}` : ''}</td>
+                    <td className="platform-actions">
+                      <button type="button" onClick={() => setSelectedTenantId(tenant.id)}>Abrir</button>
+                      {tenant.approvalStatus === 'pending' && (
+                        <>
+                          <button type="button" onClick={() => void act(() => platformApi.approveTenant(tenant.id), 'Aprobado.')}>Aprobar</button>
+                          <button type="button" onClick={() => void act(() => platformApi.rejectTenant(tenant.id), 'Rechazado.')}>Rechazar</button>
+                        </>
+                      )}
+                      <button type="button" onClick={() => void act(() => platformApi.suspendTenant(tenant.id), 'Suspendido.')}>Suspender</button>
+                      <button type="button" onClick={() => void act(() => platformApi.reactivateTenant(tenant.id), 'Reactivado.')}>Reactivar</button>
+                      <button type="button" onClick={() => { setDeleting(tenant); setDeleteSlug(''); }}>Eliminar</button>
                     </td>
                   </tr>
                 ))}
@@ -167,6 +217,24 @@ export default function PlatformDashboard() {
         </section>
       </section>
 
+      {deleting && (
+        <div className="platform-modal" role="dialog" aria-label="Confirmar eliminación">
+          <p>
+            Esto elimina <strong>{deleting.name}</strong> y todos sus datos de forma irreversible.
+            Escribe el slug <code>{deleting.slug}</code> para confirmar.
+          </p>
+          <input
+            placeholder={`escribe el slug (${deleting.slug})`}
+            value={deleteSlug}
+            onChange={(e) => setDeleteSlug(e.target.value)}
+          />
+          <button type="button" onClick={() => void confirmDelete()} disabled={deleteSlug !== deleting.slug}>
+            Confirmar
+          </button>
+          <button type="button" onClick={() => { setDeleting(null); setDeleteSlug(''); }}>Cancelar</button>
+        </div>
+      )}
+
       {selectedTenant && (
         <section className="settings-section">
           <h2>{selectedTenant.name}</h2>
@@ -175,52 +243,80 @@ export default function PlatformDashboard() {
           </p>
 
           <form className="platform-user-form" onSubmit={createTenantUser}>
+            <h3>Crear dueño</h3>
             <label>
               Usuario
               <input value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} />
             </label>
             <label>
-              Contrasena
+              Email
+              <input
+                type="email"
+                value={userForm.email}
+                onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+              />
+            </label>
+            <label>
+              Contraseña
               <input
                 type="password"
                 value={userForm.password}
                 onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
               />
             </label>
-            <label>
-              Rol
-              <select
-                value={userForm.role}
-                onChange={(e) => setUserForm({ ...userForm, role: e.target.value as 'admin' | 'viewer' })}
-              >
-                <option value="admin">admin</option>
-                <option value="viewer">viewer</option>
-              </select>
-            </label>
-            <button type="submit">Crear usuario</button>
+            <button type="submit">Crear dueño</button>
           </form>
 
           {tenantUsers.length === 0 ? (
-            <p>No hay usuarios tenant.</p>
+            <p>No hay usuarios.</p>
           ) : (
             <table className="usage-table">
               <thead>
                 <tr>
                   <th>Usuario</th>
-                  <th>Rol</th>
+                  <th>Email</th>
                   <th>Creado</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {tenantUsers.map((user) => (
                   <tr key={user.id}>
                     <td>{user.username}</td>
-                    <td>{user.role}</td>
+                    <td>{user.email ?? '—'}</td>
                     <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td className="platform-actions">
+                      <button type="button" onClick={() => startEditUser(user)}>Editar</button>
+                      <button type="button" onClick={() => void act(() => platformApi.deleteTenantUser(selectedTenant.id, user.id), 'Dueño eliminado.')}>Eliminar</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          )}
+
+          {editUserId && (
+            <div className="platform-edit-user">
+              <h3>Editar dueño</h3>
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                />
+              </label>
+              <label>
+                Nueva contraseña (opcional)
+                <input
+                  type="password"
+                  value={editUserForm.password}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
+                />
+              </label>
+              <button type="button" onClick={() => void saveEditUser()}>Guardar</button>
+              <button type="button" onClick={() => setEditUserId(null)}>Cancelar</button>
+            </div>
           )}
         </section>
       )}

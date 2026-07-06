@@ -13,7 +13,6 @@ import Billing from './pages/Billing';
 import Signup from './pages/Signup';
 import VerifyEmail from './pages/VerifyEmail';
 import Onboarding from './pages/Onboarding';
-import Admin from './pages/Admin';
 import Landing from './pages/Landing';
 import Legal from './pages/Legal';
 import { PlatformAuthProvider } from './auth/PlatformAuthContext';
@@ -51,7 +50,6 @@ export default function App() {
               <Route path="/whatsapp" element={<WhatsApp />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/billing" element={<Billing />} />
-              <Route path="/admin" element={<Admin />} />
             </Route>
           </Route>
         </Routes>

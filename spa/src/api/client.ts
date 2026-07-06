@@ -111,14 +111,6 @@ export const api = {
   onboardingFlag: (flag: { whatsappLinked?: boolean; testDone?: boolean }) =>
     request<{ ok: boolean }>('POST', '/onboarding/flag', flag),
   completeOnboarding: () => request<{ ok: boolean }>('POST', '/onboarding/complete'),
-  getAdminTenants: () => request<{ tenants: AdminTenant[] }>('GET', '/admin/tenants'),
-  adminSuspend: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/suspend`),
-  adminReactivate: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/reactivate`),
-  adminReconnect: (id: string) => request<{ ok: boolean }>('POST', `/admin/tenants/${id}/bot/reconnect`),
-  adminApprove: (id: string) => request<{ ok: boolean; approvalStatus: string }>('POST', `/admin/tenants/${id}/approve`),
-  adminReject: (id: string) => request<{ ok: boolean; approvalStatus: string }>('POST', `/admin/tenants/${id}/reject`),
-  adminSetLimit: (id: string, monthlyRunLimit: number | null) =>
-    request<{ ok: boolean; monthlyRunLimit: number | null }>('PATCH', `/admin/tenants/${id}/limit`, { monthlyRunLimit }),
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
@@ -141,6 +133,21 @@ export const platformApi = {
     platformRequest<{ users: PlatformTenantUser[] }>('GET', `/platform/tenants/${tenantId}/users`),
   createTenantUser: (tenantId: string, payload: CreateTenantUserPayload) =>
     platformRequest<{ user: PlatformTenantUser }>('POST', `/platform/tenants/${tenantId}/users`, payload),
+  updateTenant: (id: string, payload: { name?: string; industry?: string }) =>
+    platformRequest<{ ok: boolean; tenant: PlatformTenant }>('PATCH', `/platform/tenants/${id}`, payload),
+  deleteTenant: (id: string, confirmSlug: string) =>
+    platformRequest<{ ok: boolean }>('DELETE', `/platform/tenants/${id}`, { confirmSlug }),
+  approveTenant: (id: string) => platformRequest<{ ok: boolean; approvalStatus: string }>('POST', `/platform/tenants/${id}/approve`),
+  rejectTenant: (id: string) => platformRequest<{ ok: boolean; approvalStatus: string }>('POST', `/platform/tenants/${id}/reject`),
+  setLimit: (id: string, monthlyRunLimit: number | null) =>
+    platformRequest<{ ok: boolean; monthlyRunLimit: number | null }>('PATCH', `/platform/tenants/${id}/limit`, { monthlyRunLimit }),
+  suspendTenant: (id: string) => platformRequest<{ ok: boolean }>('POST', `/platform/tenants/${id}/suspend`),
+  reactivateTenant: (id: string) => platformRequest<{ ok: boolean }>('POST', `/platform/tenants/${id}/reactivate`),
+  reconnectBot: (id: string) => platformRequest<{ ok: boolean }>('POST', `/platform/tenants/${id}/bot/reconnect`),
+  updateTenantUser: (tenantId: string, userId: string, payload: { email?: string; password?: string }) =>
+    platformRequest<{ ok: boolean; user: PlatformTenantUser }>('PATCH', `/platform/tenants/${tenantId}/users/${userId}`, payload),
+  deleteTenantUser: (tenantId: string, userId: string) =>
+    platformRequest<{ ok: boolean }>('DELETE', `/platform/tenants/${tenantId}/users/${userId}`),
 };
 
 export interface PlatformUser {
@@ -156,13 +163,21 @@ export interface PlatformTenant {
   industry: string;
   profileDir: string;
   createdAt: string;
+  status: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  approvedAt: string | null;
+  monthlyRunLimit: number | null;
+  monthUsed: number;
+  subscription: string | null;
+  currentPeriodEnd?: string | null;
   _count?: { panelUsers: number; contacts: number; jobs: number };
 }
 
 export interface PlatformTenantUser {
   id: string;
   username: string;
-  role: 'admin' | 'viewer';
+  email: string | null;
+  role: string;
   createdAt: string;
 }
 
@@ -175,18 +190,8 @@ export interface CreateTenantPayload {
 
 export interface CreateTenantUserPayload {
   username: string;
+  email: string;
   password: string;
-  role: 'admin' | 'viewer';
-}
-
-export interface AdminTenant {
-  id: string; slug: string; name: string; industry: string;
-  status: string; createdAt: string;
-  approvalStatus: 'pending' | 'approved' | 'rejected';
-  approvedAt: string | null;
-  monthlyRunLimit: number | null;
-  monthUsed: number;
-  subscription: string | null; currentPeriodEnd: string | null;
 }
 
 export interface OnboardingState {
