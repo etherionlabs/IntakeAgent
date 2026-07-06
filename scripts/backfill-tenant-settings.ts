@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { pathToFileURL } from 'node:url';
 import type { PrismaClient } from '@prisma/client';
 import { getPrisma, disconnectPrisma } from '../src/storage/client';
 import { loadConfig, loadProfile } from '../src/config/loader';
@@ -50,7 +51,9 @@ async function main() {
   await disconnectPrisma();
 }
 
-// Ejecutar solo si se invoca directo (no al importarlo en tests).
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Ejecutar solo si se invoca directo (no al importarlo en tests). Comparación
+// robusta cross-plataforma: en Windows `file://${argv1}` no coincide con
+// import.meta.url (backslashes + file:///C:/…), por eso usamos pathToFileURL.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
