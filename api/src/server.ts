@@ -213,8 +213,8 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
 
   // Provisioning por defecto: siembra TenantSettings desde plantilla + alta en el
   // worker. Inyectable en tests para no pegarle al worker real.
-  // En modo approval el alta en el worker espera a la aprobación del operador:
-  // aquí solo se siembra la plantilla; /admin/tenants/:id/approve hace el add.
+  // En modo approval el alta en el worker espera a la aprobación del superadmin:
+  // aquí solo se siembra la plantilla; /platform/tenants/:id/approve hace el add.
   const provision = opts.provision ??
     ((tenantId: string) => provisionTenant(getPrisma(), tenantId, {
       addTenant: async (id: string) => {
