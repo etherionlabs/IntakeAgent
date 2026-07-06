@@ -17,7 +17,6 @@ import { waStatusRoutes } from './routes/wa-status';
 import { settingsRoutes } from './routes/settings';
 import { billingRoutes } from './routes/billing';
 import { onboardingRoutes } from './routes/onboarding';
-import { adminRoutes } from './routes/admin';
 import { tenantDataRoutes } from './routes/tenant-data';
 import { platformRoutes } from './routes/platform';
 import { provisionTenant, workerAddTenant } from './onboarding/provision';
@@ -148,12 +147,12 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
         return reply.code(401).send({ error: 'sesión expirada' });
       }
       // Enforcement de acceso en rutas de negocio. Exentas: /auth/*, /billing/*
-      // (para poder pagar), /onboarding/* (wizard pre-aprobación), /admin, /tenant/,
+      // (para poder pagar), /onboarding/* (wizard pre-aprobación), /tenant/,
       // /health y /usage (el cliente debe ver su consumo aunque esté pendiente).
-      // Modo 'approval' (v1): 403 hasta que el operador apruebe la cuenta.
+      // Modo 'approval' (v1): 403 hasta que el superadmin apruebe la cuenta.
       // Modo 'subscription' (Fase 3 dormante): 402 sin suscripción activa.
       const url = request.routeOptions?.url ?? '';
-      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/admin') && !url.startsWith('/tenant/') && !url.startsWith('/health') && !url.startsWith('/usage')) {
+      if (!url.startsWith('/auth') && !url.startsWith('/billing') && !url.startsWith('/onboarding') && !url.startsWith('/tenant/') && !url.startsWith('/health') && !url.startsWith('/usage')) {
         const prismaC = getPrisma();
         const [tenant, sub] = await Promise.all([
           prismaC.tenant.findUnique({
@@ -179,13 +178,6 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   });
 
   // Health enriquecido: estado de DB (SELECT 1) + versión + uptime. 503 si DB cae.
-  // Rol de plataforma: protege /admin/*. Un admin/viewer de tenant → 403.
-  app.decorate('requireOperator', async (request: any, reply: any) => {
-    if (request.authUser?.role !== 'operator') {
-      return reply.code(403).send({ error: 'operator_required' });
-    }
-  });
-
   app.decorate('authenticatePlatform', async (request: any, reply: any) => {
     try {
       await request.jwtVerify();
@@ -243,7 +235,6 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(settingsRoutes);
   await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher, provision });
   await app.register(onboardingRoutes);
-  await app.register(adminRoutes, { fetcher: opts.fetcher, emailSender: opts.emailSender });
   await app.register(tenantDataRoutes, { fetcher: opts.fetcher });
   await app.register(platformRoutes, { fetcher: opts.fetcher, emailSender: opts.emailSender });
 

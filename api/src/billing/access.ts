@@ -32,7 +32,7 @@ export type AccessDenial = 'pending_approval' | 'rejected' | 'suspended' | 'subs
 
 /**
  * Decisión de acceso según ACCESS_MODE (v1: 'approval').
- * Modo 'approval': la cuenta opera solo si el operador la aprobó desde /admin y
+ * Modo 'approval': la cuenta opera solo si el superadmin la aprobó desde el panel de plataforma y
  * no está suspendida. El límite mensual NO bloquea el panel (solo las respuestas
  * del bot, en el worker): el cliente debe poder ver su uso y sus datos.
  * Modo 'subscription': delega en isTenantActive (Stripe).

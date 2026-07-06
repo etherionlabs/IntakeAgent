@@ -2,7 +2,6 @@ import '@fastify/jwt';
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (request: any, reply: any) => Promise<void>;
-    requireOperator: (request: any, reply: any) => Promise<void>;
     authenticatePlatform: (request: any, reply: any) => Promise<void>;
   }
   interface FastifyRequest {

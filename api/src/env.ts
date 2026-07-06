@@ -27,13 +27,13 @@ export const CONFIG_PATH = process.env.CONFIG_PATH ?? './config.json';
 
 // --- Modo de acceso (v1 free vs suscripción) ---
 // 'approval' (default, v1): plan gratuito con límite mensual + aprobación manual
-// de cuentas desde /admin. 'subscription': reactiva el billing de Stripe (Fase 3).
+// de cuentas desde el panel superadmin. 'subscription': reactiva el billing de Stripe (Fase 3).
 export type AccessMode = 'approval' | 'subscription';
 export function accessMode(): AccessMode {
   return process.env.ACCESS_MODE === 'subscription' ? 'subscription' : 'approval';
 }
 // Límite mensual global de respuestas del bot en el plan gratuito.
-// Override por tenant en Tenant.monthlyRunLimit (editable desde /admin).
+// Override por tenant en Tenant.monthlyRunLimit (editable desde el panel superadmin).
 export function freeMonthlyRunLimit(): number {
   const n = Number(process.env.FREE_MONTHLY_RUN_LIMIT ?? 300);
   return Number.isFinite(n) && n > 0 ? n : 300;
