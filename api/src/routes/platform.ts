@@ -7,6 +7,7 @@ import { workerCall } from '../lib/worker-client';
 import { approveTenant, rejectTenant } from '../services/tenantApproval';
 import { getEmailSender, type EmailSender } from '../lib/email';
 import { freeMonthlyRunLimit } from '../env';
+import { hardDeleteTenant } from '../services/tenantDeletion';
 
 const PlatformLoginZ = z.object({
   username: z.string().min(1),
@@ -29,6 +30,11 @@ const CreateTenantUserZ = z.object({
 const UpdateTenantUserZ = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
+});
+
+const UpdateTenantZ = z.object({
+  name: z.string().min(1).optional(),
+  industry: z.string().min(1).optional(),
 });
 
 export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typeof fetch; emailSender?: EmailSender } = {}) {
@@ -215,5 +221,28 @@ export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typ
     await workerCall(doFetch, 'POST', request.params.id, '/internal/wa-reconnect');
     await audit(request.platformUser.userId, request.params.id, 'bot_reconnect');
     return { ok: true };
+  });
+
+  app.patch('/platform/tenants/:id', { preHandler: app.authenticatePlatform }, async (request: any, reply) => {
+    const parse = UpdateTenantZ.safeParse(request.body);
+    if (!parse.success) return reply.code(400).send({ error: 'datos invalidos' });
+    const prisma = getPrisma();
+    const tenant = await prisma.tenant.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!tenant) return reply.code(404).send({ error: 'tenant no encontrado' });
+    const updated = await prisma.tenant.update({ where: { id: request.params.id }, data: parse.data });
+    return { ok: true, tenant: { id: updated.id, slug: updated.slug, name: updated.name, industry: updated.industry } };
+  });
+
+  app.delete('/platform/tenants/:id', { preHandler: app.authenticatePlatform }, async (request: any, reply) => {
+    const prisma = getPrisma();
+    const tenant = await prisma.tenant.findUnique({ where: { id: request.params.id } });
+    if (!tenant) return reply.code(404).send({ error: 'tenant no encontrado' });
+    if ((request.body?.confirmSlug ?? '') !== tenant.slug) {
+      return reply.code(400).send({ error: 'confirmSlug no coincide con el slug del tenant' });
+    }
+    await audit(request.platformUser.userId, tenant.id, 'delete'); // antes de borrar; OperatorAuditLog sobrevive
+    await workerCall(doFetch, 'POST', tenant.id, '/internal/tenant/suspend');
+    const counts = await hardDeleteTenant(prisma, tenant.id);
+    return { ok: true, counts };
   });
 }

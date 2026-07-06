@@ -190,4 +190,33 @@ describe('platform admin', () => {
     expect(res.json().tenants[0]).toHaveProperty('approvalStatus');
     expect(res.json().tenants[0]).toHaveProperty('monthUsed');
   }, 20000);
+
+  it('editar nombre/industria del tenant', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    const tenant = await seedTenantRow();
+    const res = await app.inject({ method: 'PATCH', url: `/platform/tenants/${tenant.id}`, headers, payload: { name: 'Nuevo Nombre', industry: 'paqueteria' } });
+    expect(res.statusCode).toBe(200);
+    const after = await testPrisma.tenant.findUnique({ where: { id: tenant.id } });
+    expect(after!.name).toBe('Nuevo Nombre');
+    expect(after!.industry).toBe('paqueteria');
+  }, 20000);
+
+  it('eliminar tenant exige confirmSlug correcto', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    const tenant = await seedTenantRow();
+    const bad = await app.inject({ method: 'DELETE', url: `/platform/tenants/${tenant.id}`, headers, payload: { confirmSlug: 'otro' } });
+    expect(bad.statusCode).toBe(400);
+    const ok = await app.inject({ method: 'DELETE', url: `/platform/tenants/${tenant.id}`, headers, payload: { confirmSlug: tenant.slug } });
+    expect(ok.statusCode).toBe(200);
+    expect(await testPrisma.tenant.count({ where: { id: tenant.id } })).toBe(0);
+  }, 20000);
+
+  it('eliminar tenant inexistente → 404', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    const res = await app.inject({ method: 'DELETE', url: `/platform/tenants/no-existe`, headers, payload: { confirmSlug: 'x' } });
+    expect(res.statusCode).toBe(404);
+  }, 20000);
 });
