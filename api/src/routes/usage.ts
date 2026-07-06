@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { getPrisma } from '../db';
 import { accessMode, freeMonthlyRunLimit } from '../env';
-import { startOfMonthUtc } from './admin';
+import { startOfMonthUtc } from '../lib/dates';
 
 export async function usageRoutes(app: FastifyInstance) {
   app.get('/usage', { preHandler: app.authenticate }, async (request) => {
