@@ -8,6 +8,7 @@ import { approveTenant, rejectTenant } from '../services/tenantApproval';
 import { getEmailSender, type EmailSender } from '../lib/email';
 import { freeMonthlyRunLimit } from '../env';
 import { hardDeleteTenant } from '../services/tenantDeletion';
+import { seedTenantSettingsFromTemplate, type Industry } from '../onboarding/templates';
 
 const PlatformLoginZ = z.object({
   username: z.string().min(1),
@@ -89,13 +90,24 @@ export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typ
     if (!parse.success) return reply.code(400).send({ error: 'tenant invalido' });
 
     const prisma = getPrisma();
+    let tenant;
     try {
-      const tenant = await prisma.tenant.create({ data: parse.data });
-      return reply.code(201).send({ tenant });
+      // Alta directa por el superadmin: el tenant nace 'active' (no pasa por la
+      // verificación de email del self-service).
+      tenant = await prisma.tenant.create({ data: { ...parse.data, status: 'active' } });
     } catch (err: any) {
       if (err?.code === 'P2002') return reply.code(409).send({ error: 'slug ya existe' });
       throw err;
     }
+    // Sembrar TenantSettings desde la plantilla del giro. Sin esto el worker no
+    // puede levantar el tenant ("TenantSettings ausente") y acceder a él falla.
+    try {
+      await seedTenantSettingsFromTemplate(prisma, tenant.id, parse.data.industry as Industry, { businessName: parse.data.name });
+    } catch (seedErr) {
+      await prisma.tenant.delete({ where: { id: tenant.id } }).catch(() => {});
+      return reply.code(400).send({ error: `plantilla '${parse.data.industry}' no disponible` });
+    }
+    return reply.code(201).send({ tenant });
   });
 
   app.get('/platform/tenants/:tenantId/users', { preHandler: app.authenticatePlatform }, async (request, reply) => {

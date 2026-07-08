@@ -76,7 +76,7 @@ describe('platform admin', () => {
       method: 'POST',
       url: '/platform/tenants',
       headers,
-      payload: { slug: 'garage-demo', name: 'Garage Demo', industry: 'auto', profileDir: './profiles/tapiceria' },
+      payload: { slug: 'garage-demo', name: 'Garage Demo', industry: 'tapiceria', profileDir: './profiles/tapiceria' },
     });
     expect(tenantRes.statusCode).toBe(201);
 
@@ -94,6 +94,34 @@ describe('platform admin', () => {
     expect(listRes.statusCode).toBe(200);
     expect(listRes.json().tenants[0]).toMatchObject({ slug: 'garage-demo', _count: { panelUsers: 1 } });
   });
+
+  it('crear tenant siembra TenantSettings desde la plantilla y lo deja active', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    const res = await app.inject({
+      method: 'POST', url: '/platform/tenants', headers,
+      payload: { slug: `s-${Date.now()}`, name: 'Taller X', industry: 'mecanica', profileDir: './profiles/mecanica' },
+    });
+    expect(res.statusCode).toBe(201);
+    const id = res.json().tenant.id;
+    const settings = await testPrisma.tenantSettings.findUnique({ where: { tenantId: id } });
+    expect(settings).not.toBeNull();
+    expect(settings!.businessName).toBe('Taller X');
+    const t = await testPrisma.tenant.findUnique({ where: { id } });
+    expect(t!.status).toBe('active');
+  }, 20000);
+
+  it('crear tenant con giro sin plantilla → 400 (no deja tenant huérfano)', async () => {
+    const app = await buildTestApp();
+    const headers = await platformHeader(app);
+    const res = await app.inject({
+      method: 'POST', url: '/platform/tenants', headers,
+      payload: { slug: `s-${Date.now()}-x`, name: 'X', industry: 'giro-inexistente', profileDir: './profiles/giro-inexistente' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(await testPrisma.tenant.count({ where: { slug: { startsWith: 's-' } } })).toBeGreaterThanOrEqual(0);
+    expect(await testPrisma.tenant.findFirst({ where: { name: 'X' } })).toBeNull();
+  }, 20000);
 
   it('rechaza tokens de plataforma en endpoints tenant', async () => {
     const app = await buildTestApp();
