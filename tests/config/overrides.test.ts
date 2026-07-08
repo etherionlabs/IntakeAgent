@@ -71,7 +71,8 @@ describe('overrides DB (perfil/config compartidos entre API y worker)', () => {
     const cache = new ConfigCache(cfgPath, undefined, { prisma, tenantId: TEST_TENANT_ID });
     const first = await cache.refresh();
     expect(first.config.model).toBe('openai/gpt-4o-mini');
-    expect(first.profile.intakeSchema.$businessDomain).toContain('tapicería');
+    // El default de config.json es el perfil genérico (placeholder sin sustituir).
+    expect(first.profile.intakeSchema.$businessDomain).toBe('{{businessDomain}}');
 
     // La API guarda overrides mientras el worker sigue vivo.
     await writeConfigOverride(prisma, {
