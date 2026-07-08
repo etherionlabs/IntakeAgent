@@ -1,5 +1,5 @@
 {
-  "profile": "./profiles/tapiceria",
+  "profile": "./profiles/generico",
   "model": "openai/gpt-4o-mini",
   "maxSteps": 6,
   "temperature": 0.4,

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrisma } from '../db';
 import { accessMode, type AccessMode } from '../env';
+import { industryOptions } from '../onboarding/industries';
 
 type Onboarding = {
   businessDone?: boolean; welcomeDone?: boolean; schemaDone?: boolean;
@@ -49,6 +50,10 @@ const SchemaZ = z.object({ intakeSchema: z.unknown().optional() });
 
 export async function onboardingRoutes(app: FastifyInstance) {
   const prisma = getPrisma();
+
+  // Catálogo de giros para el dropdown del signup. Público (sin auth): se usa
+  // antes de tener cuenta. Fuente de verdad: onboarding/industries.ts.
+  app.get('/onboarding/industries', async () => ({ industries: industryOptions() }));
 
   async function setFlag(tenantId: string, patch: Onboarding) {
     const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { onboarding: true } });

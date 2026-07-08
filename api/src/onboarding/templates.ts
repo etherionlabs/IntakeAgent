@@ -1,13 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
 import { loadProfile } from '../../../src/config/loader';
+import { INDUSTRY_DOMAIN, INDUSTRIES, type Industry } from './industries';
 
-export type Industry = 'tapiceria' | 'paqueteria' | 'generico';
-
-const INDUSTRY_DOMAIN: Record<Industry, string> = {
-  tapiceria: 'tapicería de muebles',
-  paqueteria: 'paquetería y envíos',
-  generico: 'servicios',
-};
+// Re-export para compatibilidad con importadores existentes; la fuente de verdad
+// del catálogo es `industries.ts`.
+export { INDUSTRIES, type Industry };
 
 function subst(text: string, vars: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
@@ -57,5 +54,3 @@ export async function seedTenantSettingsFromTemplate(
     create: { tenantId, ...data, describeImages: true, transcribeAudio: true },
   });
 }
-
-export const INDUSTRIES: Industry[] = ['tapiceria', 'paqueteria', 'generico'];

@@ -17,7 +17,7 @@ export default function PlatformDashboard() {
     slug: '',
     name: '',
     industry: '',
-    profileDir: './profiles/tapiceria',
+    profileDir: './profiles/generico',
   });
   const [userForm, setUserForm] = useState({ username: 'dueno', email: '', password: '' });
   // Modal de borrado: exige escribir el slug del tenant.
@@ -86,7 +86,7 @@ export default function PlatformDashboard() {
     try {
       const res = await platformApi.createTenant(tenantForm);
       setMessage(`Tenant creado: ${res.tenant.slug}`);
-      setTenantForm({ slug: '', name: '', industry: '', profileDir: './profiles/tapiceria' });
+      setTenantForm({ slug: '', name: '', industry: '', profileDir: './profiles/generico' });
       await loadTenants();
       setSelectedTenantId(res.tenant.id);
     } catch (err) {
