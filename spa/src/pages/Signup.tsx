@@ -1,18 +1,27 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 
-const INDUSTRIES = [
+// Fallback si el catálogo del backend no responde. La lista completa llega de
+// GET /onboarding/industries (fuente de verdad en el servidor).
+const FALLBACK_INDUSTRIES = [
+  { value: 'generico', label: 'Otro / Servicios' },
   { value: 'tapiceria', label: 'Tapicería' },
   { value: 'paqueteria', label: 'Paquetería' },
-  { value: 'generico', label: 'Otro / Servicios' },
 ];
 
 export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [industry, setIndustry] = useState('tapiceria');
+  const [industries, setIndustries] = useState(FALLBACK_INDUSTRIES);
+  const [industry, setIndustry] = useState('generico');
+
+  useEffect(() => {
+    api.getIndustries()
+      .then((r) => { if (r.industries?.length) setIndustries(r.industries); })
+      .catch(() => {});
+  }, []);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedWhatsappRisk, setAcceptedWhatsappRisk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +66,7 @@ export default function Signup() {
       </label>
       <label>Giro
         <select value={industry} onChange={(e) => setIndustry(e.target.value)}>
-          {INDUSTRIES.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
+          {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
         </select>
       </label>
       <label className="checkbox">

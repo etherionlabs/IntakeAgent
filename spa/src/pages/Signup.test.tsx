@@ -4,7 +4,7 @@ import { vi, beforeEach, test, expect } from 'vitest';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
-  return { ...actual, api: { signup: vi.fn() } };
+  return { ...actual, api: { signup: vi.fn(), getIndustries: vi.fn().mockResolvedValue({ industries: [{ value: 'generico', label: 'Otro / Servicios' }] }) } };
 });
 
 import { api } from '../api/client';
@@ -28,5 +28,5 @@ test('submit válido muestra "revisa tu correo"', async () => {
   fireEvent.click(screen.getByLabelText(/riesgo del canal/i));
   fireEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
   expect(await screen.findByText(/revisa tu correo/i)).toBeInTheDocument();
-  expect(mockSignup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw1234567890', businessName: 'Mi Negocio', industry: 'tapiceria', acceptedTerms: true, acceptedWhatsappRisk: true });
+  expect(mockSignup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw1234567890', businessName: 'Mi Negocio', industry: 'generico', acceptedTerms: true, acceptedWhatsappRisk: true });
 });

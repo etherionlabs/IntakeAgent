@@ -111,6 +111,7 @@ export const api = {
   onboardingFlag: (flag: { whatsappLinked?: boolean; testDone?: boolean }) =>
     request<{ ok: boolean }>('POST', '/onboarding/flag', flag),
   completeOnboarding: () => request<{ ok: boolean }>('POST', '/onboarding/complete'),
+  getIndustries: () => request<{ industries: { value: string; label: string }[] }>('GET', '/onboarding/industries'),
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
