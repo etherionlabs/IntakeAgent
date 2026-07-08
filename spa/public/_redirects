@@ -1,1 +1,7 @@
+# Proxy del API en el mismo origen → la cookie de sesión es first-party (evita el
+# bloqueo de cookies de terceros netlify.app↔railway.app). DEBE ir antes del
+# catch-all del SPA. Este archivo (_redirects) tiene precedencia sobre netlify.toml.
+/api/*  https://intake-api-prod.up.railway.app/:splat  200
+
+# SPA fallback (client-side routing).
 /*  /index.html  200
