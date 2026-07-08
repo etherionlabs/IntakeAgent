@@ -6,6 +6,7 @@ vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
   return {
     ...actual,
+    api: { getIndustries: vi.fn().mockResolvedValue({ industries: [{ value: 'generico', label: 'Otro / Servicios' }, { value: 'mecanica', label: 'Mecánica automotriz' }] }) },
     platformApi: {
       getTenants: vi.fn(),
       getTenantUsers: vi.fn(),

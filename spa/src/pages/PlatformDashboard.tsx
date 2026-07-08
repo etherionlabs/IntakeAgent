@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   ApiError,
+  api,
   platformApi,
   type PlatformTenant,
   type PlatformTenantUser,
 } from '../api/client';
+
+// Fallback si el catálogo del backend no responde.
+const FALLBACK_TEMPLATES = [{ value: 'generico', label: 'Otro / Servicios' }];
 
 export default function PlatformDashboard() {
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
@@ -16,9 +20,10 @@ export default function PlatformDashboard() {
   const [tenantForm, setTenantForm] = useState({
     slug: '',
     name: '',
-    industry: '',
+    industry: 'generico',
     profileDir: './profiles/generico',
   });
+  const [templates, setTemplates] = useState(FALLBACK_TEMPLATES);
   const [userForm, setUserForm] = useState({ username: 'dueno', email: '', password: '' });
   // Modal de borrado: exige escribir el slug del tenant.
   const [deleting, setDeleting] = useState<PlatformTenant | null>(null);
@@ -58,6 +63,13 @@ export default function PlatformDashboard() {
     void loadTenants();
   }, [loadTenants]);
 
+  // Catálogo de plantillas/giros (público). Alimenta el selector del form.
+  useEffect(() => {
+    api.getIndustries()
+      .then((r) => { if (r.industries?.length) setTemplates(r.industries); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
@@ -86,7 +98,7 @@ export default function PlatformDashboard() {
     try {
       const res = await platformApi.createTenant(tenantForm);
       setMessage(`Tenant creado: ${res.tenant.slug}`);
-      setTenantForm({ slug: '', name: '', industry: '', profileDir: './profiles/generico' });
+      setTenantForm({ slug: '', name: '', industry: 'generico', profileDir: './profiles/generico' });
       await loadTenants();
       setSelectedTenantId(res.tenant.id);
     } catch (err) {
@@ -159,18 +171,13 @@ export default function PlatformDashboard() {
             <input value={tenantForm.name} onChange={(e) => setTenantForm({ ...tenantForm, name: e.target.value })} />
           </label>
           <label>
-            Industria
-            <input
+            Plantilla / Giro
+            <select
               value={tenantForm.industry}
-              onChange={(e) => setTenantForm({ ...tenantForm, industry: e.target.value })}
-            />
-          </label>
-          <label>
-            Perfil
-            <input
-              value={tenantForm.profileDir}
-              onChange={(e) => setTenantForm({ ...tenantForm, profileDir: e.target.value })}
-            />
+              onChange={(e) => setTenantForm({ ...tenantForm, industry: e.target.value, profileDir: `./profiles/${e.target.value}` })}
+            >
+              {templates.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
           </label>
           <button type="submit">Crear tenant</button>
         </form>
