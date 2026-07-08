@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}. Voy a tomarte los datos para que el plomero pueda atenderte lo antes posible. ¿Me dices tu nombre y cuál es el problema con la instalación hidráulica?

@@ -1,0 +1,8 @@
+{
+  "facts": [
+    { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda"], "answer": "Prestamos servicio a domicilio en la zona; al confirmar tu solicitud te indicamos cobertura." },
+    { "topic": "horarios", "aliases": ["a qué hora", "cuando atienden", "horario", "urgencias"], "answer": "Lunes a sábado de 8:00 a 19:00. Para fugas urgentes, consulta disponibilidad fuera de horario." },
+    { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo y transferencia bancaria. Materiales y mano de obra se presupuestan por separado." }
+  ],
+  "freeContext": "Servicio de plomería y fontanería a domicilio. Atendemos fugas, destapes, instalaciones nuevas, reparación de calentadores y tinaco. Trabajamos en casas, departamentos y locales comerciales."
+}

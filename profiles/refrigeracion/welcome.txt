@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}. Con gusto coordino la revisión de tu equipo. ¿Me dices tu nombre y qué falla tiene tu refrigerador o aire acondicionado?

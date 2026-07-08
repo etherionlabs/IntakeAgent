@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}. Con gusto te ayudo a coordinar el servicio. ¿Me dices tu nombre y qué necesitas — apertura, cambio de cerradura, copia de llave?

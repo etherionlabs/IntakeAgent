@@ -1,0 +1,35 @@
+{
+  "$businessName": "{{businessName}}",
+  "$businessDomain": "{{businessDomain}}",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "client",
+      "label": "Cliente",
+      "fields": [
+        { "key": "name", "label": "Nombre", "type": "string", "required": true },
+        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": true },
+        { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
+      ]
+    },
+    {
+      "key": "vehicle",
+      "label": "Vehículo",
+      "fields": [
+        { "key": "brand", "label": "Marca", "type": "string", "required": true, "hint": "Ej. Nissan, Toyota, Chevrolet, Ford" },
+        { "key": "model", "label": "Modelo", "type": "string", "required": true, "hint": "Ej. Sentra, Aveo, Ranger" },
+        { "key": "year", "label": "Año", "type": "integer", "required": true, "min": 1960 }
+      ]
+    },
+    {
+      "key": "work",
+      "label": "Servicio",
+      "fields": [
+        { "key": "service_type", "label": "Tipo de servicio", "type": "enum", "required": true, "options": ["diagnóstico", "reparación", "mantenimiento", "otro"] },
+        { "key": "symptom", "label": "Síntoma / falla", "type": "text", "required": true, "hint": "Ej. hace ruido al frenar, no arranca, luz de falla encendida" },
+        { "key": "photos", "label": "Fotos o video del problema", "type": "boolean", "required": false, "hint": "¿el cliente puede enviar fotos o video? si dice que no tiene o no quiere, declina este campo con update_intake declined=true para dejar de pedirlos" },
+        { "key": "tow_needed", "label": "¿Necesita grúa o recolección?", "type": "boolean", "required": false }
+      ]
+    }
+  ]
+}

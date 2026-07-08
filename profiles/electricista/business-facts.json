@@ -1,0 +1,8 @@
+{
+  "facts": [
+    { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda"], "answer": "Prestamos servicio a domicilio en la zona; al confirmar tu solicitud te indicamos cobertura." },
+    { "topic": "horarios", "aliases": ["a qué hora", "cuando atienden", "horario"], "answer": "Lunes a viernes de 8:00 a 18:00, sábados de 9:00 a 14:00." },
+    { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo y transferencia. Se entrega presupuesto por escrito antes de iniciar el trabajo." }
+  ],
+  "freeContext": "Servicio de electricidad residencial y comercial a domicilio. Instalaciones eléctricas, reparación de cortocircuitos, apagones parciales, revisión y cambio de tableros o centros de carga. Trabajo garantizado con materiales certificados."
+}

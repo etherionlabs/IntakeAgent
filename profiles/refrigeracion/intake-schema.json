@@ -1,0 +1,34 @@
+{
+  "$businessName": "{{businessName}}",
+  "$businessDomain": "{{businessDomain}}",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "client",
+      "label": "Cliente",
+      "fields": [
+        { "key": "name", "label": "Nombre", "type": "string", "required": true },
+        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": true },
+        { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
+      ]
+    },
+    {
+      "key": "work",
+      "label": "Equipo y servicio",
+      "fields": [
+        { "key": "equipment_type", "label": "Tipo de equipo", "type": "enum", "required": true, "options": ["refrigerador", "minisplit", "aire central", "cámara frigorífica", "otro"] },
+        { "key": "brand", "label": "Marca del equipo", "type": "string", "required": false, "hint": "Ej. Mabe, LG, Samsung, Carrier, Trane" },
+        { "key": "symptom", "label": "Síntoma / falla", "type": "text", "required": true, "hint": "Ej. no enfría, gotea agua, hace ruido fuerte, no enciende" },
+        { "key": "photos", "label": "Fotos del equipo", "type": "boolean", "required": false, "hint": "¿puede enviar fotos? si no puede o no quiere, declina con update_intake declined=true" }
+      ]
+    },
+    {
+      "key": "logistics",
+      "label": "Logística",
+      "fields": [
+        { "key": "address", "label": "Dirección", "type": "text", "required": false },
+        { "key": "desired_time", "label": "Horario preferido", "type": "string", "required": false }
+      ]
+    }
+  ]
+}

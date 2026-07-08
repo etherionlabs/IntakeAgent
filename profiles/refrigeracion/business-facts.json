@@ -1,0 +1,8 @@
+{
+  "facts": [
+    { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda"], "answer": "Prestamos servicio a domicilio y en taller; al confirmar te indicamos la opción más conveniente." },
+    { "topic": "horarios", "aliases": ["a qué hora", "cuando atienden", "horario"], "answer": "Lunes a sábado de 9:00 a 18:00." },
+    { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo y transferencia. El diagnóstico tiene un costo fijo que se descuenta si se realiza la reparación." }
+  ],
+  "freeContext": "Servicio técnico especializado en refrigeración y aire acondicionado. Reparamos refrigeradores, minisplits, equipos de aire central y cámaras frigoríficas de todas las marcas. Vendemos e instalamos equipos nuevos."
+}
