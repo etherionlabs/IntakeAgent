@@ -1,4 +1,7 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+// En producción (SPA desplegado) usamos SIEMPRE el proxy de mismo origen `/api`
+// (ver spa/public/_redirects) para que la cookie de sesión sea first-party y el
+// navegador no la bloquee como cookie de terceros. En dev, VITE_API_URL o localhost.
+const BASE = import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_URL ?? 'http://localhost:3001');
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
