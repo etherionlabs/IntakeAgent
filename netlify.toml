@@ -3,6 +3,21 @@
   command = "npm run build"
   publish = "dist"
 
+# El SPA llama al API en el MISMO origen (/api/*) y Netlify lo reenvía al API en
+# Railway. Así la cookie de sesión (SameSite=None) es first-party y el navegador
+# la conserva (si el SPA llamara a railway.app directo sería cookie de terceros,
+# que los navegadores bloquean → login en bucle).
+[build.environment]
+  VITE_API_URL = "/api"
+
+# Proxy del API. DEBE ir antes del catch-all del SPA (Netlify evalúa en orden).
+[[redirects]]
+  from = "/api/*"
+  to = "https://intake-api-prod.up.railway.app/:splat"
+  status = 200
+  force = true
+
+# SPA fallback.
 [[redirects]]
   from = "/*"
   to = "/index.html"
