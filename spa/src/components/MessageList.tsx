@@ -13,6 +13,15 @@ function formatTime(value?: string | null): string {
   return d.toLocaleString();
 }
 
+// Etiqueta amigable por tipo de mensaje (para que el dueño vea de un vistazo que
+// el bot recibió una foto/nota de voz, y el texto es lo que el asistente entendió).
+const KIND_TAG: Record<string, string> = {
+  image: '📷 Foto',
+  audio: '🎤 Nota de voz',
+  sticker: '💬 Sticker',
+  location: '📍 Ubicación',
+};
+
 export default function MessageList({ messages }: { messages: Message[] }) {
   if (!messages || messages.length === 0) {
     return <p className="messages-empty">No hay mensajes.</p>;
@@ -22,15 +31,17 @@ export default function MessageList({ messages }: { messages: Message[] }) {
     <ul className="message-list">
       {messages.map((m) => {
         const inbound = m.direction === 'inbound' || m.direction === 'IN';
-        const text = m.body ?? `(${m.kind ?? 'sin texto'})`;
+        const kind = m.kind ?? 'text';
+        const tag = KIND_TAG[kind];
+        const text = m.body ?? (tag ? '(sin descripción)' : '(sin texto)');
         return (
           <li
             key={m.id}
             className={`message message-${inbound ? 'inbound' : 'outbound'}`}
           >
+            {tag && <div className="message-kindtag">{tag}</div>}
             <div className="message-body">{text}</div>
             <div className="message-meta">
-              <span className="message-kind">{m.kind ?? ''}</span>
               <time className="message-time">{formatTime(m.createdAt)}</time>
             </div>
           </li>

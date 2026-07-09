@@ -88,13 +88,11 @@ export default function IntakeForm({
   }
 
   async function decline(path: string) {
-    const reason = window.prompt('Motivo (opcional):') ?? '';
     setStatus((s) => ({ ...s, [path]: { state: 'saving' } }));
     try {
       await api.patchIntake(jobId, {
         path,
         declined: true,
-        declined_reason: reason,
       });
       setStatus((s) => ({ ...s, [path]: { state: 'saved' } }));
       onChanged?.();

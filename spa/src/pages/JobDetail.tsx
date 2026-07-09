@@ -155,8 +155,13 @@ export default function JobDetail() {
               id="summary"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="Resumen del trabajo (mín. 20 caracteres)"
+              placeholder="Resumen del trabajo para tu registro (mín. 20 caracteres)"
             />
+            <span className={`char-counter${summary.length < 20 ? ' short' : ''}`}>
+              {summary.length < 20
+                ? `${20 - summary.length} caracteres más para poder marcar listo`
+                : `${summary.length} caracteres`}
+            </span>
             {actionError && (
               <p className="error" role="alert">
                 {actionError}
@@ -165,8 +170,9 @@ export default function JobDetail() {
             <div className="actions-buttons">
               <button
                 type="button"
+                className="btn-primary"
                 onClick={() => void runAction('mark_ready')}
-                disabled={actionBusy}
+                disabled={actionBusy || summary.length < 20}
               >
                 Marcar listo
               </button>

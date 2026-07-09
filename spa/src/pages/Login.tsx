@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 
@@ -48,9 +48,10 @@ export default function Login() {
         />
       </label>
       {error && <p role="alert" className="error">{error}</p>}
-      <button type="submit" disabled={pending}>
+      <button type="submit" className="btn-primary" disabled={pending}>
         {pending ? 'Entrando…' : 'Entrar'}
       </button>
+      <Link className="auth-alt" to="/forgot-password">¿Olvidaste tu contraseña?</Link>
     </form>
   );
 }
