@@ -1,26 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type UsagePlan } from '../api/client';
 
-type Totals = {
-  runs: number;
-  costUsd: number;
-  inputTokens: number;
-  outputTokens: number;
-};
+type Totals = { runs: number };
 
 type RecentRun = {
   id: string;
-  model: string;
-  costUsd: number;
-  inputTokens: number;
-  outputTokens: number;
   createdAt: string;
   error: string | null;
 };
-
-function fmtCost(n: number): string {
-  return `$${(Number(n) || 0).toFixed(4)}`;
-}
 
 function fmtNum(n: number): string {
   return (Number(n) || 0).toLocaleString();
@@ -57,6 +44,11 @@ export default function Usage() {
     void load();
   }, [load]);
 
+  const pct =
+    plan && plan.monthlyLimit
+      ? Math.min(100, Math.round((plan.monthUsed / plan.monthlyLimit) * 100))
+      : 0;
+
   return (
     <div className="usage">
       <div className="usage-head">
@@ -77,51 +69,39 @@ export default function Usage() {
         <div className="usage-plan" data-testid="usage-plan">
           <h2>Plan {plan.name}</h2>
           {plan.monthlyLimit !== null ? (
-            <p>
-              Respuestas del bot este mes: <strong>{fmtNum(plan.monthUsed)}</strong> de{' '}
-              <strong>{fmtNum(plan.monthlyLimit)}</strong>
+            <>
+              <div className="plan-big">
+                {fmtNum(plan.monthUsed)}{' '}
+                <span style={{ opacity: 0.8, fontSize: '1rem' }}>de {fmtNum(plan.monthlyLimit)}</span>
+              </div>
+              <div className="plan-sub">respuestas del bot este mes</div>
+              <div className="usage-meter">
+                <span style={{ width: `${pct}%` }} />
+              </div>
               {plan.monthRemaining === 0 && (
-                <span className="usage-error"> — límite alcanzado: el bot pausó las respuestas hasta el próximo mes.</span>
+                <div className="plan-warn">
+                  Límite alcanzado: el bot pausó las respuestas hasta el próximo mes.
+                </div>
               )}
-            </p>
+            </>
           ) : (
-            <p>Sin límite mensual.</p>
+            <>
+              <div className="plan-big">{fmtNum(totals?.runs ?? 0)}</div>
+              <div className="plan-sub">respuestas del bot este mes · sin límite</div>
+            </>
           )}
         </div>
       )}
 
-      {!loading && !error && totals && (
+      {!loading && !error && (
         <>
-          <div className="usage-cards">
-            <div className="usage-card">
-              <span className="usage-card-label">Ejecuciones</span>
-              <span className="usage-card-value">{fmtNum(totals.runs)}</span>
-            </div>
-            <div className="usage-card">
-              <span className="usage-card-label">Costo</span>
-              <span className="usage-card-value">{fmtCost(totals.costUsd)}</span>
-            </div>
-            <div className="usage-card">
-              <span className="usage-card-label">Tokens entrada</span>
-              <span className="usage-card-value">{fmtNum(totals.inputTokens)}</span>
-            </div>
-            <div className="usage-card">
-              <span className="usage-card-label">Tokens salida</span>
-              <span className="usage-card-value">{fmtNum(totals.outputTokens)}</span>
-            </div>
-          </div>
-
-          <h2 className="usage-recent-title">Ejecuciones recientes</h2>
+          <h2 className="usage-recent-title">Actividad reciente</h2>
           {recent.length === 0 ? (
-            <p>No hay ejecuciones todavía.</p>
+            <p>Aún no hay actividad. Cuando el bot responda a tus clientes, aquí verás el registro.</p>
           ) : (
             <table className="usage-table">
               <thead>
                 <tr>
-                  <th>Modelo</th>
-                  <th>Costo</th>
-                  <th>Entrada</th>
-                  <th>Salida</th>
                   <th>Fecha</th>
                   <th>Estado</th>
                 </tr>
@@ -129,18 +109,12 @@ export default function Usage() {
               <tbody>
                 {recent.map((run) => (
                   <tr key={run.id}>
-                    <td>{run.model}</td>
-                    <td>{fmtCost(run.costUsd)}</td>
-                    <td>{fmtNum(run.inputTokens)}</td>
-                    <td>{fmtNum(run.outputTokens)}</td>
                     <td>{fmtTime(run.createdAt)}</td>
                     <td>
                       {run.error ? (
-                        <span className="usage-error" title={run.error}>
-                          ⚠ error
-                        </span>
+                        <span className="usage-error" title={run.error}>⚠ error</span>
                       ) : (
-                        <span className="usage-ok">ok</span>
+                        <span className="usage-ok">✓ respondido</span>
                       )}
                     </td>
                   </tr>

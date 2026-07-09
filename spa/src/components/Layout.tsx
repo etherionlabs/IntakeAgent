@@ -7,11 +7,16 @@ export default function Layout() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [bizName, setBizName] = useState<string>('');
 
   useEffect(() => {
     // 402 en cualquier endpoint de negocio → la suscripción no está activa.
     setPaymentRequiredHandler(() => navigate('/billing'));
     api.getBillingStatus().then(setBilling).catch(() => {});
+    // Nombre del negocio para la barra superior (identidad de la sesión).
+    api.getProfile()
+      .then((p) => setBizName(String((p.intakeSchema as any)?.$businessName ?? '')))
+      .catch(() => {});
   }, [navigate]);
 
   async function handleLogout() {
@@ -19,17 +24,21 @@ export default function Layout() {
     navigate('/login');
   }
 
+  // La suscripción (Facturación) solo aplica en modo pago; en la v1 gratis no.
+  const showBilling = !!billing && billing.status !== 'none';
+
   return (
     <div className="layout">
       <header className="topbar">
         <span className="brand">Intake</span>
+        {bizName && <span className="brand-biz">{bizName}</span>}
         <nav className="nav">
-          <NavLink to="/" end>Jobs</NavLink>
+          <NavLink to="/" end>Trabajos</NavLink>
           <NavLink to="/contacts">Contactos</NavLink>
           <NavLink to="/usage">Uso</NavLink>
           <NavLink to="/whatsapp">WhatsApp</NavLink>
           <NavLink to="/settings">Configuración</NavLink>
-          <NavLink to="/billing">Facturación</NavLink>
+          {showBilling && <NavLink to="/billing">Facturación</NavLink>}
         </nav>
         <button type="button" className="logout" onClick={handleLogout}>
           Salir

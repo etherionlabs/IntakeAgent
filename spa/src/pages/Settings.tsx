@@ -40,7 +40,7 @@ export default function Settings() {
     try {
       const data = await api.updateProfileSettings(profile);
       setProfile(data.profile);
-      setProfileMsg('Guardado. Reinicia el worker para aplicar los cambios.');
+      setProfileMsg('Guardado. Se aplica en la próxima conversación.');
     } catch (err) {
       setProfileMsg(err instanceof Error ? err.message : 'error al guardar perfil');
     } finally {
@@ -55,7 +55,7 @@ export default function Settings() {
     try {
       const data = await api.updateConfigSettings(config);
       setConfig(data.config);
-      setConfigMsg('Guardado. Reinicia el worker para aplicar los cambios.');
+      setConfigMsg('Guardado. Se aplica en la próxima conversación.');
     } catch (err) {
       setConfigMsg(err instanceof Error ? err.message : 'error al guardar config');
     } finally {

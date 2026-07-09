@@ -12,6 +12,7 @@ vi.mock('../api/client', async () => {
       me: vi.fn().mockRejectedValue(new Error('no session')),
       logout: vi.fn().mockResolvedValue({ ok: true }),
       getBillingStatus: vi.fn().mockResolvedValue({ status: 'active', planName: 'Plan Test' }),
+      getProfile: vi.fn().mockResolvedValue({ intakeSchema: { $businessName: 'Negocio Test' } }),
     },
   };
 });
@@ -35,7 +36,7 @@ beforeEach(() => {
 
 test('renders the nav links', () => {
   renderLayout();
-  expect(screen.getByRole('link', { name: 'Jobs' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Trabajos' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Contactos' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Uso' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'WhatsApp' })).toBeInTheDocument();

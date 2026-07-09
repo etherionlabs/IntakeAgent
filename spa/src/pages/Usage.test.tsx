@@ -15,31 +15,25 @@ const mockGetUsage = api.getUsage as unknown as ReturnType<typeof vi.fn>;
 beforeEach(() => {
   mockGetUsage.mockReset();
   mockGetUsage.mockResolvedValue({
-    totals: { runs: 42, costUsd: 1.2345, inputTokens: 1000, outputTokens: 500 },
-    recent: [
-      {
-        id: 'r1',
-        model: 'gpt-test',
-        costUsd: 0.0012,
-        inputTokens: 120,
-        outputTokens: 60,
-        createdAt: '2026-06-14T10:00:00.000Z',
-        error: null,
-      },
-    ],
+    plan: { name: 'Gratuito', monthlyLimit: 300, monthUsed: 42, monthRemaining: 258 },
+    totals: { runs: 42 },
+    recent: [{ id: 'r1', createdAt: '2026-06-14T10:00:00.000Z', error: null }],
   });
 });
 
-test('renders totals from getUsage', async () => {
+test('muestra el plan (respuestas del mes) y la actividad reciente, sin jerga técnica', async () => {
   render(
     <MemoryRouter>
       <Usage />
     </MemoryRouter>,
   );
 
-  expect(await screen.findByText('42')).toBeInTheDocument();
-  expect(await screen.findByText('$1.2345')).toBeInTheDocument();
-  expect(await screen.findByText('gpt-test')).toBeInTheDocument();
+  const plan = await screen.findByTestId('usage-plan');
+  expect(plan).toHaveTextContent('Plan Gratuito');
+  expect(plan).toHaveTextContent('42');
+  expect(plan).toHaveTextContent('de 300');
+  expect(await screen.findByText('Actividad reciente')).toBeInTheDocument();
+  expect(screen.getByText(/respondido/i)).toBeInTheDocument();
 });
 
 test('muestra el plan gratuito con consumo y aviso de límite alcanzado', async () => {

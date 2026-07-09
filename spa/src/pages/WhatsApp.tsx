@@ -161,8 +161,8 @@ export default function WhatsApp() {
           {!status.connected && typeof status.qr === 'string' && status.qr && (
             <div className="wa-qr">
               <p className="wa-qr-note">
-                Escanea este codigo QR desde WhatsApp. La terminal del worker
-                tambien muestra un QR escaneable.
+                Abre WhatsApp en tu teléfono → Dispositivos vinculados → Vincular
+                un dispositivo, y escanea este código QR.
               </p>
               {qrImage ? (
                 <img src={qrImage} alt="Codigo QR para conectar WhatsApp" />
