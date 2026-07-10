@@ -118,7 +118,7 @@ export const api = {
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
-  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings; media: MediaSettings | null }>('GET', '/settings'),
+  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>

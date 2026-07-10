@@ -4,25 +4,12 @@ import { getPrisma } from '../db';
 import { getTenantProfileDir, clearTenantProfileCache } from '../lib/tenant-profile';
 import {
   readProfileSettings,
-  readConfigSettings,
   ProfileSettingsInputZ,
-  ConfigSettingsInputZ,
 } from '../lib/settings-io';
-import {
-  writeProfileOverride,
-  writeConfigOverride,
-} from '../../../src/config/overrides';
-
-/**
- * Ruta del config.json global. Se lee por-request (no como const cacheada) para
- * que los tests puedan apuntarla a un archivo temporal vía CONFIG_PATH.
- */
-function configPath(): string {
-  return process.env.CONFIG_PATH ?? './config.json';
-}
+import { writeProfileOverride } from '../../../src/config/overrides';
 
 /** Toggles de media por-tenant (TenantSettings). Los modelos NO se exponen:
- *  quedan null → default del operador (config.json). */
+ *  quedan null → default del deployment (config.json). */
 const MediaSettingsInputZ = z.object({
   describeImages: z.boolean(),
   transcribeAudio: z.boolean(),
@@ -38,20 +25,22 @@ function requireAdmin(request: FastifyRequest, reply: FastifyReply): boolean {
 }
 
 export async function settingsRoutes(app: FastifyInstance) {
-  // Lectura: perfil del negocio (por-tenant) + config del sistema (global).
-  // Devuelve los ajustes EFECTIVOS = archivos base + override guardado en DB.
+  // Lectura: SOLO el perfil del negocio (por-tenant) + toggles de media. El config
+  // del sistema es GLOBAL al deployment (modelo, temperatura, horario, teléfono del
+  // dueño del deployment) → NO se expone a los usuarios de tenant; va como null para
+  // que el panel oculte la sección "Sistema". Devuelve los ajustes EFECTIVOS
+  // (archivos base + override guardado en DB).
   app.get('/settings', { preHandler: app.authenticate }, async (request) => {
     const prisma = getPrisma();
     const profileDir = await getTenantProfileDir(request.tenantId);
-    const [profile, config, ts] = await Promise.all([
+    const [profile, ts] = await Promise.all([
       readProfileSettings(prisma, request.tenantId, profileDir),
-      readConfigSettings(prisma, configPath()),
       prisma.tenantSettings.findUnique({
         where: { tenantId: request.tenantId },
         select: { describeImages: true, transcribeAudio: true },
       }),
     ]);
-    return { profile, config, media: ts ?? null };
+    return { profile, config: null, media: ts ?? null };
   });
 
   app.put('/settings/profile', { preHandler: app.authenticate }, async (request, reply) => {
@@ -74,18 +63,12 @@ export async function settingsRoutes(app: FastifyInstance) {
     return { ok: true, profile };
   });
 
-  app.put('/settings/config', { preHandler: app.authenticate }, async (request, reply) => {
-    if (!requireAdmin(request, reply)) return;
-    const parse = ConfigSettingsInputZ.safeParse(request.body);
-    if (!parse.success) return reply.code(400).send({ error: parse.error.message });
-    const prisma = getPrisma();
-    try {
-      await writeConfigOverride(prisma, parse.data);
-    } catch (e) {
-      return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
-    }
-    const config = await readConfigSettings(prisma, configPath());
-    return { ok: true, config };
+  // El config del sistema es GLOBAL (afecta a TODOS los tenants del deployment) y
+  // NO editable desde el panel de un negocio: un admin de tenant lo tocaría para
+  // todos. Se rechaza siempre. Su default vive en config.json; si algún día se
+  // administra por UI, será desde el panel superadmin, no aquí.
+  app.put('/settings/config', { preHandler: app.authenticate }, async (_request, reply) => {
+    return reply.code(403).send({ error: 'la configuración del sistema es global y no se edita desde el panel del negocio' });
   });
 
   // Toggles de media por-tenant. Escriben directo a TenantSettings (patrón de

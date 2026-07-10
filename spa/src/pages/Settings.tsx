@@ -85,7 +85,7 @@ export default function Settings() {
         {error}
       </p>
     );
-  if (!profile || !config) return null;
+  if (!profile) return null;
 
   return (
     <div className="settings">
@@ -207,7 +207,10 @@ export default function Settings() {
         </section>
       )}
 
-      {/* ---------- Configuración del sistema ---------- */}
+      {/* ---------- Configuración del sistema (GLOBAL) — solo si el backend la
+             expone (config != null). Para usuarios de tenant llega null y no se
+             muestra: es global al deployment. ---------- */}
+      {config && (
       <section className="settings-section">
         <h2>Sistema</h2>
 
@@ -325,6 +328,7 @@ export default function Settings() {
           {configMsg && <span className="settings-msg">{configMsg}</span>}
         </div>
       </section>
+      )}
     </div>
   );
 

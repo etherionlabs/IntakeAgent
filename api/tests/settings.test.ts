@@ -57,7 +57,7 @@ describe('settings', () => {
     return { authorization: `Bearer ${token}` };
   }
 
-  it('GET /settings devuelve perfil + config', async () => {
+  it('GET /settings devuelve perfil pero config null (config global no se expone al tenant)', async () => {
     const { tenantId, userId } = await seedTenantWithTempProfile();
     await useTempConfig();
     const res = await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) });
@@ -66,8 +66,7 @@ describe('settings', () => {
     expect(body.profile.businessName).toBeTruthy();
     expect(body.profile.vars.tone).toBeTruthy();
     expect(Array.isArray(body.profile.businessFacts.facts)).toBe(true);
-    expect(body.config.model).toBeTruthy();
-    expect(typeof body.config.temperature).toBe('number');
+    expect(body.config).toBeNull();
   });
 
   it('GET /settings sin auth → 401', async () => {
@@ -134,43 +133,19 @@ describe('settings', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it('PUT /settings/config persiste el override editable en DB', async () => {
+  it('PUT /settings/config → 403 (config global, no editable desde el panel del tenant) y NO escribe el override', async () => {
     const { tenantId, userId } = await seedTenantWithTempProfile();
     await useTempConfig();
-    const current = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
-    const payload = {
-      ...current.config,
-      model: 'openai/gpt-4o',
-      temperature: 0.7,
-      limits: { ...current.config.limits, monthlyCostUsd: 99 },
-    };
-    const res = await app.inject({ method: 'PUT', url: '/settings/config', headers: admin(tenantId, userId), payload });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().config.model).toBe('openai/gpt-4o');
-
-    // Un GET posterior refleja los valores nuevos (lo que verá el worker).
-    const after = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
-    expect(after.config.model).toBe('openai/gpt-4o');
-    expect(after.config.temperature).toBe(0.7);
-    expect(after.config.limits.monthlyCostUsd).toBe(99);
-
-    // El override se guardó en la tabla Setting global.
-    const row = await testPrisma.setting.findUnique({ where: { key: 'config' } });
-    expect(row).not.toBeNull();
-    expect(JSON.parse(row!.value).model).toBe('openai/gpt-4o');
-  });
-
-  it('PUT /settings/config rechaza temperatura fuera de rango → 400', async () => {
-    const { tenantId, userId } = await seedTenantWithTempProfile();
-    await useTempConfig();
-    const current = (await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) })).json();
     const res = await app.inject({
       method: 'PUT',
       url: '/settings/config',
       headers: admin(tenantId, userId),
-      payload: { ...current.config, temperature: 5 },
+      payload: { model: 'openai/gpt-4o', temperature: 0.7, maxSteps: 6, hours: { enabled: false, timezone: 'x', schedule: {}, outOfHoursNotice: '' }, owner: { phoneE164: '+10000000000', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' }, limits: { monthlyCostUsd: 99, alertOnCostUsd: 40, maxConsecutiveErrors: 3 } },
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(403);
+    // No se creó/modificó el override global.
+    const row = await testPrisma.setting.findUnique({ where: { key: 'config' } });
+    expect(row).toBeNull();
   });
 
   /** Crea la fila TenantSettings del tenant (los tenants provisionados siempre la tienen). */

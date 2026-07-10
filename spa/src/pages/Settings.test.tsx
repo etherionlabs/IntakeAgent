@@ -105,3 +105,10 @@ test('sin fila de media (tenant legado) no muestra la sección', async () => {
   await screen.findByDisplayValue('Tapicería Demo');
   expect(screen.queryByText('Imágenes y audio')).not.toBeInTheDocument();
 });
+
+test('config null (global, no se expone al tenant) → NO muestra la sección Sistema', async () => {
+  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: null, media: { describeImages: false, transcribeAudio: true } });
+  renderSettings();
+  await screen.findByDisplayValue('Tapicería Demo');
+  expect(screen.queryByText('Sistema')).not.toBeInTheDocument();
+});
