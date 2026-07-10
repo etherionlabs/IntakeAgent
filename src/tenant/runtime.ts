@@ -43,15 +43,27 @@ const defaultBuildSource = (a: BuildSourceArgs): Source =>
     notifyOwner: a.notifyOwner,
   });
 
+/** Carga el perfil del giro del tenant (`profiles/<industry>`), con fallback al
+ *  perfil por defecto del deployment si ese giro no tiene plantilla. De aquí salen
+ *  businessFacts / promptVars (tono, reglas) / imageFocus, propios de cada oficio. */
+async function loadIndustryProfile(industry: string, fallbackDir: string): Promise<Profile> {
+  try {
+    return await loadProfile(`./profiles/${industry}`);
+  } catch {
+    return await loadProfile(fallbackDir);
+  }
+}
+
 /** Deriva la config efectiva del tenant: global config.json + overrides de TenantSettings. */
-async function buildTenantConfig(prisma: PrismaClient, tenantId: string, configPath: string): Promise<{ config: Config; profile: Profile }> {
+export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, configPath: string): Promise<{ config: Config; profile: Profile }> {
   const settings = await prisma.tenantSettings.findUnique({ where: { tenantId } });
   if (!settings) throw new Error(`TenantSettings ausente para tenant ${tenantId}`);
 
   const base = await loadConfig(configPath);
-  // promptVars/businessFacts/imageFocus vienen del perfil por defecto del deployment
-  // (config.profile), NO de Tenant.profileDir. intakeSchema y welcome vienen del tenant.
-  const baseProfile = await loadProfile(base.profile);
+  // businessFacts / promptVars / imageFocus vienen del perfil del GIRO del tenant
+  // (profiles/<industry>), con fallback al perfil por defecto del deployment.
+  // intakeSchema y welcome vienen del tenant (TenantSettings, editable en el panel).
+  const baseProfile = await loadIndustryProfile(settings.industry, base.profile);
 
   const schemaResult = validateIntakeSchema(settings.intakeSchema);
   if (!schemaResult.ok) throw new Error(`intakeSchema inválido en TenantSettings de ${tenantId}: ${schemaResult.error}`);

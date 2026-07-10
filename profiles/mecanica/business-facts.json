@@ -2,7 +2,8 @@
   "facts": [
     { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda", "taller"], "answer": "Consulta nuestra dirección exacta con el equipo; te la compartimos al confirmar tu cita." },
     { "topic": "horarios", "aliases": ["a qué hora", "cuando abren", "horario"], "answer": "Lunes a viernes de 8:00 a 18:00, sábados de 9:00 a 14:00. Cerramos domingos y días festivos." },
-    { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo, transferencia bancaria y tarjeta de débito/crédito. Se solicita anticipo para refacciones especiales." }
+    { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo, transferencia bancaria y tarjeta de débito/crédito. Se solicita anticipo para refacciones especiales." },
+    { "topic": "precios", "aliases": ["cuánto cuesta", "costo", "precio", "cotización", "presupuesto", "cuánto sale", "cuánto me sale"], "answer": "El costo depende de la revisión del vehículo; con gusto te damos un estimado sin compromiso. El diagnóstico tiene un costo que se descuenta si realizas la reparación con nosotros." }
   ],
   "freeContext": "Taller mecánico automotriz especializado en diagnóstico, reparación y mantenimiento de automóviles particulares y camionetas. Trabajamos con vehículos de todas las marcas. Contamos con escáner para diagnóstico electrónico."
 }
