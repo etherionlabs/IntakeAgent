@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { loadConfig, loadProfile } from '../config/loader';
+import { loadConfig, loadProfile, applyProfileOverride } from '../config/loader';
+import { readProfileOverride } from '../config/overrides';
 import { validateIntakeSchema } from '../config/intake-schema';
 import type { Config, Profile } from '../config/schema';
 import { FilesystemMediaStore } from '../media/store';
@@ -62,8 +63,12 @@ export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, 
   const base = await loadConfig(configPath);
   // businessFacts / promptVars / imageFocus vienen del perfil del GIRO del tenant
   // (profiles/<industry>), con fallback al perfil por defecto del deployment.
-  // intakeSchema y welcome vienen del tenant (TenantSettings, editable en el panel).
-  const baseProfile = await loadIndustryProfile(settings.industry, base.profile);
+  const industryProfile = await loadIndustryProfile(settings.industry, base.profile);
+  // Override del panel (tabla Setting, per-tenant): si el dueño editó datos del
+  // negocio (facts, tono/vars, nombre/dominio, welcome) desde /settings, esos
+  // cambios GANAN sobre el archivo del giro. Así el bot usa lo que edita el dueño.
+  const profileOverride = await readProfileOverride(prisma, tenantId);
+  const baseProfile = profileOverride ? applyProfileOverride(industryProfile, profileOverride) : industryProfile;
 
   const schemaResult = validateIntakeSchema(settings.intakeSchema);
   if (!schemaResult.ok) throw new Error(`intakeSchema inválido en TenantSettings de ${tenantId}: ${schemaResult.error}`);
@@ -87,8 +92,10 @@ export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, 
   };
   const profile: Profile = {
     ...baseProfile,
+    // La estructura del intake (secciones/campos) es siempre la del tenant.
     intakeSchema: schemaResult.schema,
-    welcome: settings.welcomeTemplate,
+    // El welcome editado en el panel (override) gana; si no, el de TenantSettings.
+    welcome: profileOverride?.welcome ?? settings.welcomeTemplate,
   };
   return { config, profile };
 }
