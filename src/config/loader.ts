@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
@@ -70,6 +70,33 @@ export async function loadSkills(
     }
   }
   return out;
+}
+
+/** Metadatos de una skill del catálogo (sin las instrucciones completas). */
+export interface SkillInfo {
+  name: string;
+  title: string;
+  description: string;
+}
+
+/**
+ * Lista el catálogo de skills disponibles en `skillsDir` (para que el panel
+ * ofrezca un selector). Cada subdirectorio con un `skill.json` válido es una
+ * skill; los inválidos se omiten. Ordenado por nombre.
+ */
+export async function listSkillCatalog(skillsDir = './skills'): Promise<SkillInfo[]> {
+  const base = resolve(skillsDir);
+  let entries: string[];
+  try {
+    const dirents = await readdir(base, { withFileTypes: true });
+    entries = dirents.filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch {
+    return [];
+  }
+  const skills = await loadSkills(entries, skillsDir);
+  return skills
+    .map((s) => ({ name: s.name, title: s.title, description: s.description }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function loadProfile(profileDir: string, skillsDir = './skills'): Promise<Profile> {

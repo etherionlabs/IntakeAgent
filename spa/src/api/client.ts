@@ -118,7 +118,7 @@ export const api = {
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
-  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null }>('GET', '/settings'),
+  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null; availableSkills: SkillInfo[] }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
@@ -242,6 +242,16 @@ export interface ProfileSettings {
 export interface MediaSettings {
   describeImages: boolean;
   transcribeAudio: boolean;
+  editImages: boolean;
+  /** Nombres de las skills (técnicas) activas para este tenant. */
+  skills: string[];
+}
+
+/** Metadatos de una skill del catálogo disponible. */
+export interface SkillInfo {
+  name: string;
+  title: string;
+  description: string;
 }
 
 export interface ConfigSettings {

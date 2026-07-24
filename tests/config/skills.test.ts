@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadSkills, loadProfile } from '../../src/config/loader';
+import { loadSkills, loadProfile, listSkillCatalog } from '../../src/config/loader';
 import { buildSkillsBlock } from '../../src/agent/prompt';
 import type { LoadedSkill } from '../../src/config/schema';
 
@@ -19,6 +19,20 @@ describe('loadSkills', () => {
 
   it('devuelve vacío para lista vacía', async () => {
     expect(await loadSkills([])).toEqual([]);
+  });
+});
+
+describe('listSkillCatalog', () => {
+  it('lista las skills disponibles con metadatos (sin instrucciones)', async () => {
+    const catalog = await listSkillCatalog();
+    const ventas = catalog.find((s) => s.name === 'ventas');
+    expect(ventas).toBeDefined();
+    expect(ventas!.title.length).toBeGreaterThan(0);
+    expect(ventas as unknown as Record<string, unknown>).not.toHaveProperty('instructions');
+  });
+
+  it('devuelve vacío si el directorio no existe', async () => {
+    expect(await listSkillCatalog('./no-existe-xyz')).toEqual([]);
   });
 });
 

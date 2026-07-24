@@ -21,12 +21,14 @@ Además, para verticales visuales (ej. **wrapping / estética automotriz**), el
 agente puede **generar una previsualización** editando la foto del cliente: sobre
 la imagen que envió aplica un cambio (rayas/franjas deportivas, color de wrap,
 tono de polarizado, acabado) y le manda de vuelta una vista aproximada de cómo
-quedaría. Es opt-in en `config.json` → `media.editImages` y
-`media.imageEditModel` (requiere un modelo con salida de imagen, ej.
-`google/gemini-2.5-flash-image-preview`); la guía de estilo por vertical vive en
-`profiles/<perfil>/prompt-vars.json` (`vars.imageEditGuidance`). La tool
-`generate_preview` la dispara el agente cuando aporta a definir o cerrar la venta.
-La previsualización es **aproximada**, no un compromiso del acabado final.
+quedaría. Es opt-in: cada negocio lo activa desde el panel (**Configuración →
+Imágenes y audio**, columna `TenantSettings.editImages`); el modelo de edición es
+global del deployment (`config.json` → `media.imageEditModel`, requiere un modelo
+con salida de imagen, ej. `google/gemini-2.5-flash-image-preview`). La guía de
+estilo por vertical vive en `profiles/<perfil>/prompt-vars.json`
+(`vars.imageEditGuidance`). La tool `generate_preview` la dispara el agente cuando
+aporta a definir o cerrar la venta. La previsualización es **aproximada**, no un
+compromiso del acabado final.
 
 El agente también actúa de forma **proactiva** como asesor de ventas: tras captar
 lo que el cliente pide, ofrece servicios complementarios que tengan sentido para
@@ -47,6 +49,12 @@ loader las resuelve y se inyectan en el system prompt bajo un bloque de
 al cliente y nunca ganan a las reglas duras). Una skill referenciada que falte se
 omite con un aviso, sin tumbar al bot. Incluye la skill `ventas` (venta
 consultiva) que usa el perfil `profiles/wrapping`.
+
+Cada negocio elige qué skills activar desde el panel (**Configuración → Imágenes y
+audio → Habilidades**), que se guarda en `TenantSettings.skills`: una selección
+explícita (un arreglo, aunque esté vacío) gana sobre la lista del perfil del giro;
+si es `null`, hereda las del perfil. Así el dueño enciende o apaga técnicas sin
+tocar archivos.
 
 ---
 

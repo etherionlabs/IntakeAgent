@@ -51,6 +51,14 @@ export async function seedTenantSettingsFromTemplate(
     // Los toggles de media solo en el CREATE: un re-seed no debe pisar lo que el
     // tenant apagó desde el panel. Argumento de venta de la v1: el asistente
     // entiende fotos y notas de voz; el límite mensual ya acota el costo.
-    create: { tenantId, ...data, describeImages: true, transcribeAudio: true },
+    // editImages queda en false (opt-in, más costoso). skills se siembra con las
+    // del perfil del giro para que el panel las muestre marcadas desde el inicio.
+    create: {
+      tenantId,
+      ...data,
+      describeImages: true,
+      transcribeAudio: true,
+      skills: profile.promptVars.skills,
+    },
   });
 }

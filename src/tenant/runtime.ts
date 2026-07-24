@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { loadConfig, loadProfile, applyProfileOverride } from '../config/loader';
+import { loadConfig, loadProfile, applyProfileOverride, loadSkills } from '../config/loader';
 import { readProfileOverride } from '../config/overrides';
 import { validateIntakeSchema } from '../config/intake-schema';
 import type { Config, Profile } from '../config/schema';
@@ -45,6 +45,16 @@ const defaultBuildSource = (a: BuildSourceArgs): Source =>
     notifyOwner: a.notifyOwner,
   });
 
+/**
+ * Coacciona el valor JSON de `TenantSettings.skills` a `string[]` o `null`.
+ * null (o valor no-arreglo) = heredar del perfil; un arreglo de strings = selección
+ * explícita. Ignora entradas no-string por robustez ante datos mal formados.
+ */
+function asStringArrayOrNull(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.filter((v): v is string => typeof v === 'string');
+}
+
 /** Carga el perfil del giro del tenant (`profiles/<industry>`), con fallback al
  *  perfil por defecto del deployment si ese giro no tiene plantilla. De aquí salen
  *  businessFacts / promptVars (tono, reglas) / imageFocus, propios de cada oficio. */
@@ -87,16 +97,23 @@ export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, 
       storeDir: `./media/${tenantId}`,
       transcribeAudio: settings.transcribeAudio,
       describeImages: settings.describeImages,
+      // Toggle por-tenant de previsualización de imágenes (el modelo queda global).
+      editImages: settings.editImages,
       whisperModel: settings.whisperModel ?? base.media.whisperModel,
       visionModel: settings.visionModel ?? base.media.visionModel,
     },
   };
+  // Skills: selección explícita del panel (arreglo, aunque vacío) GANA; si es null,
+  // hereda las del perfil del giro (baseProfile.skills, ya resueltas de archivos).
+  const tenantSkillNames = asStringArrayOrNull(settings.skills);
+  const skills = tenantSkillNames ? await loadSkills(tenantSkillNames) : baseProfile.skills;
   const profile: Profile = {
     ...baseProfile,
     // La estructura del intake (secciones/campos) es siempre la del tenant.
     intakeSchema: schemaResult.schema,
     // El welcome editado en el panel (override) gana; si no, el de TenantSettings.
     welcome: profileOverride?.welcome ?? settings.welcomeTemplate,
+    skills,
   };
   return { config, profile };
 }
