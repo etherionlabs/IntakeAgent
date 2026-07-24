@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
@@ -6,8 +6,10 @@ import {
   ConfigZ,
   PromptVarsZ,
   BusinessFactsZ,
+  SkillZ,
   type Config,
   type Profile,
+  type LoadedSkill,
 } from './schema';
 import { validateIntakeSchema } from './intake-schema';
 import { readProfileOverride, readConfigOverride } from './overrides';
@@ -40,7 +42,64 @@ export async function loadConfig(path: string): Promise<Config> {
   return result.data;
 }
 
-export async function loadProfile(profileDir: string): Promise<Profile> {
+/**
+ * Carga skills (técnicas reutilizables) de la biblioteca `skillsDir` por nombre.
+ * Cada skill vive en `<skillsDir>/<name>/skill.json`. Una skill referenciada que
+ * falte o esté malformada se OMITE con un aviso (no brickea el bot): un typo en
+ * la lista no debe tumbar al tenant.
+ */
+export async function loadSkills(
+  names: string[],
+  skillsDir = './skills',
+): Promise<LoadedSkill[]> {
+  const base = resolve(skillsDir);
+  const out: LoadedSkill[] = [];
+  for (const name of names) {
+    try {
+      const raw = await readFile(join(base, name, 'skill.json'), 'utf-8');
+      const parsed = SkillZ.safeParse(JSON.parse(raw));
+      if (!parsed.success) {
+        console.warn(`[loadSkills] skill "${name}" inválida, se omite: ${parsed.error.message}`);
+        continue;
+      }
+      out.push(parsed.data);
+    } catch (e) {
+      console.warn(
+        `[loadSkills] no se pudo cargar la skill "${name}", se omite: ${(e as Error).message}`,
+      );
+    }
+  }
+  return out;
+}
+
+/** Metadatos de una skill del catálogo (sin las instrucciones completas). */
+export interface SkillInfo {
+  name: string;
+  title: string;
+  description: string;
+}
+
+/**
+ * Lista el catálogo de skills disponibles en `skillsDir` (para que el panel
+ * ofrezca un selector). Cada subdirectorio con un `skill.json` válido es una
+ * skill; los inválidos se omiten. Ordenado por nombre.
+ */
+export async function listSkillCatalog(skillsDir = './skills'): Promise<SkillInfo[]> {
+  const base = resolve(skillsDir);
+  let entries: string[];
+  try {
+    const dirents = await readdir(base, { withFileTypes: true });
+    entries = dirents.filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch {
+    return [];
+  }
+  const skills = await loadSkills(entries, skillsDir);
+  return skills
+    .map((s) => ({ name: s.name, title: s.title, description: s.description }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadProfile(profileDir: string, skillsDir = './skills'): Promise<Profile> {
   const dir = resolve(profileDir);
   const [schemaRaw, promptRaw, factsRaw, welcomeRaw] = await Promise.all([
     readFile(join(dir, 'intake-schema.json'), 'utf-8'),
@@ -65,7 +124,12 @@ export async function loadProfile(profileDir: string): Promise<Profile> {
     throw new ConfigLoadError(`business-facts.json inválido: ${businessFacts.error.message}`);
   }
 
-  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}`;
+  const skills = await loadSkills(promptVars.data.skills, skillsDir);
+
+  // El hash incluye el contenido de las skills resueltas, para que editar una
+  // skill (o la lista referenciada) se refleje en configHash.
+  const skillsFingerprint = skills.map((s) => `${s.name}:${s.instructions}`).join('\n');
+  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${skillsFingerprint}`;
   const hash = createHash('sha256').update(combined).digest('hex').slice(0, 12);
 
   return {
@@ -75,6 +139,9 @@ export async function loadProfile(profileDir: string): Promise<Profile> {
     welcome: welcomeRaw,
     // Foco para describir imágenes: convención en prompt-vars.json (vars.imageFocus).
     imageFocus: promptVars.data.vars.imageFocus ?? '',
+    // Guía para editar imágenes / previsualizaciones (vars.imageEditGuidance).
+    imageEditGuidance: promptVars.data.vars.imageEditGuidance ?? '',
+    skills,
     hash,
   };
 }
@@ -100,6 +167,7 @@ export function applyProfileOverride(base: Profile, ov: ProfileSettings): Profil
         promptVars,
         businessFacts: ov.businessFacts,
         welcome: ov.welcome,
+        skills: base.skills.map((s) => `${s.name}:${s.instructions}`),
       }),
     )
     .digest('hex')
@@ -110,6 +178,9 @@ export function applyProfileOverride(base: Profile, ov: ProfileSettings): Profil
     businessFacts: ov.businessFacts,
     welcome: ov.welcome,
     imageFocus: ov.vars.imageFocus ?? base.imageFocus,
+    imageEditGuidance: ov.vars.imageEditGuidance ?? base.imageEditGuidance,
+    // Las skills se conservan del perfil base (la edición del panel no las toca).
+    skills: base.skills,
     hash,
   };
 }

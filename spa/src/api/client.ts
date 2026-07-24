@@ -7,6 +7,15 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+/**
+ * URL del archivo de imagen de un mensaje (foto entrante o previsualización). Se
+ * usa como `src` de un <img>; en producción es mismo-origen (`/api/...`), así que
+ * el navegador manda la cookie de sesión.
+ */
+export function mediaUrl(messageId: string): string {
+  return `${BASE}/messages/${encodeURIComponent(messageId)}/media`;
+}
+
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 let onPlatformUnauthorized: (() => void) | null = null;
@@ -118,7 +127,7 @@ export const api = {
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
-  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null }>('GET', '/settings'),
+  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null; availableSkills: SkillInfo[] }>('GET', '/settings'),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
@@ -242,6 +251,16 @@ export interface ProfileSettings {
 export interface MediaSettings {
   describeImages: boolean;
   transcribeAudio: boolean;
+  editImages: boolean;
+  /** Nombres de las skills (técnicas) activas para este tenant. */
+  skills: string[];
+}
+
+/** Metadatos de una skill del catálogo disponible. */
+export interface SkillInfo {
+  name: string;
+  title: string;
+  description: string;
 }
 
 export interface ConfigSettings {

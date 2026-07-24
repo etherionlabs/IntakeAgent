@@ -27,10 +27,13 @@ const profile: Profile = {
   promptVars: {
     promptTemplate: 'Asistente de **{{businessName}}**. {{tone}}',
     vars: { tone: 'Cercano.' },
+    skills: [],
   },
   businessFacts: { facts: [], freeContext: '' },
   welcome: 'hola',
   imageFocus: '',
+  imageEditGuidance: '',
+  skills: [],
   hash: 'h1',
 };
 
@@ -45,7 +48,7 @@ const config: Config = {
   hours: { enabled: false, timezone: 'America/Mexico_City', schedule: {}, outOfHoursNotice: '' },
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
-  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini' },
+  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini', editImages: false, imageEditModel: 'google/gemini-2.5-flash-image-preview' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;
 
@@ -133,6 +136,27 @@ describe('runAgentTurn', () => {
     const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
     const intake = parseJobIntake(reload!);
     expect((intake.client as any).name.value).toBe('María');
+  });
+
+  it('suma el costo extra de tools (ej. edición de imágenes) al costo del turno', async () => {
+    const ctx = await setupCtx();
+    // Simula que una tool acumuló costo de edición durante el turno.
+    ctx.extraCostUsd = 0.02;
+    const factory = makeStubFactory(async () => ({
+      text: 'Aquí está tu previsualización.',
+      usage: { inputTokens: 100, outputTokens: 20, costUsd: 0.001 },
+    }));
+    const result = await runAgentTurn(ctx, {
+      prisma,
+      tenantId: TEST_TENANT_ID,
+      config,
+      profile,
+      notifier: new NoopNotifier(),
+      createAgent: factory,
+    });
+    expect(result.costUsd).toBeCloseTo(0.021, 6);
+    const runs = await prisma.agentRun.findMany({ where: { jobId: ctx.job.id } });
+    expect(Number(runs[0].costUsd)).toBeCloseTo(0.021, 6);
   });
 
   it('errores del SDK se capturan y se devuelve fallback con error guardado', async () => {

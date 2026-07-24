@@ -4,6 +4,7 @@ import type { Notifier } from '../services/notification';
 import type { OutboundSender } from '../services/outbound';
 import type { Transcriber } from '../media/transcriber';
 import type { Describer } from '../media/describer';
+import type { ImageEditor } from '../media/imageEditor';
 import type { MediaStore } from '../media/store';
 import type { AgentFactory } from '../agent/types';
 
@@ -34,6 +35,8 @@ export interface PipelineDeps {
   transcriber: Transcriber;
   /** Describer de imágenes. Opcional: si falta, las fotos no se describen. */
   describer?: Describer;
+  /** Editor de imágenes. Opcional: si falta (o el toggle está apagado), no hay previsualizaciones. */
+  imageEditor?: ImageEditor;
   mediaStore: MediaStore;
   agentFactory: AgentFactory;
   now: () => Date;

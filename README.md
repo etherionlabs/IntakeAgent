@@ -17,6 +17,49 @@ la foto con otro foco. Se configura en `config.json` →
 `media.describeImages` y `media.visionModel`; el foco por vertical vive en
 `profiles/<perfil>/prompt-vars.json` (`vars.imageFocus`).
 
+Además, para verticales visuales (ej. **wrapping / estética automotriz**), el
+agente puede **generar una previsualización** editando la foto del cliente: sobre
+la imagen que envió aplica un cambio (rayas/franjas deportivas, color de wrap,
+tono de polarizado, acabado) y le manda de vuelta una vista aproximada de cómo
+quedaría. Es opt-in: cada negocio lo activa desde el panel (**Configuración →
+Imágenes y audio**, columna `TenantSettings.editImages`); el modelo de edición es
+global del deployment (`config.json` → `media.imageEditModel`, requiere un modelo
+con salida de imagen, ej. `google/gemini-2.5-flash-image-preview`). La guía de
+estilo por vertical vive en `profiles/<perfil>/prompt-vars.json`
+(`vars.imageEditGuidance`). La tool `generate_preview` la dispara el agente cuando
+aporta a definir o cerrar la venta. La previsualización es **aproximada**, no un
+compromiso del acabado final. El costo de cada edición se **contabiliza** en el
+gasto del turno (`AgentRun.costUsd`), y tanto las fotos entrantes como las
+previsualizaciones se **ven como imagen** en la conversación del panel (la API las
+sirve vía `GET /messages/:id/media`, con el volumen de media montado en modo
+lectura).
+
+El agente también actúa de forma **proactiva** como asesor de ventas: tras captar
+lo que el cliente pide, ofrece servicios complementarios que tengan sentido para
+su caso (razonando sobre un catálogo curado en `business-facts.json`), sin
+inventar precios ni presionar. El comportamiento vive en
+`profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`); el perfil
+`profiles/wrapping` es el ejemplo de referencia.
+
+### Skills (técnicas reutilizables)
+
+Para enseñarle al modelo **técnicas transversales** —cómo vender mejor, manejar
+objeciones, etc.— existe una biblioteca de *skills* en `skills/`. Cada skill es un
+cuerpo de instrucciones reutilizable (independiente del giro) en
+`skills/<nombre>/skill.json` (`title`, `description`, `instructions`). Un perfil
+las adopta listándolas en `prompt-vars.json` → `"skills": ["ventas", ...]`; el
+loader las resuelve y se inyectan en el system prompt bajo un bloque de
+"HABILIDADES / TÉCNICAS" (son para el comportamiento del modelo, no se mencionan
+al cliente y nunca ganan a las reglas duras). Una skill referenciada que falte se
+omite con un aviso, sin tumbar al bot. Incluye la skill `ventas` (venta
+consultiva) que usa el perfil `profiles/wrapping`.
+
+Cada negocio elige qué skills activar desde el panel (**Configuración → Imágenes y
+audio → Habilidades**), que se guarda en `TenantSettings.skills`: una selección
+explícita (un arreglo, aunque esté vacío) gana sobre la lista del perfil del giro;
+si es `null`, hereda las del perfil. Así el dueño enciende o apaga técnicas sin
+tocar archivos.
+
 ---
 
 ## Requisitos

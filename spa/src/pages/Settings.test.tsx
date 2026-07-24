@@ -37,17 +37,20 @@ const CONFIG = {
   owner: { phoneE164: '+13058799511', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 };
-const MEDIA = { describeImages: false, transcribeAudio: true };
+const MEDIA = { describeImages: false, transcribeAudio: true, editImages: false, skills: ['ventas'] };
+const AVAILABLE_SKILLS = [
+  { name: 'ventas', title: 'Venta consultiva', description: 'Cerrar sin presionar.' },
+];
 
 beforeEach(() => {
   mockGet.mockReset();
   mockUpdateProfile.mockReset();
   mockUpdateConfig.mockReset();
   mockUpdateMedia.mockReset();
-  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: structuredClone(CONFIG), media: { ...MEDIA } });
+  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: structuredClone(CONFIG), media: { ...MEDIA }, availableSkills: structuredClone(AVAILABLE_SKILLS) });
   mockUpdateProfile.mockResolvedValue({ ok: true, profile: structuredClone(PROFILE) });
   mockUpdateConfig.mockResolvedValue({ ok: true, config: structuredClone(CONFIG) });
-  mockUpdateMedia.mockResolvedValue({ ok: true, media: { describeImages: true, transcribeAudio: true } });
+  mockUpdateMedia.mockResolvedValue({ ok: true, media: { describeImages: true, transcribeAudio: true, editImages: false, skills: ['ventas'] } });
 });
 
 function renderSettings() {
@@ -96,7 +99,17 @@ test('activar visión y guardar llama a updateMediaSettings', async () => {
   fireEvent.click(img);
   fireEvent.click(screen.getByRole('button', { name: 'Guardar imágenes y audio' }));
   await waitFor(() => expect(mockUpdateMedia).toHaveBeenCalledTimes(1));
-  expect(mockUpdateMedia.mock.calls[0][0]).toEqual({ describeImages: true, transcribeAudio: true });
+  expect(mockUpdateMedia.mock.calls[0][0]).toEqual({ describeImages: true, transcribeAudio: true, editImages: false, skills: ['ventas'] });
+});
+
+test('muestra el selector de skills y alterna una skill al guardar', async () => {
+  renderSettings();
+  const ventas = await screen.findByLabelText('Venta consultiva');
+  expect(ventas).toBeChecked();
+  fireEvent.click(ventas); // desmarca
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar imágenes y audio' }));
+  await waitFor(() => expect(mockUpdateMedia).toHaveBeenCalledTimes(1));
+  expect(mockUpdateMedia.mock.calls[0][0].skills).toEqual([]);
 });
 
 test('sin fila de media (tenant legado) no muestra la sección', async () => {
@@ -107,7 +120,7 @@ test('sin fila de media (tenant legado) no muestra la sección', async () => {
 });
 
 test('config null (global, no se expone al tenant) → NO muestra la sección Sistema', async () => {
-  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: null, media: { describeImages: false, transcribeAudio: true } });
+  mockGet.mockResolvedValue({ profile: structuredClone(PROFILE), config: null, media: { ...MEDIA }, availableSkills: structuredClone(AVAILABLE_SKILLS) });
   renderSettings();
   await screen.findByDisplayValue('Tapicería Demo');
   expect(screen.queryByText('Sistema')).not.toBeInTheDocument();

@@ -7,13 +7,23 @@ import {
   ProfileSettingsInputZ,
 } from '../lib/settings-io';
 import { writeProfileOverride } from '../../../src/config/overrides';
+import { listSkillCatalog, loadProfile } from '../../../src/config/loader';
 
 /** Toggles de media por-tenant (TenantSettings). Los modelos NO se exponen:
- *  quedan null → default del deployment (config.json). */
+ *  quedan null → default del deployment (config.json). `skills` es la lista de
+ *  técnicas activas; se valida contra el catálogo al guardar. */
 const MediaSettingsInputZ = z.object({
   describeImages: z.boolean(),
   transcribeAudio: z.boolean(),
+  editImages: z.boolean(),
+  skills: z.array(z.string()),
 });
+
+/** Coacciona el JSON de `TenantSettings.skills` a string[] (o null si no es arreglo). */
+function asStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.filter((v): v is string => typeof v === 'string');
+}
 
 /** Solo los usuarios admin pueden modificar la configuración. */
 function requireAdmin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -33,14 +43,32 @@ export async function settingsRoutes(app: FastifyInstance) {
   app.get('/settings', { preHandler: app.authenticate }, async (request) => {
     const prisma = getPrisma();
     const profileDir = await getTenantProfileDir(request.tenantId);
-    const [profile, ts] = await Promise.all([
+    const [profile, ts, availableSkills] = await Promise.all([
       readProfileSettings(prisma, request.tenantId, profileDir),
       prisma.tenantSettings.findUnique({
         where: { tenantId: request.tenantId },
-        select: { describeImages: true, transcribeAudio: true },
+        select: { describeImages: true, transcribeAudio: true, editImages: true, skills: true },
       }),
+      listSkillCatalog(),
     ]);
-    return { profile, config: null, media: ts ?? null };
+    let media: {
+      describeImages: boolean;
+      transcribeAudio: boolean;
+      editImages: boolean;
+      skills: string[];
+    } | null = null;
+    if (ts) {
+      // skills explícitas del tenant, o (si null) las referenciadas por el perfil.
+      const skills =
+        asStringArray(ts.skills) ?? (await loadProfile(profileDir)).promptVars.skills;
+      media = {
+        describeImages: ts.describeImages,
+        transcribeAudio: ts.transcribeAudio,
+        editImages: ts.editImages,
+        skills,
+      };
+    }
+    return { profile, config: null, media, availableSkills };
   });
 
   app.put('/settings/profile', { preHandler: app.authenticate }, async (request, reply) => {
@@ -80,11 +108,28 @@ export async function settingsRoutes(app: FastifyInstance) {
     const prisma = getPrisma();
     const existing = await prisma.tenantSettings.findUnique({ where: { tenantId: request.tenantId } });
     if (!existing) return reply.code(404).send({ error: 'TenantSettings ausente para este tenant' });
+    // Validar skills contra el catálogo: descartamos nombres desconocidos para no
+    // persistir referencias muertas.
+    const catalog = new Set((await listSkillCatalog()).map((s) => s.name));
+    const skills = parse.data.skills.filter((s) => catalog.has(s));
     const row = await prisma.tenantSettings.update({
       where: { tenantId: request.tenantId },
-      data: parse.data,
-      select: { describeImages: true, transcribeAudio: true },
+      data: {
+        describeImages: parse.data.describeImages,
+        transcribeAudio: parse.data.transcribeAudio,
+        editImages: parse.data.editImages,
+        skills,
+      },
+      select: { describeImages: true, transcribeAudio: true, editImages: true, skills: true },
     });
-    return { ok: true, media: row };
+    return {
+      ok: true,
+      media: {
+        describeImages: row.describeImages,
+        transcribeAudio: row.transcribeAudio,
+        editImages: row.editImages,
+        skills: asStringArray(row.skills) ?? [],
+      },
+    };
   });
 }

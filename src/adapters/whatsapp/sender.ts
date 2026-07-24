@@ -25,6 +25,22 @@ export class WhatsAppSender implements ChannelOutboundSender {
     }
     await socket.sendMessage(jid, { text });
   }
+
+  async sendImage(target: string, imagePath: string, caption?: string | null): Promise<void> {
+    const socket = this.getSocket();
+    if (!socket) {
+      throw new Error('WhatsAppSender: socket no disponible (¿desconectado?)');
+    }
+    const jid = targetToJid(target);
+    if (!jid) {
+      throw new Error(`WhatsAppSender: destino inválido "${target}"`);
+    }
+    // Baileys acepta una ruta de archivo local vía `{ url }`.
+    await socket.sendMessage(jid, {
+      image: { url: imagePath },
+      ...(caption && caption.trim().length > 0 ? { caption } : {}),
+    });
+  }
 }
 
 /**

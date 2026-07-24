@@ -171,7 +171,8 @@ describe('settings', () => {
     await useTempConfig();
     const res = await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) });
     expect(res.statusCode).toBe(200);
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false });
+    // skills null en la fila → hereda las referenciadas por el perfil (tapicería: []).
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, skills: [] });
   });
 
   it('GET /settings sin fila TenantSettings → media null (tenant legado)', async () => {
@@ -189,13 +190,30 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: true, transcribeAudio: true },
+      payload: { describeImages: true, transcribeAudio: true, editImages: true, skills: [] },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true });
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true, editImages: true, skills: [] });
     const row = await testPrisma.tenantSettings.findUnique({ where: { tenantId } });
     expect(row!.describeImages).toBe(true);
     expect(row!.transcribeAudio).toBe(true);
+    expect(row!.editImages).toBe(true);
+  });
+
+  it('PUT /settings/media guarda skills válidas y descarta las desconocidas', async () => {
+    const { tenantId, userId } = await seedTenantWithTempProfile();
+    await seedTenantSettings(tenantId);
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/settings/media',
+      headers: admin(tenantId, userId),
+      payload: { describeImages: false, transcribeAudio: false, editImages: false, skills: ['ventas', 'no-existe-xyz'] },
+    });
+    expect(res.statusCode).toBe(200);
+    // 'ventas' existe en el catálogo; 'no-existe-xyz' se descarta.
+    expect(res.json().media.skills).toEqual(['ventas']);
+    const row = await testPrisma.tenantSettings.findUnique({ where: { tenantId } });
+    expect(row!.skills).toEqual(['ventas']);
   });
 
   it('PUT /settings/media con payload inválido → 400', async () => {
@@ -228,7 +246,7 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: true, transcribeAudio: true },
+      payload: { describeImages: true, transcribeAudio: true, editImages: false, skills: [] },
     });
     expect(res.statusCode).toBe(404);
   });

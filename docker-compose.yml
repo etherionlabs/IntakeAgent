@@ -63,6 +63,10 @@ services:
       PUBLIC_APP_URL: ${CORS_ORIGIN}
       TRIAL_REQUIRES_CARD: ${TRIAL_REQUIRES_CARD:-true}
     ports: ["3001:3001"]
+    volumes:
+      # Solo lectura: la API sirve las imágenes (fotos entrantes y previsualizaciones)
+      # al panel vía GET /messages/:id/media. El worker es quien escribe.
+      - media:/app/media:ro
     depends_on:
       postgres:
         condition: service_healthy

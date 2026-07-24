@@ -35,6 +35,25 @@ describe('buildTenantConfig — perfil por giro del tenant', () => {
     expect(profile.welcome).toBe('Bienvenido a mi taller propio.');
   });
 
+  it('aplica el toggle editImages por-tenant sobre config.media', async () => {
+    await seedTestTenantSettings(TEST_TENANT_ID, { industry: 'wrapping', editImages: true });
+    const { config } = await buildTenantConfig(testPrisma, TEST_TENANT_ID, './config.json');
+    expect(config.media.editImages).toBe(true);
+  });
+
+  it('la selección de skills del tenant (arreglo) gana sobre las del perfil del giro', async () => {
+    // wrapping referencia ["ventas"]; el tenant la desactiva con un arreglo vacío.
+    await seedTestTenantSettings(TEST_TENANT_ID, { industry: 'wrapping', skills: [] });
+    const { profile } = await buildTenantConfig(testPrisma, TEST_TENANT_ID, './config.json');
+    expect(profile.skills).toEqual([]);
+  });
+
+  it('skills null en el tenant → hereda las del perfil del giro', async () => {
+    await seedTestTenantSettings(TEST_TENANT_ID, { industry: 'wrapping' });
+    const { profile } = await buildTenantConfig(testPrisma, TEST_TENANT_ID, './config.json');
+    expect(profile.skills.map((s) => s.name)).toContain('ventas');
+  });
+
   it('aplica el override editado en el panel (Setting) sobre el perfil del giro', async () => {
     await seedTestTenantSettings(TEST_TENANT_ID, { industry: 'mecanica', welcomeTemplate: 'welcome viejo' });
     await writeProfileOverride(testPrisma, TEST_TENANT_ID, {

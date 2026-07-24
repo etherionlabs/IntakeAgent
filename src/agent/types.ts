@@ -28,6 +28,20 @@ export interface OpenJobSummary {
   openedAt: Date;
 }
 
+/**
+ * Imagen que el agente generó durante el turno (ej. previsualización de un wrap)
+ * y que el coordinator debe ENVIAR al cliente y persistir como mensaje outbound.
+ */
+export interface OutboundAttachment {
+  /** ID del futuro mensaje outbound; ya se usó como nombre del archivo en el media-store. */
+  messageId: string;
+  /** Ruta relativa en el media-store del archivo generado. */
+  mediaPath: string;
+  mimetype: string;
+  /** Texto que acompaña la imagen. */
+  caption: string | null;
+}
+
 /** Todo lo que el turno necesita saber sobre el "ahora". */
 export interface TurnContext {
   job: Job;
@@ -49,6 +63,18 @@ export interface TurnContext {
    * re-analizar con `reanalyze_image`. Si está vacío, la tool no se expone.
    */
   availablePhotos?: AvailablePhoto[];
+  /**
+   * Adjuntos que el agente generó en el turno (previsualizaciones). La tool
+   * `generate_preview` los empuja aquí; el runner los expone en TurnResult y el
+   * coordinator los envía + persiste. Mutable a propósito (igual que `intake`).
+   */
+  pendingAttachments?: OutboundAttachment[];
+  /**
+   * Costo extra (USD) acumulado por tools que llaman a otros modelos dentro del
+   * turno (ej. `generate_preview`). El runner lo suma al costo del turno para que
+   * el reporte de gasto (AgentRun.costUsd) sea completo. Mutable a propósito.
+   */
+  extraCostUsd?: number;
 }
 
 export interface HistoryEntry {
@@ -71,6 +97,8 @@ export interface AgentDeps {
   mediaStore?: import('../media/store').MediaStore;
   /** Describer de imágenes (necesario para `reanalyze_image`). Opcional. */
   describer?: import('../media/describer').Describer;
+  /** Editor de imágenes (necesario para `generate_preview`). Opcional. */
+  imageEditor?: import('../media/imageEditor').ImageEditor;
 }
 
 /** Tipos mínimos del SDK que el runner consume. */
@@ -112,4 +140,6 @@ export interface TurnResult {
   error: string | null;
   /** Clasificación del error del LLM cuando `error` no es null. */
   errorKind?: import('./errors').LlmErrorKind;
+  /** Imágenes generadas en el turno (previsualizaciones) a enviar al cliente. */
+  attachments: OutboundAttachment[];
 }

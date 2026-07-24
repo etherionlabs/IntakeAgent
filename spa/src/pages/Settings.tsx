@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type ProfileSettings, type ConfigSettings, type MediaSettings, type BusinessFact } from '../api/client';
+import { api, type ProfileSettings, type ConfigSettings, type MediaSettings, type BusinessFact, type SkillInfo } from '../api/client';
 
 export default function Settings() {
   const [profile, setProfile] = useState<ProfileSettings | null>(null);
@@ -7,6 +7,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaSettings | null>(null);
+  const [availableSkills, setAvailableSkills] = useState<SkillInfo[]>([]);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [savingMedia, setSavingMedia] = useState(false);
@@ -22,6 +23,7 @@ export default function Settings() {
       setProfile(data.profile);
       setConfig(data.config);
       setMedia(data.media);
+      setAvailableSkills(data.availableSkills ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'error al cargar configuración');
     } finally {
@@ -198,6 +200,42 @@ export default function Settings() {
             />
             Transcribir las notas de voz
           </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={media.editImages}
+              onChange={(e) => setMedia({ ...media, editImages: e.target.checked })}
+            />
+            Generar previsualizaciones editando la foto del cliente (más costoso)
+          </label>
+
+          {availableSkills.length > 0 && (
+            <>
+              <h3>Habilidades / técnicas</h3>
+              <p className="settings-hint">
+                Técnicas que el asistente aplica al conversar (p. ej. ventas). No se
+                mencionan al cliente.
+              </p>
+              {availableSkills.map((s) => (
+                <label className="checkbox" key={s.name} title={s.description}>
+                  <input
+                    type="checkbox"
+                    checked={media.skills.includes(s.name)}
+                    onChange={(e) =>
+                      setMedia({
+                        ...media,
+                        skills: e.target.checked
+                          ? [...media.skills, s.name]
+                          : media.skills.filter((n) => n !== s.name),
+                      })
+                    }
+                  />
+                  {s.title}
+                </label>
+              ))}
+            </>
+          )}
+
           <div className="settings-actions">
             <button type="button" onClick={() => void saveMedia()} disabled={savingMedia}>
               {savingMedia ? 'Guardando…' : 'Guardar imágenes y audio'}

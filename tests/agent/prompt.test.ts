@@ -196,10 +196,13 @@ const profile: Profile = {
     promptTemplate:
       'Eres asistente de **{{businessName}}**, negocio de {{businessDomain}}.\n## Tono\n{{tone}}\n## Reglas\n{{rules}}',
     vars: { tone: 'Cercano', rules: 'No inventes precios.' },
+    skills: [],
   },
   businessFacts: sampleFacts,
   welcome: 'hola',
   imageFocus: '',
+  imageEditGuidance: '',
+  skills: [],
   hash: 'abc',
 };
 
@@ -260,6 +263,7 @@ describe('buildSystemPrompt', () => {
       promptVars: {
         promptTemplate: 'Hola {{businessName}} y {{noExiste}}',
         vars: {},
+        skills: [],
       },
     };
     const intake = createEmptyIntakeFromSchema(intakeSchema);

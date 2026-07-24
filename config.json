@@ -28,7 +28,9 @@
     "transcribeAudio": true,
     "whisperModel": "openai/gpt-4o-mini-transcribe",
     "describeImages": true,
-    "visionModel": "openai/gpt-4o-mini"
+    "visionModel": "openai/gpt-4o-mini",
+    "editImages": true,
+    "imageEditModel": "google/gemini-2.5-flash-image-preview"
   },
   "limits": {
     "monthlyCostUsd": 50,

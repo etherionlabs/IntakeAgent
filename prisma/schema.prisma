@@ -100,8 +100,13 @@ model TenantSettings {
   debounceMs      Int      @default(8000)
   transcribeAudio Boolean  @default(false)
   describeImages  Boolean  @default(false)
+  /// Genera previsualizaciones editando la foto del cliente (opt-in, más costoso).
+  editImages      Boolean  @default(false)
   whisperModel    String?
   visionModel     String?
+  /// Skills (técnicas) activas para este tenant. null = hereda las del perfil del giro;
+  /// un arreglo (aunque vacío) es una selección explícita del dueño desde el panel.
+  skills          Json?
   panelUrl        String?
   /// Ventana de retención de mensajes (meses). El job de retención purga lo más viejo.
   messageRetentionMonths Int @default(12)

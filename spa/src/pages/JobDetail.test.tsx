@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     archiveJob: vi.fn(),
     deleteJob: vi.fn(),
   },
+  mediaUrl: (id: string) => `/api/messages/${id}/media`,
 }));
 
 import { api } from '../api/client';

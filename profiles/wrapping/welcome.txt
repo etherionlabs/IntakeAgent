@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}, especialistas en la imagen de tu auto (wrap, pintura, polarizado y protección). Te tomo unos datos para prepararte una propuesta. ¿Me dices tu nombre y qué te gustaría hacerle a tu vehículo?

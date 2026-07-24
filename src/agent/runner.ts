@@ -13,6 +13,9 @@ export async function runAgentTurn(
   const apiKey = process.env.OPENROUTER_API_KEY ?? '';
   const triggerMessageIds = ctx.batchMessages.map((m) => m.id);
   const toolCalls: ToolCallRecord[] = [];
+  // Adjuntos generados por tools durante el turno (ej. generate_preview).
+  ctx.pendingAttachments = ctx.pendingAttachments ?? [];
+  ctx.extraCostUsd = ctx.extraCostUsd ?? 0;
 
   // Construimos las tools con un wrapper que registra cada llamada.
   const rawTools = buildTools(ctx, deps);
@@ -82,13 +85,18 @@ export async function runAgentTurn(
     );
   }
 
+  // Suma el costo del LLM y el de las tools (ej. edición de imágenes) para que el
+  // reporte de gasto refleje el turno completo. Preserva null cuando no hay costo.
+  const extraCost = ctx.extraCostUsd ?? 0;
+  const totalCostUsd = costUsd === null && extraCost === 0 ? null : (costUsd ?? 0) + extraCost;
+
   await recordAgentRun(deps.prisma, deps.tenantId, {
     jobId: ctx.job.id,
     triggerMessageIds,
     model: deps.config.model,
     inputTokens,
     outputTokens,
-    costUsd,
+    costUsd: totalCostUsd,
     toolCalls,
     responseText,
     configHash: deps.profile.hash,
@@ -100,8 +108,9 @@ export async function runAgentTurn(
     toolCalls,
     inputTokens,
     outputTokens,
-    costUsd,
+    costUsd: totalCostUsd,
     error,
     errorKind,
+    attachments: ctx.pendingAttachments ?? [],
   };
 }
