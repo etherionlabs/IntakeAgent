@@ -1,12 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { readFile } from 'node:fs/promises';
-import { resolve, join, sep } from 'node:path';
 import { getPrisma } from '../db';
 import { parseJobIntake, updateJobIntake, markReadyForReview, closeJob, archiveJob, restoreJob, hardDeleteJob } from '../../../src/services/job';
 import { bulkUpdate, isIntakeComplete } from '../../../src/services/intake';
 import { getTenantProfile } from '../lib/tenant-profile';
-import { imageMimeFromPath } from '../../../src/media/describer';
 
 const PatchIntakeZ = z.object({
   path: z.string().min(1),
@@ -45,38 +42,6 @@ export async function jobsRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'asc' },
     });
     return { job, intake: parseJobIntake(job), messages };
-  });
-
-  // Sirve el archivo de una imagen (foto entrante o previsualización saliente) del
-  // tenant, referenciada por el id del mensaje. Scoping por tenant + kind='image';
-  // el archivo se resuelve dentro de la raíz de media del tenant, con guarda contra
-  // path traversal. Requiere que el proceso API tenga montado el volumen de media
-  // (ver docker-compose: `media:/app/media:ro` en el servicio api).
-  app.get('/messages/:id/media', { preHandler: app.authenticate }, async (request, reply) => {
-    const prisma = getPrisma();
-    const id = (request.params as any).id as string;
-    const msg = await prisma.message.findFirst({
-      where: { id, tenantId: request.tenantId, kind: 'image' },
-      select: { mediaPath: true },
-    });
-    if (!msg || !msg.mediaPath) return reply.code(404).send({ error: 'imagen no encontrada' });
-
-    const base = process.env.MEDIA_DIR ?? './media';
-    const root = resolve(join(base, request.tenantId));
-    const abs = resolve(join(root, msg.mediaPath));
-    if (abs !== root && !abs.startsWith(root + sep)) {
-      return reply.code(400).send({ error: 'ruta inválida' });
-    }
-    let data: Buffer;
-    try {
-      data = await readFile(abs);
-    } catch {
-      return reply.code(404).send({ error: 'archivo no disponible' });
-    }
-    return reply
-      .type(imageMimeFromPath(msg.mediaPath))
-      .header('cache-control', 'private, max-age=300')
-      .send(data);
   });
 
   app.patch('/jobs/:id/intake', { preHandler: app.authenticate }, async (request, reply) => {

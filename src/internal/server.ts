@@ -1,6 +1,9 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { readFile } from 'node:fs/promises';
+import { resolve, join, sep } from 'node:path';
 import { logger } from '../lib/logger';
 import { setBotsConnected, renderMetrics } from '../lib/metrics';
+import { imageMimeFromPath } from '../media/describer';
 import type { TenantStatus } from '../tenant/types';
 
 /**
@@ -21,6 +24,12 @@ export interface InternalServerDeps {
   dispatcher: TenantDispatcher;
   /** Número de bots conectados (para la métrica). Opcional. */
   connectedCount?: () => number;
+  /**
+   * Raíz base del media-store (contiene subdirectorios por tenant). El worker es
+   * el ÚNICO que tiene el volumen de media; la API pide los archivos aquí. Por
+   * defecto `process.env.MEDIA_DIR ?? './media'`.
+   */
+  mediaRoot?: string;
 }
 
 export interface InternalServer {
@@ -98,6 +107,31 @@ export async function startInternalServer(deps: InternalServerDeps): Promise<Int
     if (!tenantId) return reply.code(400).send({ ok: false, error: 'tenantId requerido' });
     try { await deps.dispatcher.resumeTenant(tenantId); return { ok: true }; }
     catch (e) { return reply.code(500).send({ ok: false, error: e instanceof Error ? e.message : String(e) }); }
+  });
+
+  // Sirve el archivo de una imagen (foto entrante o previsualización) al proceso
+  // API, que ya autorizó por tenant + kind. El worker es el dueño del volumen de
+  // media (en Railway/compose la API no lo comparte). El tenantId y el path los
+  // provee la API (path viene de nuestra DB); revalidamos que el archivo caiga
+  // dentro de la raíz del tenant (guarda anti path-traversal).
+  const mediaRoot = deps.mediaRoot ?? process.env.MEDIA_DIR ?? './media';
+  app.get('/internal/media', async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const tenantId = typeof q.tenantId === 'string' ? q.tenantId : '';
+    const relPath = typeof q.path === 'string' ? q.path : '';
+    if (!tenantId || !relPath) return reply.code(400).send({ error: 'tenantId y path requeridos' });
+    const root = resolve(join(mediaRoot, tenantId));
+    const abs = resolve(join(root, relPath));
+    if (abs !== root && !abs.startsWith(root + sep)) {
+      return reply.code(400).send({ error: 'ruta inválida' });
+    }
+    let data: Buffer;
+    try {
+      data = await readFile(abs);
+    } catch {
+      return reply.code(404).send({ error: 'archivo no disponible' });
+    }
+    return reply.header('content-type', imageMimeFromPath(relPath)).send(data);
   });
 
   // Métricas (Prometheus text), protegidas por el mismo bearer. Observabilidad Fase 5.
