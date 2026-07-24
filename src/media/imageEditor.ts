@@ -22,6 +22,8 @@ export interface ImageEditContext {
 export interface EditedImage {
   buffer: Buffer;
   mimetype: string;
+  /** Costo en USD reportado por el proveedor, si está disponible. */
+  costUsd?: number | null;
 }
 
 export interface ImageEditor {
@@ -86,6 +88,9 @@ export class OpenRouterImageEditor implements ImageEditor {
       const body = {
         model: this.model,
         modalities: ['image', 'text'],
+        // Pide a OpenRouter incluir el costo en la respuesta (usage.cost) para
+        // poder contabilizar el gasto de la edición.
+        usage: { include: true },
         messages: [
           {
             role: 'user',
@@ -118,7 +123,9 @@ export class OpenRouterImageEditor implements ImageEditor {
         console.warn('[OpenRouterImageEditor] respuesta sin imagen');
         return null;
       }
-      return dataUrlToImage(url);
+      const image = dataUrlToImage(url);
+      if (image) image.costUsd = extractCost(json);
+      return image;
     } catch (e) {
       console.warn(
         `[OpenRouterImageEditor] excepción: ${e instanceof Error ? e.message : String(e)}`,
@@ -156,6 +163,12 @@ function extractImageUrl(json: unknown): string | null {
     }
   }
   return null;
+}
+
+/** Lee el costo en USD de la respuesta de OpenRouter (usage.cost), si viene. */
+function extractCost(json: unknown): number | null {
+  const cost = (json as { usage?: { cost?: unknown } })?.usage?.cost;
+  return typeof cost === 'number' && Number.isFinite(cost) ? cost : null;
 }
 
 function dataUrlToImage(dataUrl: string): EditedImage | null {

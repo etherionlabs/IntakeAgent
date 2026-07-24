@@ -7,6 +7,15 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+/**
+ * URL del archivo de imagen de un mensaje (foto entrante o previsualización). Se
+ * usa como `src` de un <img>; en producción es mismo-origen (`/api/...`), así que
+ * el navegador manda la cookie de sesión.
+ */
+export function mediaUrl(messageId: string): string {
+  return `${BASE}/messages/${encodeURIComponent(messageId)}/media`;
+}
+
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 let onPlatformUnauthorized: (() => void) | null = null;

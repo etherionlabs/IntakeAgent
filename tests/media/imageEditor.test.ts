@@ -42,7 +42,7 @@ describe('ImageEditor', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('OpenRouterImageEditor parsea la imagen data-URL de la respuesta', async () => {
+  it('OpenRouterImageEditor parsea la imagen data-URL y el costo de la respuesta', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -53,6 +53,7 @@ describe('ImageEditor', () => {
               },
             },
           ],
+          usage: { cost: 0.021 },
         }),
         { status: 200 },
       ),
@@ -62,6 +63,7 @@ describe('ImageEditor', () => {
     expect(result).not.toBeNull();
     expect(result?.mimetype).toBe('image/png');
     expect(result?.buffer.length).toBeGreaterThan(0);
+    expect(result?.costUsd).toBe(0.021);
   });
 
   it('OpenRouterImageEditor devuelve null si la respuesta no trae imagen', async () => {

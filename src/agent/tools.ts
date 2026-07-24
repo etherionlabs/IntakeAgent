@@ -388,6 +388,9 @@ export function buildGeneratePreviewTool(ctx: TurnContext, deps: GeneratePreview
       ctx.pendingAttachments = ctx.pendingAttachments ?? [];
       ctx.pendingAttachments.push(attachment);
 
+      // Contabiliza el costo de la edición hacia el gasto del turno.
+      if (edited.costUsd) ctx.extraCostUsd = (ctx.extraCostUsd ?? 0) + edited.costUsd;
+
       return { ok: true, preview_generated: true, instruction };
     },
   };

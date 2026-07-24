@@ -1,8 +1,12 @@
+import { useState } from 'react';
+import { mediaUrl } from '../api/client';
+
 export type Message = {
   id: string;
   direction: string;
   kind?: string | null;
   body?: string | null;
+  mediaPath?: string | null;
   createdAt?: string | null;
 };
 
@@ -34,12 +38,14 @@ export default function MessageList({ messages }: { messages: Message[] }) {
         const kind = m.kind ?? 'text';
         const tag = KIND_TAG[kind];
         const text = m.body ?? (tag ? '(sin descripción)' : '(sin texto)');
+        const hasImage = kind === 'image' && !!m.mediaPath;
         return (
           <li
             key={m.id}
             className={`message message-${inbound ? 'inbound' : 'outbound'}`}
           >
             {tag && <div className="message-kindtag">{tag}</div>}
+            {hasImage && <MessageImage id={m.id} />}
             <div className="message-body">{text}</div>
             <div className="message-meta">
               <time className="message-time">{formatTime(m.createdAt)}</time>
@@ -48,5 +54,20 @@ export default function MessageList({ messages }: { messages: Message[] }) {
         );
       })}
     </ul>
+  );
+}
+
+/** <img> de un mensaje-imagen; si el archivo no está disponible se oculta. */
+function MessageImage({ id }: { id: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      className="message-image"
+      src={mediaUrl(id)}
+      alt="Imagen del mensaje"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
   );
 }

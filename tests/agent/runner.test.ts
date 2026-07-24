@@ -138,6 +138,27 @@ describe('runAgentTurn', () => {
     expect((intake.client as any).name.value).toBe('María');
   });
 
+  it('suma el costo extra de tools (ej. edición de imágenes) al costo del turno', async () => {
+    const ctx = await setupCtx();
+    // Simula que una tool acumuló costo de edición durante el turno.
+    ctx.extraCostUsd = 0.02;
+    const factory = makeStubFactory(async () => ({
+      text: 'Aquí está tu previsualización.',
+      usage: { inputTokens: 100, outputTokens: 20, costUsd: 0.001 },
+    }));
+    const result = await runAgentTurn(ctx, {
+      prisma,
+      tenantId: TEST_TENANT_ID,
+      config,
+      profile,
+      notifier: new NoopNotifier(),
+      createAgent: factory,
+    });
+    expect(result.costUsd).toBeCloseTo(0.021, 6);
+    const runs = await prisma.agentRun.findMany({ where: { jobId: ctx.job.id } });
+    expect(Number(runs[0].costUsd)).toBeCloseTo(0.021, 6);
+  });
+
   it('errores del SDK se capturan y se devuelve fallback con error guardado', async () => {
     const ctx = await setupCtx();
     const factory: AgentFactory = () => ({

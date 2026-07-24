@@ -329,6 +329,7 @@ textarea {
 .message-inbound { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
 .message-outbound { align-self: flex-end; background: var(--brand-50); border: 1px solid var(--brand-100); }
 .message-kindtag { font-size: 0.72rem; font-weight: 600; color: var(--muted); display: inline-flex; gap: 0.25rem; margin-bottom: 0.15rem; }
+.message-image { display: block; max-width: 100%; width: auto; max-height: 320px; border-radius: 8px; margin: 0.25rem 0; object-fit: contain; }
 .message-meta { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem; }
 .messages-empty { color: var(--muted); }
 

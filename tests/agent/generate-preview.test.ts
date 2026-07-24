@@ -92,6 +92,19 @@ describe('tool generate_preview', () => {
     expect(saved.path).toContain(att.messageId);
   });
 
+  it('acumula el costo de la edición en ctx.extraCostUsd', async () => {
+    const ctx = baseCtx();
+    const tool = buildGeneratePreviewTool(ctx, {
+      prisma: fakePrisma('orig.jpg'),
+      tenantId: 't1',
+      profile,
+      mediaStore: fakeMediaStore({}),
+      imageEditor: new ScriptedImageEditor([{ ...EDITED, costUsd: 0.021 }]),
+    });
+    await tool.execute({ photo_ref: 'photo-1', instruction: 'franjas negras al cofre' });
+    expect(ctx.extraCostUsd).toBe(0.021);
+  });
+
   it('falla si el photo_ref no está entre las fotos disponibles', async () => {
     const ctx = baseCtx();
     const tool = buildGeneratePreviewTool(ctx, {

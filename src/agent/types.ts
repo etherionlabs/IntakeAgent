@@ -69,6 +69,12 @@ export interface TurnContext {
    * coordinator los envía + persiste. Mutable a propósito (igual que `intake`).
    */
   pendingAttachments?: OutboundAttachment[];
+  /**
+   * Costo extra (USD) acumulado por tools que llaman a otros modelos dentro del
+   * turno (ej. `generate_preview`). El runner lo suma al costo del turno para que
+   * el reporte de gasto (AgentRun.costUsd) sea completo. Mutable a propósito.
+   */
+  extraCostUsd?: number;
 }
 
 export interface HistoryEntry {
