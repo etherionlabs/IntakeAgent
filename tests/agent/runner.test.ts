@@ -31,6 +31,7 @@ const profile: Profile = {
   businessFacts: { facts: [], freeContext: '' },
   welcome: 'hola',
   imageFocus: '',
+  imageEditGuidance: '',
   hash: 'h1',
 };
 
@@ -45,7 +46,7 @@ const config: Config = {
   hours: { enabled: false, timezone: 'America/Mexico_City', schedule: {}, outOfHoursNotice: '' },
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
-  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini' },
+  media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini', editImages: false, imageEditModel: 'google/gemini-2.5-flash-image-preview' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;
 

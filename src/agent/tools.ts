@@ -1,11 +1,14 @@
+import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
-import type { TurnContext, AgentDeps } from './types';
+import type { TurnContext, AgentDeps, OutboundAttachment } from './types';
 import { bulkUpdate, addFreeNote, isIntakeComplete, type IntakeState } from '../services/intake';
 import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob } from '../services/job';
 import { flagNonIntake } from '../services/contact';
 import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
+import { imageMimeFromPath } from '../media/describer';
 
 /** Forma común a todas las tools del agent. Compatible con @openrouter/sdk `tool()`. */
 export interface AgentTool {
@@ -304,6 +307,92 @@ export function buildReanalyzeImageTool(ctx: TurnContext, deps: ReanalyzeImageDe
   };
 }
 
+const GeneratePreviewArgsZ = z.object({
+  photo_ref: z.string().min(1, 'photo_ref es el ref de la foto (ej. el de "(ref: ...)")'),
+  instruction: z
+    .string()
+    .min(5, 'describe el cambio visual a aplicar (ej. "agregar franjas deportivas negras al cofre")'),
+  caption: z.string().max(300).optional(),
+});
+
+export interface GeneratePreviewDeps {
+  prisma: AgentDeps['prisma'];
+  tenantId: string;
+  profile: Profile;
+  mediaStore: NonNullable<AgentDeps['mediaStore']>;
+  imageEditor: NonNullable<AgentDeps['imageEditor']>;
+}
+
+export function buildGeneratePreviewTool(ctx: TurnContext, deps: GeneratePreviewDeps): AgentTool {
+  return {
+    name: 'generate_preview',
+    description:
+      'Genera una PREVISUALIZACIÓN aproximada editando una foto que el cliente ya envió: aplica un cambio visual (ej. rayas/franjas deportivas, color de wrap, tono de polarizado, acabado) y la imagen resultante se le envía automáticamente al cliente. Usa el ref que aparece en cada foto como photo_ref e instruction con el cambio a aplicar. Es una ayuda visual aproximada, no el resultado final; adviértelo en tu texto.',
+    inputSchema: GeneratePreviewArgsZ,
+    execute: async (rawArgs) => {
+      const parse = GeneratePreviewArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+      const { photo_ref, instruction, caption } = parse.data;
+
+      const photos = ctx.availablePhotos ?? [];
+      if (!photos.some((p) => p.messageId === photo_ref)) {
+        const refs = photos.map((p) => p.messageId).join(', ') || '(ninguna)';
+        return { ok: false, error: `no hay foto con ref "${photo_ref}". Refs disponibles: ${refs}` };
+      }
+
+      const message = await deps.prisma.message.findFirst({
+        where: { id: photo_ref, tenantId: deps.tenantId, kind: 'image' },
+      });
+      if (!message || !message.mediaPath) {
+        return { ok: false, error: `la foto ${photo_ref} no tiene archivo disponible para editar` };
+      }
+
+      let source: Buffer;
+      try {
+        source = await readFile(deps.mediaStore.absolutePathFor(message.mediaPath));
+      } catch {
+        return { ok: false, error: `no se pudo leer el archivo de la foto ${photo_ref}` };
+      }
+
+      const edited = await deps.imageEditor.edit(
+        source,
+        imageMimeFromPath(message.mediaPath),
+        {
+          businessName: deps.profile.intakeSchema.$businessName,
+          businessDomain: deps.profile.intakeSchema.$businessDomain,
+          editGuidance: deps.profile.imageEditGuidance ?? '',
+          instruction,
+        },
+      );
+      if (!edited) {
+        return { ok: false, error: 'no se pudo generar la previsualización de la imagen' };
+      }
+
+      // Reservamos el ID del futuro mensaje outbound y lo usamos como nombre del
+      // archivo, para que el media-store y el registro en DB queden consistentes.
+      const messageId = randomUUID();
+      const mediaPath = await deps.mediaStore.save({
+        buffer: edited.buffer,
+        mimetype: edited.mimetype,
+        contactId: ctx.contact.id,
+        jobId: ctx.job.id,
+        messageId,
+      });
+
+      const attachment: OutboundAttachment = {
+        messageId,
+        mediaPath,
+        mimetype: edited.mimetype,
+        caption: caption ?? null,
+      };
+      ctx.pendingAttachments = ctx.pendingAttachments ?? [];
+      ctx.pendingAttachments.push(attachment);
+
+      return { ok: true, preview_generated: true, instruction };
+    },
+  };
+}
+
 export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
   const tools: AgentTool[] = [
     buildUpdateIntakeTool(ctx, deps),
@@ -323,6 +412,17 @@ export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
         profile: deps.profile,
         mediaStore: deps.mediaStore,
         describer: deps.describer,
+      }),
+    );
+  }
+  if ((ctx.availablePhotos?.length ?? 0) > 0 && deps.mediaStore && deps.imageEditor) {
+    tools.push(
+      buildGeneratePreviewTool(ctx, {
+        prisma: deps.prisma,
+        tenantId: deps.tenantId,
+        profile: deps.profile,
+        mediaStore: deps.mediaStore,
+        imageEditor: deps.imageEditor,
       }),
     );
   }

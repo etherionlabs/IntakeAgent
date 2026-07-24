@@ -17,6 +17,24 @@ la foto con otro foco. Se configura en `config.json` →
 `media.describeImages` y `media.visionModel`; el foco por vertical vive en
 `profiles/<perfil>/prompt-vars.json` (`vars.imageFocus`).
 
+Además, para verticales visuales (ej. **wrapping / estética automotriz**), el
+agente puede **generar una previsualización** editando la foto del cliente: sobre
+la imagen que envió aplica un cambio (rayas/franjas deportivas, color de wrap,
+tono de polarizado, acabado) y le manda de vuelta una vista aproximada de cómo
+quedaría. Es opt-in en `config.json` → `media.editImages` y
+`media.imageEditModel` (requiere un modelo con salida de imagen, ej.
+`google/gemini-2.5-flash-image-preview`); la guía de estilo por vertical vive en
+`profiles/<perfil>/prompt-vars.json` (`vars.imageEditGuidance`). La tool
+`generate_preview` la dispara el agente cuando aporta a definir o cerrar la venta.
+La previsualización es **aproximada**, no un compromiso del acabado final.
+
+El agente también actúa de forma **proactiva** como asesor de ventas: tras captar
+lo que el cliente pide, ofrece servicios complementarios que tengan sentido para
+su caso (razonando sobre un catálogo curado en `business-facts.json`), sin
+inventar precios ni presionar. El comportamiento vive en
+`profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`); el perfil
+`profiles/wrapping` es el ejemplo de referencia.
+
 ---
 
 ## Requisitos

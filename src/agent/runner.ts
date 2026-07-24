@@ -13,6 +13,8 @@ export async function runAgentTurn(
   const apiKey = process.env.OPENROUTER_API_KEY ?? '';
   const triggerMessageIds = ctx.batchMessages.map((m) => m.id);
   const toolCalls: ToolCallRecord[] = [];
+  // Adjuntos generados por tools durante el turno (ej. generate_preview).
+  ctx.pendingAttachments = ctx.pendingAttachments ?? [];
 
   // Construimos las tools con un wrapper que registra cada llamada.
   const rawTools = buildTools(ctx, deps);
@@ -103,5 +105,6 @@ export async function runAgentTurn(
     costUsd,
     error,
     errorKind,
+    attachments: ctx.pendingAttachments ?? [],
   };
 }

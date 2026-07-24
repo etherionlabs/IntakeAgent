@@ -295,6 +295,9 @@ export class InboundCoordinator {
         // Pasar undefined cuando el toggle está apagado: buildTools omite
         // reanalyze_image y el agente no ve la herramienta.
         describer: describerEnabled ? describer : undefined,
+        // Edición/previsualización de imágenes: gated por config.media.editImages.
+        // Con el toggle apagado (o sin editor) buildTools omite generate_preview.
+        imageEditor: config.media.editImages ? this.deps.imageEditor : undefined,
       },
     );
 
@@ -310,6 +313,38 @@ export class InboundCoordinator {
           body: result.responseText,
         },
       });
+    }
+
+    // Previsualizaciones generadas en el turno (generate_preview): enviarlas al
+    // cliente y persistirlas como mensajes outbound tipo 'image'. El id del
+    // mensaje ya se usó como nombre del archivo en el media-store.
+    for (const att of result.attachments) {
+      if (!this.deps.sender.sendImage) {
+        logger.warn({ tenantId, jobId: job.id }, 'inbound.attachment_unsupported');
+        break;
+      }
+      try {
+        const absPath = this.deps.mediaStore.absolutePathFor(att.mediaPath);
+        await this.deps.sender.sendImage(contact.phoneE164, absPath, att.caption);
+        await this.deps.prisma.message.create({
+          data: {
+            id: att.messageId,
+            tenantId,
+            jobId: job.id,
+            contactId: contact.id,
+            direction: 'outbound',
+            kind: 'image',
+            body: att.caption,
+            mediaPath: att.mediaPath,
+          },
+        });
+      } catch (e) {
+        captureError(e, { tenantId, service: 'worker', extra: { jobId: job.id, kind: 'attachment' } });
+        logger.error(
+          { tenantId, jobId: job.id, err: e instanceof Error ? e.message : String(e) },
+          'inbound.attachment_send_failed',
+        );
+      }
     }
   }
 }

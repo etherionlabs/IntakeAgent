@@ -6,6 +6,7 @@ import type { Config, Profile } from '../config/schema';
 import { FilesystemMediaStore } from '../media/store';
 import { NoopTranscriber, WhisperTranscriber, type Transcriber } from '../media/transcriber';
 import { NoopDescriber, VisionDescriber, type Describer } from '../media/describer';
+import { NoopImageEditor, OpenRouterImageEditor, type ImageEditor } from '../media/imageEditor';
 import { InboundCoordinator } from '../pipeline/coordinator';
 import { WhatsAppSender } from '../adapters/whatsapp/sender';
 import { WhatsAppNotifier } from '../adapters/whatsapp/notifier';
@@ -186,6 +187,8 @@ export async function createTenantRuntime(tenantId: string, deps: RuntimeDeps): 
     ? new WhisperTranscriber(apiKey, config.media.whisperModel) : new NoopTranscriber();
   const describer: Describer = apiKey
     ? new VisionDescriber(apiKey, config.media.visionModel) : new NoopDescriber();
+  const imageEditor: ImageEditor = apiKey
+    ? new OpenRouterImageEditor(apiKey, config.media.imageEditModel) : new NoopImageEditor();
 
   // Lazy getter para el socket (igual que main() hoy): el sender se crea antes que el adapter.
   let source: Source | null = null;
@@ -194,7 +197,7 @@ export async function createTenantRuntime(tenantId: string, deps: RuntimeDeps): 
 
   const coordinator = new InboundCoordinator({
     prisma: deps.prisma, tenantId, config, profile, notifier, sender,
-    transcriber, describer, mediaStore, agentFactory: defaultAgentFactory, now: () => new Date(),
+    transcriber, describer, imageEditor, mediaStore, agentFactory: defaultAgentFactory, now: () => new Date(),
     // Hot-reload por turno: relee TenantSettings (panel ↔ worker comparten Postgres),
     // así editar la config aplica sin reiniciar el tenant. Conserva la última válida.
     reloadConfig: () => buildTenantConfig(deps.prisma, tenantId, configPath),

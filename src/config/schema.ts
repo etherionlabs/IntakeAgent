@@ -65,6 +65,11 @@ export const ConfigZ = z.object({
       whisperModel: z.string().default('openai/whisper-1'),
       describeImages: z.boolean().default(true),
       visionModel: z.string().default('openai/gpt-4o-mini'),
+      // Edición/previsualización de imágenes (ej. rayas deportivas, color de wrap).
+      // Opt-in: cuesta más y es más lento que describir. Requiere un modelo con
+      // salida de imagen (ej. google/gemini-2.5-flash-image-preview).
+      editImages: z.boolean().default(false),
+      imageEditModel: z.string().default('google/gemini-2.5-flash-image-preview'),
     })
     .default({
       storeDir: './media',
@@ -72,6 +77,8 @@ export const ConfigZ = z.object({
       whisperModel: 'openai/whisper-1',
       describeImages: true,
       visionModel: 'openai/gpt-4o-mini',
+      editImages: false,
+      imageEditModel: 'google/gemini-2.5-flash-image-preview',
     }),
   limits: z
     .object({
@@ -90,5 +97,7 @@ export interface Profile {
   welcome: string;
   /** Instrucciones de foco para describir imágenes (vertical-specific). Opcional. */
   imageFocus: string;
+  /** Guía de estilo para EDITAR imágenes / previsualizaciones (vertical-specific). Opcional. */
+  imageEditGuidance: string;
   hash: string;
 }

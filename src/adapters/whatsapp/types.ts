@@ -2,8 +2,13 @@
  * Interfaz mínima del socket de Baileys que nuestro código consume.
  * Esto nos permite inyectar mocks en tests sin importar Baileys real.
  */
+/** Contenido soportado al enviar: texto, o imagen (ruta local vía `url`) con caption. */
+export type WAMessageContent =
+  | { text: string }
+  | { image: { url: string }; caption?: string };
+
 export interface WASocket {
-  sendMessage(jid: string, content: { text: string }): Promise<unknown>;
+  sendMessage(jid: string, content: WAMessageContent): Promise<unknown>;
   end?: (error?: Error) => void;
 }
 

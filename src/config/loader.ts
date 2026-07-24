@@ -75,6 +75,8 @@ export async function loadProfile(profileDir: string): Promise<Profile> {
     welcome: welcomeRaw,
     // Foco para describir imágenes: convención en prompt-vars.json (vars.imageFocus).
     imageFocus: promptVars.data.vars.imageFocus ?? '',
+    // Guía para editar imágenes / previsualizaciones (vars.imageEditGuidance).
+    imageEditGuidance: promptVars.data.vars.imageEditGuidance ?? '',
     hash,
   };
 }
@@ -110,6 +112,7 @@ export function applyProfileOverride(base: Profile, ov: ProfileSettings): Profil
     businessFacts: ov.businessFacts,
     welcome: ov.welcome,
     imageFocus: ov.vars.imageFocus ?? base.imageFocus,
+    imageEditGuidance: ov.vars.imageEditGuidance ?? base.imageEditGuidance,
     hash,
   };
 }

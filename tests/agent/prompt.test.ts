@@ -200,6 +200,7 @@ const profile: Profile = {
   businessFacts: sampleFacts,
   welcome: 'hola',
   imageFocus: '',
+  imageEditGuidance: '',
   hash: 'abc',
 };
 
