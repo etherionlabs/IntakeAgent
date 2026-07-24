@@ -30,9 +30,12 @@ estilo por vertical vive en `profiles/<perfil>/prompt-vars.json`
 aporta a definir o cerrar la venta. La previsualización es **aproximada**, no un
 compromiso del acabado final. El costo de cada edición se **contabiliza** en el
 gasto del turno (`AgentRun.costUsd`), y tanto las fotos entrantes como las
-previsualizaciones se **ven como imagen** en la conversación del panel (la API las
-sirve vía `GET /messages/:id/media`, con el volumen de media montado en modo
-lectura).
+previsualizaciones se **ven como imagen** en la conversación del panel: la API las
+sirve vía `GET /messages/:id/media`, autorizando por tenant y **proxyando** el
+archivo al servidor interno del worker (`/internal/media`), que es el dueño del
+volumen de media. Así funciona en un solo host (docker-compose) y en despliegues
+con servicios separados (ej. Railway), donde un volumen no se comparte entre
+servicios y no hace falta object storage externo.
 
 El agente también actúa de forma **proactiva** como asesor de ventas: tras captar
 lo que el cliente pide, ofrece servicios complementarios que tengan sentido para

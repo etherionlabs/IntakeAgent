@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
 import { startInternalServer, type InternalServer, type TenantDispatcher } from '../../src/internal/server';
 import type { TenantStatus } from '../../src/tenant/types';
 
 const TOKEN = 'test-internal-token';
 let server: InternalServer;
+let mediaRoot: string;
 
 const STATUS_A: TenantStatus = {
   tenantId: 'tenant-a', connected: true, qr: null, phone: '+5215551234567',
@@ -24,9 +28,16 @@ describe('internal status server (dispatch por tenant)', () => {
   beforeAll(async () => {
     process.env.INTERNAL_API_TOKEN = TOKEN;
     process.env.INTERNAL_PORT = '0';
-    server = await startInternalServer({ dispatcher });
+    mediaRoot = await mkdtemp(join(tmpdir(), 'internal-media-'));
+    const abs = join(mediaRoot, 'tenant-a', 'c', 'j', 'm.png');
+    await mkdir(dirname(abs), { recursive: true });
+    await writeFile(abs, 'PNGBYTES');
+    server = await startInternalServer({ dispatcher, mediaRoot });
   });
-  afterAll(() => server.close());
+  afterAll(async () => {
+    await server.close();
+    await rm(mediaRoot, { recursive: true, force: true });
+  });
 
   const auth = { authorization: `Bearer ${TOKEN}` };
 
@@ -77,5 +88,34 @@ describe('internal status server (dispatch por tenant)', () => {
     await server.app.inject({ method: 'POST', url: '/internal/tenant/resume', headers: auth, payload: { tenantId: 'tenant-a' } });
     expect(calls).toContain('suspend:tenant-a');
     expect(calls).toContain('resume:tenant-a');
+  });
+
+  describe('GET /internal/media', () => {
+    it('401 sin token', async () => {
+      const res = await server.app.inject({ method: 'GET', url: '/internal/media?tenantId=tenant-a&path=c/j/m.png' });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('sirve el archivo del tenant (200 + content-type)', async () => {
+      const res = await server.app.inject({ method: 'GET', url: '/internal/media?tenantId=tenant-a&path=c/j/m.png', headers: auth });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('image/png');
+      expect(res.body).toBe('PNGBYTES');
+    });
+
+    it('400 sin tenantId o path', async () => {
+      const res = await server.app.inject({ method: 'GET', url: '/internal/media?tenantId=tenant-a', headers: auth });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('404 si el archivo no existe', async () => {
+      const res = await server.app.inject({ method: 'GET', url: '/internal/media?tenantId=tenant-a&path=c/j/no.png', headers: auth });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('400 ante path traversal', async () => {
+      const res = await server.app.inject({ method: 'GET', url: '/internal/media?tenantId=tenant-a&path=../../../../etc/passwd', headers: auth });
+      expect(res.statusCode).toBe(400);
+    });
   });
 });

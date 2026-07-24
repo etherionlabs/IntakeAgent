@@ -63,10 +63,9 @@ services:
       PUBLIC_APP_URL: ${CORS_ORIGIN}
       TRIAL_REQUIRES_CARD: ${TRIAL_REQUIRES_CARD:-true}
     ports: ["3001:3001"]
-    volumes:
-      # Solo lectura: la API sirve las imágenes (fotos entrantes y previsualizaciones)
-      # al panel vía GET /messages/:id/media. El worker es quien escribe.
-      - media:/app/media:ro
+    # La API NO monta el volumen de media: sirve las imágenes proxyando al servidor
+    # interno del worker (GET /messages/:id/media → worker /internal/media). Así
+    # funciona también en Railway, donde un volumen no se comparte entre servicios.
     depends_on:
       postgres:
         condition: service_healthy
