@@ -27,11 +27,13 @@ const profile: Profile = {
   promptVars: {
     promptTemplate: 'Asistente de **{{businessName}}**. {{tone}}',
     vars: { tone: 'Cercano.' },
+    skills: [],
   },
   businessFacts: { facts: [], freeContext: '' },
   welcome: 'hola',
   imageFocus: '',
   imageEditGuidance: '',
+  skills: [],
   hash: 'h1',
 };
 

@@ -31,11 +31,12 @@ const schema: IntakeSchema = {
 
 const profile: Profile = {
   intakeSchema: schema,
-  promptVars: { promptTemplate: 'X', vars: {} },
+  promptVars: { promptTemplate: 'X', vars: {}, skills: [] },
   businessFacts: { facts: [], freeContext: '' },
   welcome: '¡Hola! Soy el asistente.',
   imageFocus: '',
   imageEditGuidance: '',
+  skills: [],
   hash: 'h',
 };
 

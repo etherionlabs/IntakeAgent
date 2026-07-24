@@ -151,6 +151,7 @@ export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
   );
 
   // 2. Componer bloques opcionales.
+  const skills = buildSkillsBlock(profile.skills);
   const facts = buildBusinessFactsBlock(
     profile.businessFacts,
     profile.intakeSchema.$businessName,
@@ -163,10 +164,34 @@ export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
   const openJobs = buildOpenJobsBlock(otherOpenJobs);
   const hours = buildHoursBlock(config, now);
 
-  // 3. Unir con separadores. Historial va antes del estado del intake.
-  return [baseTemplate, facts, history, intakeBlock, openJobs, hours]
+  // 3. Unir con separadores. Las skills (técnicas) van junto al comportamiento
+  //    base; el historial va antes del estado del intake.
+  return [baseTemplate, skills, facts, history, intakeBlock, openJobs, hours]
     .filter((s) => s.length > 0)
     .join('\n\n');
+}
+
+/**
+ * Bloque de "skills": técnicas reutilizables (venta, objeciones…) resueltas
+ * desde la biblioteca `skills/`. Enseñan al modelo CÓMO trabajar; no se mencionan
+ * al cliente y nunca ganan a las reglas duras.
+ */
+export function buildSkillsBlock(skills: import('../config/schema').LoadedSkill[]): string {
+  if (skills.length === 0) return '';
+  const lines: string[] = [];
+  lines.push('=== HABILIDADES / TÉCNICAS ===');
+  lines.push(
+    'Domina estas técnicas y aplícalas de forma natural cuando ayuden. Son para TU forma de ' +
+      'trabajar: NO las menciones ni las expliques al cliente, y NUNCA contradigas las REGLAS ' +
+      'DURAS ni inventes datos (precios, servicios, garantías).',
+  );
+  for (const s of skills) {
+    lines.push('');
+    lines.push(`## ${s.title}`);
+    if (s.description.trim().length > 0) lines.push(`(${s.description.trim()})`);
+    lines.push(s.instructions.trim());
+  }
+  return lines.join('\n');
 }
 
 export function buildHistoryBlock(history: import('./types').HistoryEntry[]): string {

@@ -35,6 +35,19 @@ inventar precios ni presionar. El comportamiento vive en
 `profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`); el perfil
 `profiles/wrapping` es el ejemplo de referencia.
 
+### Skills (técnicas reutilizables)
+
+Para enseñarle al modelo **técnicas transversales** —cómo vender mejor, manejar
+objeciones, etc.— existe una biblioteca de *skills* en `skills/`. Cada skill es un
+cuerpo de instrucciones reutilizable (independiente del giro) en
+`skills/<nombre>/skill.json` (`title`, `description`, `instructions`). Un perfil
+las adopta listándolas en `prompt-vars.json` → `"skills": ["ventas", ...]`; el
+loader las resuelve y se inyectan en el system prompt bajo un bloque de
+"HABILIDADES / TÉCNICAS" (son para el comportamiento del modelo, no se mencionan
+al cliente y nunca ganan a las reglas duras). Una skill referenciada que falte se
+omite con un aviso, sin tumbar al bot. Incluye la skill `ventas` (venta
+consultiva) que usa el perfil `profiles/wrapping`.
+
 ---
 
 ## Requisitos
