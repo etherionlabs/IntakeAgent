@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import type { TurnContext, AgentDeps, OutboundAttachment } from './types';
-import { bulkUpdate, addFreeNote, isIntakeComplete, type IntakeState } from '../services/intake';
+import {
+  bulkUpdate,
+  addFreeNote,
+  isIntakeComplete,
+  upsertOpportunities,
+  acceptedOpportunities,
+  type IntakeState,
+} from '../services/intake';
 import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob } from '../services/job';
 import { flagNonIntake } from '../services/contact';
 import type { Config, Profile } from '../config/schema';
@@ -82,6 +89,66 @@ export function buildUpdateIntakeTool(
   };
 }
 
+const RegisterOpportunityArgsZ = z.object({
+  items: z
+    .array(
+      z.object({
+        service: z
+          .string()
+          .min(2, 'service es el nombre del servicio extra')
+          .max(80),
+        status: z.enum(['offered', 'accepted', 'declined']),
+        note: z.string().max(300).optional(),
+      }),
+    )
+    .min(1)
+    .max(5),
+});
+
+export type RegisterOpportunityArgs = z.infer<typeof RegisterOpportunityArgsZ>;
+
+/**
+ * Deja rastro estructurado de la VENTA (no solo del intake): qué servicio extra
+ * se ofreció y cómo respondió el cliente. Es lo que permite que el agente no
+ * repita una oferta rechazada y que el dueño reciba la lista de extras a cotizar.
+ */
+export function buildRegisterOpportunityTool(
+  ctx: TurnContext,
+  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
+): AgentTool {
+  return {
+    name: 'register_opportunity',
+    description:
+      'Registra los servicios ADICIONALES (extras/complementos) que ofreciste y cómo respondió el cliente. ' +
+      'status=offered cuando lo acabas de proponer y aún no contesta; accepted cuando lo quiere o se entusiasma; ' +
+      'declined cuando lo rechaza. Llama a esta tool EN EL MISMO TURNO en que ofreces o en que el cliente responde, ' +
+      'agrupando todos los cambios en una sola llamada. Usa el mismo nombre de servicio para actualizar su estado. ' +
+      'NO la uses para el servicio principal que el cliente vino a pedir, ese va en el intake.',
+    inputSchema: RegisterOpportunityArgsZ,
+    execute: async (rawArgs) => {
+      const parse = RegisterOpportunityArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+
+      const sourceMessageId = ctx.batchMessages[ctx.batchMessages.length - 1]?.id ?? null;
+      const nextIntake = upsertOpportunities(
+        ctx.intake,
+        parse.data.items,
+        ctx.now,
+        sourceMessageId,
+      );
+
+      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
+      ctx.intake = nextIntake;
+
+      return {
+        ok: true,
+        registered: parse.data.items.length,
+        accepted: acceptedOpportunities(nextIntake).map((o) => o.service),
+      };
+    },
+  };
+}
+
 const MarkReadyArgsZ = z.object({
   summary: z.string().min(20, 'summary debe tener al menos 20 caracteres'),
 });
@@ -130,6 +197,9 @@ export function buildMarkReadyTool(
           contactDisplayName: ctx.contact.displayName,
           contactPhone: ctx.contact.phoneE164,
           summary,
+          // Extras que el cliente aceptó: el dueño los ve en el aviso para
+          // cotizar el trabajo completo, no solo lo que el cliente pidió al inicio.
+          extras: acceptedOpportunities(ctx.intake).map((o) => o.service),
           panelUrl: deps.config.owner.panelUrl,
         });
       }
@@ -403,6 +473,7 @@ export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
     buildCloseJobTool(ctx, deps),
     buildFlagNonIntakeTool(ctx, deps),
     buildRequestPhotoTool(ctx),
+    buildRegisterOpportunityTool(ctx, deps),
   ];
   if (ctx.otherOpenJobs.length >= 2) {
     tools.push(buildSelectOrOpenJobTool(ctx));

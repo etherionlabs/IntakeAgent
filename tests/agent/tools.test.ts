@@ -5,9 +5,15 @@ import { openJob } from '../../src/services/job';
 import {
   createEmptyIntakeFromSchema,
   bulkUpdate,
+  upsertOpportunities,
+  listOpportunities,
   type IntakeState,
 } from '../../src/services/intake';
-import { buildUpdateIntakeTool, buildMarkReadyTool } from '../../src/agent/tools';
+import {
+  buildUpdateIntakeTool,
+  buildMarkReadyTool,
+  buildRegisterOpportunityTool,
+} from '../../src/agent/tools';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
 
@@ -122,6 +128,76 @@ describe('tool update_intake', () => {
   });
 });
 
+describe('tool register_opportunity', () => {
+  const deps = { prisma, tenantId: TEST_TENANT_ID };
+
+  it('registra extras ofrecidos y los persiste en el intake del job', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    const out = await tool.execute({
+      items: [
+        { service: 'polarizado 20%', status: 'offered', note: 'se quejó del calor' },
+        { service: 'PPF en el frente', status: 'accepted' },
+      ],
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.registered).toBe(2);
+    expect(out.accepted).toEqual(['PPF en el frente']);
+
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    const persisted = JSON.parse(reload!.intake);
+    expect(persisted.opportunities).toHaveLength(2);
+    expect(persisted.opportunities[0]).toMatchObject({
+      service: 'polarizado 20%',
+      status: 'offered',
+      note: 'se quejó del calor',
+      source_message_id: 'm1',
+    });
+    // El contexto del turno queda sincronizado para las siguientes tools.
+    expect(listOpportunities(ctx.intake)).toHaveLength(2);
+  });
+
+  it('actualiza el estado de un extra ya registrado sin duplicarlo', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    await tool.execute({ items: [{ service: 'protección cerámica', status: 'offered' }] });
+    await tool.execute({ items: [{ service: 'protección cerámica', status: 'declined' }] });
+
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    const persisted = JSON.parse(reload!.intake);
+    expect(persisted.opportunities).toHaveLength(1);
+    expect(persisted.opportunities[0].status).toBe('declined');
+  });
+
+  it('no pisa los campos del intake ya capturados', async () => {
+    const ctx = await setupCtx();
+    const filled = bulkUpdate(schema, ctx.intake, [{ path: 'client.name', value: 'María' }], {
+      now: ctx.now,
+      source_message_id: 'm1',
+    });
+    if (!filled.ok) throw new Error('fail');
+    ctx.intake = filled.intake;
+
+    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    await tool.execute({ items: [{ service: 'rotulación', status: 'accepted' }] });
+
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    const persisted = JSON.parse(reload!.intake);
+    expect(persisted.client.name.value).toBe('María');
+    expect(persisted.opportunities).toHaveLength(1);
+  });
+
+  it('rechaza status inválidos y listas vacías', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    const bad = await tool.execute({ items: [{ service: 'x y z', status: 'quizás' }] });
+    expect(bad.ok).toBe(false);
+    const empty = await tool.execute({ items: [] });
+    expect(empty.ok).toBe(false);
+  });
+});
+
 describe('tool mark_ready_for_review', () => {
   it('rechaza si faltan campos requeridos', async () => {
     const ctx = await setupCtx();
@@ -164,6 +240,46 @@ describe('tool mark_ready_for_review', () => {
     expect(reload!.summary).toContain('Retapizado');
     expect(notifier.history).toHaveLength(1);
     expect(notifier.history[0].kind).toBe('owner_ready');
+  });
+
+  it('manda al dueño los extras aceptados junto al resumen', async () => {
+    const ctx = await setupCtx();
+    const profile = { intakeSchema: schema, hash: 'h' } as any;
+    const filled = bulkUpdate(schema, ctx.intake, [{ path: 'client.name', value: 'María' }], {
+      now: ctx.now,
+      source_message_id: 'm1',
+    });
+    if (!filled.ok) throw new Error('fail');
+    ctx.intake = upsertOpportunities(
+      filled.intake,
+      [
+        { service: 'polarizado 20%', status: 'accepted' },
+        { service: 'protección cerámica', status: 'declined' },
+      ],
+      ctx.now,
+      'm1',
+    );
+    await prisma.job.update({
+      where: { id: ctx.job.id },
+      data: { intake: JSON.stringify(ctx.intake) },
+    });
+
+    const notifier = new NoopNotifier();
+    const tool = buildMarkReadyTool(ctx, {
+      prisma,
+      tenantId: TEST_TENANT_ID,
+      profile,
+      notifier,
+      config: {
+        owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
+      },
+    } as any);
+
+    const out = await tool.execute({ summary: 'Wrap del cofre para María, más polarizado.' });
+    expect(out.ok).toBe(true);
+    const payload = notifier.history[0].payload as { extras?: string[] };
+    // Solo los aceptados: lo rechazado no se le cotiza al cliente.
+    expect(payload.extras).toEqual(['polarizado 20%']);
   });
 
   it('rechaza summary demasiado corto', async () => {
@@ -384,6 +500,7 @@ describe('buildTools', () => {
       'close_job',
       'flag_non_intake',
       'mark_ready_for_review',
+      'register_opportunity',
       'request_photo',
       'update_intake',
     ]);
@@ -403,6 +520,6 @@ describe('buildTools', () => {
       config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'x' } } as any,
     } as any);
     expect(tools.map((t) => t.name)).toContain('select_or_open_job');
-    expect(tools).toHaveLength(6);
+    expect(tools).toHaveLength(7);
   });
 });

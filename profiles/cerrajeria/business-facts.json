@@ -1,9 +1,10 @@
 {
   "facts": [
+    { "topic": "servicios", "aliases": ["qué hacen", "que ofrecen", "servicios", "catálogo"], "answer": "Apertura de emergencia, cambio y reparación de cerraduras, recodificación, copiado de llaves (incluidas llaves con chip para auto), chapas de automóvil y cerraduras de alta seguridad para casa, local o negocio." },
     { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda"], "answer": "Prestamos servicio a domicilio en la zona; consulta cobertura al confirmar tu solicitud." },
     { "topic": "horarios", "aliases": ["a qué hora", "cuando atienden", "horario", "urgencias"], "answer": "Atendemos de lunes a sábado de 8:00 a 20:00. Para emergencias fuera de horario, consulta disponibilidad." },
     { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo y transferencia. Para servicios de emergencia se paga al terminar el trabajo." },
     { "topic": "precios", "aliases": ["cuánto cuesta", "costo", "precio", "cotización", "presupuesto", "cuánto sale", "cuánto me sale"], "answer": "El costo depende del servicio; te damos un estimado sin compromiso al conocer el tipo de cerradura o apertura que necesitas." }
   ],
-  "freeContext": "Cerrajería profesional con servicio a domicilio. Realizamos aperturas de emergencia, cambio y reparación de cerraduras, copiado de llaves y servicio de chapas para automóviles. Atendemos casas, departamentos y locales comerciales."
+  "freeContext": "Cerrajería profesional con servicio a domicilio. Realizamos aperturas de emergencia, cambio y reparación de cerraduras, copiado de llaves y servicio de chapas para automóviles. Atendemos casas, departamentos y locales comerciales. Los servicios se complementan: quien perdió sus llaves normalmente necesita también cambiar o recodificar la cerradura, porque las llaves perdidas siguen abriendo; después de una apertura de emergencia conviene dejar un juego de copias; y al cambiar una cerradura es buen momento para revisar las otras puertas y accesos o subir a una de mayor seguridad. En negocios manejamos copias controladas para el personal."
 }

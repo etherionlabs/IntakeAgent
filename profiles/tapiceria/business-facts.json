@@ -1,8 +1,9 @@
 {
   "facts": [
+    { "topic": "servicios", "aliases": ["qué hacen", "que ofrecen", "servicios", "catálogo"], "answer": "Retapizado de salas, sillones y sillas de comedor, reparación de estructura, resortes y hules, cambio de espuma, cojines y respaldos, cabeceras, y elección de telas (incluidas telas resistentes y con tratamiento antimanchas)." },
     { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda"], "answer": "Estamos en Av. Reforma 123, colonia Centro." },
     { "topic": "horarios", "aliases": ["a qué hora", "cuando abren"], "answer": "Lunes a viernes de 9:00 a 19:00, sábados de 10:00 a 14:00." },
     { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia"], "answer": "Aceptamos efectivo, transferencia y tarjeta. El anticipo es del 50%." }
   ],
-  "freeContext": "Trabajamos sobre todo con muebles de sala y comedor. No hacemos colchones ni tapicería automotriz."
+  "freeContext": "Trabajamos sobre todo con muebles de sala y comedor. No hacemos colchones ni tapicería automotriz. Los trabajos se complementan: retapizar un solo mueble de un juego deja diferencias de tono, así que conviene hacer las piezas del mismo juego en el mismo lote de tela; los cojines, respaldos y cabeceras se hacen a juego; y mientras el mueble está desarmado es el mejor momento para revisar resortes, hules y estructura. En casas con niños o mascotas recomendamos tela más resistente o con tratamiento antimanchas."
 }

@@ -432,3 +432,18 @@ textarea {
   .topbar { flex-wrap: wrap; gap: 0.75rem; }
   .topbar .nav { order: 3; flex-basis: 100%; overflow-x: auto; }
 }
+
+/* ---------- Oportunidades de venta (servicios adicionales) ---------- */
+.opportunities-empty { color: var(--muted); font-size: 0.9rem; }
+.opportunities-hint { color: var(--brand-700); font-size: 0.9rem; margin: 0 0 0.6rem; }
+.opportunity-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.opportunity {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.5rem 0.75rem; background: var(--surface);
+}
+.opportunity-service { font-weight: 600; }
+.opportunity-note { color: var(--muted); font-size: 0.9rem; flex-basis: 100%; }
+.badge-opp-accepted { background: var(--brand-50); color: var(--brand-700); }
+.badge-opp-offered { background: var(--warning-bg); color: var(--warning); }
+.badge-opp-declined { background: #eef0f4; color: #4b5563; }

@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyIntakeFromSchema, bulkUpdate, addFreeNote, isIntakeComplete, renderIntakeForModel } from '../../src/services/intake';
+import {
+  createEmptyIntakeFromSchema,
+  bulkUpdate,
+  addFreeNote,
+  isIntakeComplete,
+  renderIntakeForModel,
+  upsertOpportunities,
+  listOpportunities,
+  acceptedOpportunities,
+} from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 
 const schema: IntakeSchema = {
@@ -240,5 +249,105 @@ describe('renderIntakeForModel', () => {
     expect(out).toContain('fotos recibidas: 2');
     expect(out).toContain('audios recibidos: 1');
     expect(out).toContain('evento el 15');
+  });
+});
+
+describe('oportunidades de venta', () => {
+  it('registra un servicio adicional ofrecido', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const next = upsertOpportunities(
+      intake,
+      [{ service: 'polarizado 20%', status: 'offered', note: 'le interesó el calor' }],
+      '2026-07-27T10:00:00.000Z',
+      'msg-1',
+    );
+    expect(listOpportunities(next)).toEqual([
+      {
+        service: 'polarizado 20%',
+        status: 'offered',
+        note: 'le interesó el calor',
+        updated_at: '2026-07-27T10:00:00.000Z',
+        source_message_id: 'msg-1',
+      },
+    ]);
+    // No muta el original.
+    expect(listOpportunities(intake)).toEqual([]);
+  });
+
+  it('actualiza el estado del mismo servicio en vez de duplicarlo', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const offered = upsertOpportunities(
+      intake,
+      [{ service: 'Polarizado 20%', status: 'offered' }],
+      't1',
+      null,
+    );
+    const accepted = upsertOpportunities(
+      offered,
+      [{ service: 'polarizado 20%', status: 'accepted' }],
+      't2',
+      null,
+    );
+    const list = listOpportunities(accepted);
+    expect(list).toHaveLength(1);
+    expect(list[0].status).toBe('accepted');
+    expect(list[0].updated_at).toBe('t2');
+  });
+
+  it('trata como el mismo servicio nombres con acentos y espacios distintos', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const a = upsertOpportunities(intake, [{ service: 'Rotulación', status: 'offered' }], 't1', null);
+    const b = upsertOpportunities(a, [{ service: 'rotulacion', status: 'declined' }], 't2', null);
+    expect(listOpportunities(b)).toHaveLength(1);
+    expect(listOpportunities(b)[0].status).toBe('declined');
+  });
+
+  it('acceptedOpportunities devuelve solo los aceptados', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const next = upsertOpportunities(
+      intake,
+      [
+        { service: 'ppf frente', status: 'accepted' },
+        { service: 'cerámica', status: 'declined' },
+        { service: 'rines', status: 'offered' },
+      ],
+      't1',
+      null,
+    );
+    expect(acceptedOpportunities(next).map((o) => o.service)).toEqual(['ppf frente']);
+  });
+
+  it('tolera un intake antiguo sin el campo opportunities', () => {
+    const legacy = createEmptyIntakeFromSchema(schema);
+    delete legacy.opportunities;
+    expect(listOpportunities(legacy)).toEqual([]);
+    expect(acceptedOpportunities(legacy)).toEqual([]);
+    const next = upsertOpportunities(legacy, [{ service: 'extra', status: 'accepted' }], 't1', null);
+    expect(listOpportunities(next)).toHaveLength(1);
+  });
+
+  it('renderIntakeForModel muestra los extras y prohíbe re-ofrecer los rechazados', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const next = upsertOpportunities(
+      intake,
+      [
+        { service: 'polarizado 20%', status: 'accepted' },
+        { service: 'protección cerámica', status: 'declined', note: 'lo ve caro' },
+      ],
+      't1',
+      null,
+    );
+    const out = renderIntakeForModel(schema, next, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toContain('Servicios adicionales (venta)');
+    expect(out).toContain('polarizado 20%: ACEPTADO');
+    expect(out).toContain('protección cerámica: rechazado — NO lo vuelvas a ofrecer');
+    expect(out).toContain('lo ve caro');
+    expect(out).toContain('register_opportunity');
+  });
+
+  it('renderIntakeForModel omite el bloque cuando no hay extras', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const out = renderIntakeForModel(schema, intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).not.toContain('Servicios adicionales');
   });
 });

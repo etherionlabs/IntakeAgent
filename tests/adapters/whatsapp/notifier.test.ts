@@ -34,6 +34,34 @@ describe('WhatsAppNotifier', () => {
     expect(sender.sent[0].text).toContain('+5215555');
   });
 
+  it('notifyOwnerReady lista los extras aceptados para que el dueño los cotice', async () => {
+    const sender = new MemorySender();
+    const notifier = new WhatsAppNotifier(sender, '+5210000000000');
+    await notifier.notifyOwnerReady({
+      jobId: 'j1',
+      contactDisplayName: 'Luis',
+      contactPhone: '+5215555',
+      summary: 'Wrap del cofre en gris satinado.',
+      extras: ['polarizado 20%', 'PPF en el frente'],
+      panelUrl: 'http://x',
+    });
+    expect(sender.sent[0].text).toContain('Extras aceptados: polarizado 20%, PPF en el frente');
+  });
+
+  it('notifyOwnerReady omite la línea de extras cuando no hay', async () => {
+    const sender = new MemorySender();
+    const notifier = new WhatsAppNotifier(sender, '+5210000000000');
+    await notifier.notifyOwnerReady({
+      jobId: 'j1',
+      contactDisplayName: 'Luis',
+      contactPhone: '+5215555',
+      summary: 'x'.repeat(30),
+      extras: [],
+      panelUrl: 'http://x',
+    });
+    expect(sender.sent[0].text).not.toContain('Extras aceptados');
+  });
+
   it('notifyDisconnect envía aviso con la razón', async () => {
     const sender = new MemorySender();
     const notifier = new WhatsAppNotifier(sender, '+5210000000000');

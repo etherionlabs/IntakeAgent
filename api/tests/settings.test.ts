@@ -171,8 +171,9 @@ describe('settings', () => {
     await useTempConfig();
     const res = await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) });
     expect(res.statusCode).toBe(200);
-    // skills null en la fila → hereda las referenciadas por el perfil (tapicería: []).
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, skills: [] });
+    // skills null en la fila → hereda las referenciadas por el perfil. Todos los
+    // giros adoptan la venta consultiva, así que tapicería hereda ['ventas'].
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, skills: ['ventas'] });
   });
 
   it('GET /settings sin fila TenantSettings → media null (tenant legado)', async () => {

@@ -17,18 +17,47 @@ export interface FreeNote {
   source_message_id: string | null;
 }
 
+/**
+ * Estado de un servicio ADICIONAL al que el agente le movió en la conversación.
+ * - `offered`: se ofreció y el cliente aún no se define.
+ * - `accepted`: el cliente lo quiere → el dueño debe cotizarlo junto al trabajo principal.
+ * - `declined`: el cliente dijo que no → NO se vuelve a ofrecer.
+ */
+export type OpportunityStatus = 'offered' | 'accepted' | 'declined';
+
+export interface Opportunity {
+  /** Servicio extra tal como se le nombró al cliente (ej. "polarizado 20%"). */
+  service: string;
+  status: OpportunityStatus;
+  note?: string;
+  updated_at: string;
+  source_message_id: string | null;
+}
+
 export interface IntakeState {
-  [section: string]: Record<string, FieldState> | { photo_count: number; audio_count: number } | FreeNote[];
+  [section: string]:
+    | Record<string, FieldState>
+    | { photo_count: number; audio_count: number }
+    | FreeNote[]
+    | Opportunity[]
+    | undefined;
   media: { photo_count: number; audio_count: number };
   free_notes: FreeNote[];
+  /**
+   * Servicios adicionales ofrecidos/aceptados/rechazados en la conversación.
+   * Opcional en lectura: los jobs creados antes de esta función no lo traen en
+   * su JSON persistido, así que todo consumidor debe tolerar `undefined`.
+   */
+  opportunities?: Opportunity[];
   // Narrow section access: access via string keys gives the union type above,
-  // but explicit media/free_notes are known to be their specific types
+  // but explicit media/free_notes/opportunities are known to be their specific types
 }
 
 export function createEmptyIntakeFromSchema(schema: IntakeSchema): IntakeState {
   const intake: IntakeState = {
     media: { photo_count: 0, audio_count: 0 },
     free_notes: [],
+    opportunities: [],
   };
   for (const section of schema.sections) {
     const sec: Record<string, FieldState> = {};
@@ -170,6 +199,65 @@ export function addFreeNote(
   return next;
 }
 
+/**
+ * Clave de identidad de una oportunidad: minúsculas, sin acentos y con espacios
+ * colapsados. Así "Polarizado 20%" y "polarizado 20%" son el MISMO servicio y
+ * cambiar su estado (offered → accepted) actualiza la entrada en vez de duplicarla.
+ */
+function opportunityKey(service: string): string {
+  return service
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+export interface OpportunityUpdate {
+  service: string;
+  status: OpportunityStatus;
+  note?: string;
+}
+
+export function listOpportunities(intake: IntakeState): Opportunity[] {
+  return intake.opportunities ?? [];
+}
+
+/** Servicios extra que el cliente aceptó — lo que el dueño debe cotizar de más. */
+export function acceptedOpportunities(intake: IntakeState): Opportunity[] {
+  return listOpportunities(intake).filter((o) => o.status === 'accepted');
+}
+
+/**
+ * Registra o actualiza oportunidades de venta. Upsert por servicio: si el
+ * servicio ya existe se le sobrescribe el estado (un "no" posterior gana sobre
+ * el "ofrecido" previo); si no, se agrega al final conservando el orden.
+ */
+export function upsertOpportunities(
+  intake: IntakeState,
+  updates: OpportunityUpdate[],
+  now: string,
+  source_message_id: string | null,
+): IntakeState {
+  const next = structuredClone(intake);
+  const list = [...(next.opportunities ?? [])];
+  for (const u of updates) {
+    const service = u.service.trim();
+    const entry: Opportunity = {
+      service,
+      status: u.status,
+      ...(u.note ? { note: u.note } : {}),
+      updated_at: now,
+      source_message_id,
+    };
+    const idx = list.findIndex((o) => opportunityKey(o.service) === opportunityKey(service));
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
+  }
+  next.opportunities = list;
+  return next;
+}
+
 export function isIntakeComplete(schema: IntakeSchema, intake: IntakeState): boolean {
   for (const path of listRequiredPaths(schema)) {
     const field = getByPath(intake, path) as FieldState | undefined;
@@ -233,6 +321,30 @@ export function renderIntakeForModel(
     for (const n of intake.free_notes) {
       lines.push(`  - ${n.text}`);
     }
+  }
+
+  const opportunities = listOpportunities(intake);
+  if (opportunities.length > 0) {
+    const icons: Record<OpportunityStatus, string> = {
+      offered: '·',
+      accepted: '✓',
+      declined: '✗',
+    };
+    const labels: Record<OpportunityStatus, string> = {
+      offered: 'ofrecido, sin respuesta',
+      accepted: 'ACEPTADO',
+      declined: 'rechazado — NO lo vuelvas a ofrecer',
+    };
+    lines.push('Servicios adicionales (venta):');
+    for (const o of opportunities) {
+      const note = o.note ? ` — ${o.note}` : '';
+      lines.push(`  ${icons[o.status]} ${o.service}: ${labels[o.status]}${note}`);
+    }
+    lines.push(
+      '  → Registra con register_opportunity cada extra que ofrezcas y actualízalo cuando el ' +
+        'cliente responda. Los ACEPTADOS van en el resumen para que el dueño los cotice; los ' +
+        'rechazados no se vuelven a mencionar.',
+    );
   }
 
   const missing: string[] = [];

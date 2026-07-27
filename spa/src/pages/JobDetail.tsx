@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import IntakeForm, { type Intake, type IntakeSchema } from '../components/IntakeForm';
 import MessageList, { type Message } from '../components/MessageList';
+import Opportunities, { type Opportunity } from '../components/Opportunities';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 type Contact = {
@@ -33,6 +34,7 @@ export default function JobDetail() {
   const [confirm, setConfirm] = useState<null | 'archive' | 'delete'>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [intake, setIntake] = useState<Intake>({});
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [schema, setSchema] = useState<IntakeSchema>({ sections: [] });
   const [loading, setLoading] = useState(true);
@@ -53,6 +55,13 @@ export default function JobDetail() {
       ]);
       setJob(jobData.job as Job);
       setIntake((jobData.intake ?? {}) as Intake);
+      // `opportunities` viaja dentro del intake; los jobs anteriores a la venta
+      // proactiva no lo traen, de ahí el arreglo vacío por defecto.
+      setOpportunities(
+        (Array.isArray(jobData.intake?.opportunities)
+          ? jobData.intake.opportunities
+          : []) as Opportunity[],
+      );
       setMessages((jobData.messages ?? []) as Message[]);
       setSchema((profile.intakeSchema ?? { sections: [] }) as IntakeSchema);
       if (jobData.job?.summary) setSummary(jobData.job.summary);
@@ -145,6 +154,9 @@ export default function JobDetail() {
             intake={intake}
             onChanged={() => void load()}
           />
+
+          <h2>Servicios adicionales</h2>
+          <Opportunities items={opportunities} />
         </section>
 
         <section className="job-detail-col">

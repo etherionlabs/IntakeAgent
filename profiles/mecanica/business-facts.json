@@ -1,9 +1,10 @@
 {
   "facts": [
+    { "topic": "servicios", "aliases": ["qué hacen", "que ofrecen", "servicios", "catálogo", "mantenimiento"], "answer": "Diagnóstico electrónico con escáner, reparación general (motor, frenos, suspensión, transmisión, clutch), mantenimiento y afinación, cambio de aceite y filtros, batería, alineación y balanceo, y revisión general antes de viaje. Trabajamos todas las marcas." },
     { "topic": "ubicación", "aliases": ["dirección", "donde están", "donde queda", "taller"], "answer": "Consulta nuestra dirección exacta con el equipo; te la compartimos al confirmar tu cita." },
     { "topic": "horarios", "aliases": ["a qué hora", "cuando abren", "horario"], "answer": "Lunes a viernes de 8:00 a 18:00, sábados de 9:00 a 14:00. Cerramos domingos y días festivos." },
     { "topic": "métodos de pago", "aliases": ["pago", "tarjeta", "transferencia", "efectivo"], "answer": "Aceptamos efectivo, transferencia bancaria y tarjeta de débito/crédito. Se solicita anticipo para refacciones especiales." },
     { "topic": "precios", "aliases": ["cuánto cuesta", "costo", "precio", "cotización", "presupuesto", "cuánto sale", "cuánto me sale"], "answer": "El costo depende de la revisión del vehículo; con gusto te damos un estimado sin compromiso. El diagnóstico tiene un costo que se descuenta si realizas la reparación con nosotros." }
   ],
-  "freeContext": "Taller mecánico automotriz especializado en diagnóstico, reparación y mantenimiento de automóviles particulares y camionetas. Trabajamos con vehículos de todas las marcas. Contamos con escáner para diagnóstico electrónico."
+  "freeContext": "Taller mecánico automotriz especializado en diagnóstico, reparación y mantenimiento de automóviles particulares y camionetas. Trabajamos con vehículos de todas las marcas. Contamos con escáner para diagnóstico electrónico. Los servicios se complementan: cuando el auto ya está en el taller conviene aprovechar para revisar frenos, suspensión, niveles y filtros, porque el cliente se ahorra otra visita. Un mantenimiento suele acompañarse de afinación, batería o alineación y balanceo según el kilometraje, y quien va a viajar agradece una revisión general de viaje."
 }

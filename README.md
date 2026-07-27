@@ -1,10 +1,14 @@
 # Intake
 
-Recepcionista autónomo de WhatsApp para talleres de tapicería. Atiende los
-mensajes de los clientes, levanta el "intake" (datos del trabajo) de forma
-conversacional y avisa al dueño cuando un trabajo está listo para revisar. Trae
-un panel web para ver conversaciones, gestionar el pipeline de trabajos y la
-configuración.
+**Asesor de ventas autónomo de WhatsApp** para negocios de servicio (talleres,
+oficios y logística). Atiende los mensajes de los clientes, levanta el "intake"
+(datos del trabajo) de forma conversacional y —esto es lo que lo distingue de un
+recepcionista— **asesora y vende**: entiende qué quiere lograr el cliente, ofrece
+los servicios complementarios que apliquen a su caso y busca cerrar la orden de
+trabajo más completa y rentable que de verdad le convenga, sin inventar precios
+ni presionar. Cuando el trabajo está listo, avisa al dueño con el resumen y los
+**extras aceptados** para que cotice todo junto. Trae un panel web para ver
+conversaciones, gestionar el pipeline de trabajos y la configuración.
 
 - **Stack:** Node.js 20+, TypeScript (ejecutado con `tsx`, sin paso de build),
   Fastify + Handlebars + HTMX (panel), Prisma 7 + SQLite, Baileys (WhatsApp),
@@ -37,12 +41,35 @@ volumen de media. Así funciona en un solo host (docker-compose) y en despliegue
 con servicios separados (ej. Railway), donde un volumen no se comparte entre
 servicios y no hace falta object storage externo.
 
-El agente también actúa de forma **proactiva** como asesor de ventas: tras captar
-lo que el cliente pide, ofrece servicios complementarios que tengan sentido para
-su caso (razonando sobre un catálogo curado en `business-facts.json`), sin
-inventar precios ni presionar. El comportamiento vive en
-`profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`); el perfil
-`profiles/wrapping` es el ejemplo de referencia.
+### Venta proactiva
+
+El agente no se limita a levantar el pedido: tras captar lo que el cliente pide,
+ofrece los servicios **complementarios** que tengan sentido para su caso,
+explicando el beneficio y sin inventar precios ni presionar. El comportamiento
+por giro vive en `profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`), y
+razona sobre un catálogo curado en `business-facts.json` — el agente **solo puede
+ofrecer lo que aparezca ahí**, por regla dura. **Todos los perfiles** lo traen
+(mecánica, tapicería, cerrajería, plomería, electricista, refrigeración,
+paquetería, wrapping y el genérico); el genérico, al ser el fallback de cualquier
+giro sin plantilla, se apoya en los servicios que el dueño cargue desde el panel
+en vez de un catálogo propio.
+
+Cada movimiento de venta queda **registrado**, no suelto en una nota: la tool
+`register_opportunity` guarda en el intake del job (`opportunities`) qué extra se
+ofreció y cómo respondió el cliente —`offered`, `accepted` o `declined`—. Eso
+cierra el ciclo en tres puntos:
+
+- **En la conversación:** el estado se le muestra al agente en cada turno, así que
+  no vuelve a ofrecer algo que el cliente ya rechazó.
+- **En el aviso al dueño:** `mark_ready_for_review` manda los extras aceptados en
+  una línea aparte del resumen (`Extras aceptados: …`), que es justo lo que se
+  suele pasar por alto al cotizar.
+- **En el panel:** la ficha del trabajo tiene una sección *Servicios adicionales*
+  con los aceptados primero y el aviso de cuántos hay que incluir en la
+  cotización.
+
+Los trabajos anteriores a esta función no traen `opportunities` en su JSON y se
+siguen leyendo sin problema (la sección aparece vacía).
 
 ### Skills (técnicas reutilizables)
 
@@ -55,7 +82,10 @@ loader las resuelve y se inyectan en el system prompt bajo un bloque de
 "HABILIDADES / TÉCNICAS" (son para el comportamiento del modelo, no se mencionan
 al cliente y nunca ganan a las reglas duras). Una skill referenciada que falte se
 omite con un aviso, sin tumbar al bot. Incluye la skill `ventas` (venta
-consultiva) que usa el perfil `profiles/wrapping`.
+consultiva: descubrir la necesidad, hablar en beneficios, agrupar servicios,
+manejar objeciones y registrar el interés), que **todos** los perfiles adoptan
+por defecto — un dueño que prefiera un bot puramente receptivo la apaga desde el
+panel.
 
 Cada negocio elige qué skills activar desde el panel (**Configuración → Imágenes y
 audio → Habilidades**), que se guarda en `TenantSettings.skills`: una selección

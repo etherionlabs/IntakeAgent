@@ -17,11 +17,17 @@ export class WhatsAppNotifier implements ChannelNotifier {
 
   async notifyOwnerReady(payload: OwnerReadyPayload): Promise<void> {
     const name = payload.contactDisplayName ?? payload.contactPhone;
+    // Los extras aceptados se destacan aparte del resumen: son la parte de la
+    // orden que el dueño podría pasar por alto al cotizar y la que más margen deja.
+    const extras = payload.extras ?? [];
+    const extrasLine =
+      extras.length > 0 ? `Extras aceptados: ${extras.join(', ')}\n` : '';
     const text =
       `🪡 Nuevo intake listo\n\n` +
       `Cliente: ${name}\n` +
-      `Resumen: ${payload.summary}\n\n` +
-      `Ver: ${payload.panelUrl}/panel/jobs/${payload.jobId}`;
+      `Resumen: ${payload.summary}\n` +
+      extrasLine +
+      `\nVer: ${payload.panelUrl}/panel/jobs/${payload.jobId}`;
     await this.safeSend(text);
   }
 
