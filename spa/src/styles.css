@@ -324,10 +324,30 @@ textarea {
 .actions-buttons { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
 /* ---------- Mensajes (chat) ---------- */
-.message-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.message-list {
+  list-style: none; padding: 0.25rem; margin: 0;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  /* Una conversación larga ya no empuja la página entera. */
+  max-height: 60vh; overflow-y: auto;
+}
+.message-row { display: flex; flex-direction: column; }
+.message-day {
+  align-self: center; margin: 0.5rem 0 0.35rem;
+  font-size: 0.75rem; color: var(--muted); font-weight: 600;
+}
+.message-day span {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.15rem 0.65rem;
+}
 .message { max-width: 82%; padding: 0.5rem 0.7rem; border-radius: 12px; }
-.message-inbound { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
-.message-outbound { align-self: flex-end; background: var(--brand-50); border: 1px solid var(--brand-100); }
+.message-who { font-size: 0.7rem; font-weight: 700; color: var(--muted); margin-bottom: 0.1rem; }
+.message-inbound {
+  align-self: flex-start; background: var(--surface); border: 1px solid var(--border);
+}
+.message-outbound {
+  align-self: flex-end; background: var(--brand-50); border: 1px solid var(--brand-100);
+}
+.message-outbound .message-who { color: var(--brand-700); }
 .message-kindtag { font-size: 0.72rem; font-weight: 600; color: var(--muted); display: inline-flex; gap: 0.25rem; margin-bottom: 0.15rem; }
 .message-image { display: block; max-width: 100%; width: auto; max-height: 320px; border-radius: 8px; margin: 0.25rem 0; object-fit: contain; }
 .message-meta { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem; }
@@ -690,3 +710,94 @@ textarea {
 }
 .signup-intro { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; text-align: center; }
 .field-hint { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
+
+/* ---------- Listados (agenda / tablas de datos) ---------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.list-toolbar {
+  display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 1rem;
+}
+.list-search { flex: 1; min-width: 200px; }
+.segmented {
+  display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--surface);
+}
+.segment {
+  border: 0; border-radius: 0; background: transparent; color: var(--muted);
+  font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.75rem;
+  border-right: 1px solid var(--border);
+}
+.segment:last-child { border-right: 0; }
+.segment:hover { background: var(--surface-2); color: var(--text); }
+.segment-on, .segment-on:hover { background: var(--brand-50); color: var(--brand-700); }
+.list-count { color: var(--muted); font-size: 0.85rem; margin: 0.9rem 0 0.4rem; }
+
+.data-table tbody tr:hover { background: var(--surface-2); }
+.row-busy { opacity: 0.55; }
+.cell-stack { display: flex; flex-direction: column; gap: 0.1rem; }
+.cell-title { font-weight: 600; }
+.cell-sub { color: var(--muted); font-size: 0.82rem; }
+.cell-muted { color: var(--muted); font-weight: 400; }
+.cell-link { color: var(--brand-600); font-weight: 600; text-decoration: none; }
+.cell-link:hover { text-decoration: underline; }
+.cell-actions { text-align: right; width: 1%; white-space: nowrap; }
+.inline-edit { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.inline-edit input { flex: 1; min-width: 140px; }
+
+/* Menú de fila (⋯): las acciones secundarias dejan de gritar en cada registro. */
+.row-menu { position: relative; display: inline-block; }
+.row-menu-toggle { padding: 0.3rem 0.6rem; font-size: 1.1rem; line-height: 1; color: var(--muted); }
+.row-menu-list {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 200px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 0.25rem; display: flex; flex-direction: column;
+}
+.row-menu-item {
+  border: 0; background: transparent; text-align: left; font-size: 0.9rem;
+  padding: 0.5rem 0.6rem; border-radius: var(--radius-sm); font-weight: 500;
+}
+.row-menu-item:hover { background: var(--surface-2); }
+.row-menu-danger { color: var(--danger); }
+.row-menu-danger:hover { background: var(--danger-bg); }
+
+/* Aviso de tablero filtrado por contacto */
+.filter-banner {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  background: var(--brand-50); border: 1px solid var(--brand-100);
+  border-radius: var(--radius); padding: 0.6rem 0.9rem; margin-top: 1rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 720px) {
+  /* La tabla se vuelve tarjetas: una fila con scroll horizontal es ilegible
+     en un teléfono, que es donde se usa esto. */
+  .data-table, .data-table tbody, .data-table tr, .data-table td {
+    display: block; width: auto; white-space: normal;
+  }
+  .data-table { border: 0; background: none; overflow: visible; }
+  .data-table thead { display: none; }
+  .data-table tr {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0.75rem 0.9rem; margin-bottom: 0.6rem;
+    position: relative;
+  }
+  .data-table td { border: 0; padding: 0.2rem 0; font-size: 0.95rem; }
+  .data-table td[data-label]::before {
+    content: attr(data-label) ': ';
+    color: var(--muted); font-size: 0.78rem; font-weight: 600;
+  }
+  .data-table td[data-label='Contacto']::before { content: none; }
+  .cell-actions { position: absolute; top: 0.6rem; right: 0.6rem; width: auto; }
+  /* nowrap es imprescindible: en columna CON wrap, `stretch` estira los hijos
+     al ancho de la LÍNEA (el del contenido), no al del contenedor, y la barra
+     de filtros ensanchaba la página entera. */
+  .list-toolbar { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  /* min-width:0 + flex fijo: los filtros ruedan dentro de su caja en vez de
+     ensanchar la página (sin esto el documento medía más que la pantalla). */
+  .segmented { display: flex; min-width: 0; overflow-x: auto; }
+  .segment { flex: 0 0 auto; min-height: 40px; white-space: nowrap; }
+  .list-search { min-width: 0; }
+  .message-list { max-height: none; }
+}

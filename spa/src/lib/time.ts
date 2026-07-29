@@ -33,5 +33,6 @@ export function relativeTime(value?: string | null, now: Date = new Date()): str
 export function absoluteTime(value?: string | null): string {
   if (!value) return '';
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
+  // Mismo locale que el resto de la interfaz, no el del navegador.
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX');
 }

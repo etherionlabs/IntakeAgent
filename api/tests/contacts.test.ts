@@ -37,7 +37,9 @@ describe('contacts', () => {
     const ids = body.contacts.map((c: any) => c.id);
     expect(ids).toContain(contactId);
     expect(ids).not.toContain(otherContactId);
-    for (const c of body.contacts) expect(c.tenantId).toBe(TEST_TENANT_ID);
+    // El payload ya no expone tenantId: el cliente conoce su tenant por la sesión
+    // y el aislamiento lo garantiza la consulta, no un campo de vuelta.
+    for (const c of body.contacts) expect(c).not.toHaveProperty('tenantId');
   });
 
   it('PATCH /contacts/:id { botPaused: true } → botActive false', async () => {
