@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { relativeTime, absoluteTime } from '../lib/time';
 
 type Contact = {
   id: string;
@@ -26,16 +27,10 @@ const STATUS_LABELS: Record<string, string> = {
   CLOSED: 'Cerrado',
 };
 
-function formatDate(value?: string | null): string {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString();
-}
-
 export default function JobCard({ job }: { job: Job }) {
   const name = job.contact.displayName ?? job.contact.phoneE164;
-  const opened = formatDate(job.openedAt);
+  // Relativo, no absoluto: lo que importa es cuánto lleva esperando el cliente.
+  const opened = relativeTime(job.openedAt);
   const statusLabel = STATUS_LABELS[job.status] ?? job.status;
 
   return (
@@ -44,7 +39,11 @@ export default function JobCard({ job }: { job: Job }) {
         <span className="job-card-name">{name}</span>
         <span className={`badge badge-${job.status}`}>{statusLabel}</span>
       </div>
-      {opened && <div className="job-card-meta">{opened}</div>}
+      {opened && (
+        <div className="job-card-meta" title={absoluteTime(job.openedAt)}>
+          {opened}
+        </div>
+      )}
       {job.summary && <p className="job-card-summary">{job.summary}</p>}
     </Link>
   );

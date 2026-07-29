@@ -13,6 +13,7 @@ import { profileRoutes } from './routes/profile';
 import { jobsRoutes } from './routes/jobs';
 import { contactsRoutes } from './routes/contacts';
 import { usageRoutes } from './routes/usage';
+import { overviewRoutes } from './routes/overview';
 import { waStatusRoutes } from './routes/wa-status';
 import { mediaRoutes } from './routes/media';
 import { settingsRoutes } from './routes/settings';
@@ -232,6 +233,7 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(jobsRoutes);
   await app.register(contactsRoutes);
   await app.register(usageRoutes);
+  await app.register(overviewRoutes);
   await app.register(waStatusRoutes, { fetcher: opts.fetcher });
   await app.register(mediaRoutes, { fetcher: opts.fetcher });
   await app.register(settingsRoutes);

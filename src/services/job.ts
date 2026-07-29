@@ -144,7 +144,8 @@ export async function updateJobIntake(
   });
 }
 
-export function parseJobIntake(job: Job): IntakeState {
+/** Solo necesita el JSON: acepta un `select` estrecho, no el Job completo. */
+export function parseJobIntake(job: Pick<Job, 'intake'>): IntakeState {
   return JSON.parse(job.intake) as IntakeState;
 }
 

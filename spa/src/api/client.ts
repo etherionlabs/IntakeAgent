@@ -108,6 +108,7 @@ export const api = {
   archiveContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/archive`),
   restoreContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/restore`),
   deleteContact: (id: string) => request<{ ok: boolean }>('DELETE', `/contacts/${id}`),
+  getOverview: () => request<Overview>('GET', '/overview'),
   getUsage: () => request<{ totals: any; recent: any[]; mode?: string; approvalStatus?: string; plan?: UsagePlan | null }>('GET', '/usage'),
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
@@ -247,6 +248,39 @@ export interface ProfileSettings {
   welcome: string;
   vars: Record<string, string>;
   businessFacts: { facts: BusinessFact[]; freeContext: string };
+}
+
+/** Resumen de la pantalla principal: qué atender y cómo va la venta. */
+export interface PendingQuote {
+  jobId: string;
+  contactName: string;
+  status: string;
+  services: string[];
+  updatedAt: string | null;
+}
+
+export interface WaitingJob {
+  jobId: string;
+  contactName: string;
+  reason: 'bot_paused' | 'flagged' | 'no_reply';
+  since: string;
+}
+
+export interface Overview {
+  attention: {
+    pendingQuotes: PendingQuote[];
+    readyForReview: number;
+    waiting: WaitingJob[];
+  };
+  funnel: {
+    windowDays: number;
+    jobs: number;
+    withOffer: number;
+    withAccepted: number;
+    won: number;
+    lost: number;
+    followUps: number;
+  };
 }
 
 export interface MediaSettings {
