@@ -11,6 +11,7 @@ vi.mock('../api/client', async () => {
       patchOnboardingBusiness: vi.fn().mockResolvedValue({ ok: true }),
       patchOnboardingWelcome: vi.fn().mockResolvedValue({ ok: true }),
       startCheckout: vi.fn().mockResolvedValue({ url: 'https://checkout/x' }),
+      resendVerification: vi.fn().mockResolvedValue({ ok: true }),
     },
   };
 });
@@ -20,17 +21,22 @@ import Onboarding from './Onboarding';
 
 const mockState = api.getOnboardingState as unknown as ReturnType<typeof vi.fn>;
 const mockBusiness = api.patchOnboardingBusiness as unknown as ReturnType<typeof vi.fn>;
+const mockResend = api.resendVerification as unknown as ReturnType<typeof vi.fn>;
 
 function renderOnboarding() {
   return render(<MemoryRouter><Onboarding /></MemoryRouter>);
 }
 
-beforeEach(() => { mockState.mockReset(); mockBusiness.mockClear(); });
+beforeEach(() => { mockState.mockReset(); mockBusiness.mockClear(); mockResend.mockClear(); });
 
 test('reanuda en el paso del servidor (business) y guarda el negocio', async () => {
   mockState.mockResolvedValue({ step: 'business', tenantStatus: 'active', subStatus: 'active', flags: {} });
   renderOnboarding();
-  expect(await screen.findByTestId('onboarding-step')).toHaveTextContent('business');
+  // El paso se anuncia con nombre humano y avance, no con la clave interna.
+  const step = await screen.findByTestId('onboarding-step');
+  expect(step).toHaveTextContent('Datos de tu negocio');
+  expect(step).toHaveTextContent(/Paso \d+ de \d+/);
+  expect(step).not.toHaveTextContent('business');
   fireEvent.change(screen.getByLabelText(/nombre del negocio/i), { target: { value: 'Acme' } });
   fireEvent.click(screen.getByRole('button', { name: /guardar y continuar/i }));
   await waitFor(() => expect(mockBusiness).toHaveBeenCalledWith({ businessName: 'Acme', ownerPhoneE164: undefined }));
@@ -54,4 +60,17 @@ test('paso awaiting_approval (v1 free) muestra la pantalla de revisión', async 
   const box = await screen.findByTestId('awaiting-approval');
   expect(box).toHaveTextContent(/cuenta está en revisión/i);
   expect(screen.getByRole('button', { name: /volver a comprobar/i })).toBeInTheDocument();
+});
+
+test('el reenvío de verificación exige el correo (antes mandaba vacío y daba 400)', async () => {
+  mockState.mockResolvedValue({ step: 'verify_email', tenantStatus: 'pending_verification', subStatus: null, flags: {} });
+  renderOnboarding();
+
+  const btn = await screen.findByRole('button', { name: /reenviar enlace/i });
+  expect(btn).toBeDisabled();
+
+  fireEvent.change(screen.getByLabelText(/tu correo/i), { target: { value: 'ana@taller.mx' } });
+  expect(btn).toBeEnabled();
+  fireEvent.click(btn);
+  await waitFor(() => expect(mockResend).toHaveBeenCalledWith('ana@taller.mx'));
 });
