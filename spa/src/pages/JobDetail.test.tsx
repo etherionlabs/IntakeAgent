@@ -97,11 +97,16 @@ test('editing a field and blurring calls patchIntake with the right path', async
   });
 });
 
-test('clicking Cerrar calls jobAction with close', async () => {
+test('cerrar como ganado registra el resultado comercial', async () => {
   renderDetail();
-  const closeBtn = await screen.findByRole('button', { name: 'Cerrar' });
-  fireEvent.click(closeBtn);
-  expect(mockJobAction).toHaveBeenCalledWith('job-1', 'close', undefined);
+  fireEvent.click(await screen.findByRole('button', { name: /Cerrar · ganado/ }));
+  expect(mockJobAction).toHaveBeenCalledWith('job-1', 'close', undefined, 'WON');
+});
+
+test('cerrar como perdido registra el resultado comercial', async () => {
+  renderDetail();
+  fireEvent.click(await screen.findByRole('button', { name: /Cerrar · perdido/ }));
+  expect(mockJobAction).toHaveBeenCalledWith('job-1', 'close', undefined, 'LOST');
 });
 
 test('archivar pide confirmación y llama archiveJob', async () => {

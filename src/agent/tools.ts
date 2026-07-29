@@ -16,6 +16,7 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
 import { imageMimeFromPath } from '../media/describer';
+import { incOpportunity } from '../lib/metrics';
 
 /** Forma común a todas las tools del agent. Compatible con @openrouter/sdk `tool()`. */
 export interface AgentTool {
@@ -139,6 +140,7 @@ export function buildRegisterOpportunityTool(
 
       await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
       ctx.intake = nextIntake;
+      for (const item of parse.data.items) incOpportunity(item.status);
 
       return {
         ok: true,

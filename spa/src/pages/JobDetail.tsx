@@ -16,6 +16,7 @@ type Job = {
   id: string;
   status: string;
   summary?: string | null;
+  outcome?: 'WON' | 'LOST' | null;
   openedAt?: string | null;
   intakeComplete?: boolean;
   contact: Contact;
@@ -76,12 +77,12 @@ export default function JobDetail() {
     void load();
   }, [load]);
 
-  async function runAction(action: 'mark_ready' | 'close') {
+  async function runAction(action: 'mark_ready' | 'close', outcome?: 'WON' | 'LOST') {
     if (!id) return;
     setActionBusy(true);
     setActionError(null);
     try {
-      await api.jobAction(id, action, action === 'mark_ready' ? summary : undefined);
+      await api.jobAction(id, action, action === 'mark_ready' ? summary : undefined, outcome);
       await load();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'error en la acción');
@@ -141,6 +142,11 @@ export default function JobDetail() {
         <h1>{name}</h1>
         <div className="job-detail-sub">
           <span className={`badge badge-${job.status}`}>{statusLabel}</span>
+          {job.outcome && (
+            <span className={`badge badge-opp-${job.outcome === 'WON' ? 'accepted' : 'declined'}`}>
+              {job.outcome === 'WON' ? 'Ganado' : 'Perdido'}
+            </span>
+          )}
           <span className="job-detail-phone">{job.contact.phoneE164}</span>
         </div>
       </div>
@@ -190,10 +196,19 @@ export default function JobDetail() {
               </button>
               <button
                 type="button"
-                onClick={() => void runAction('close')}
+                onClick={() => void runAction('close', 'WON')}
                 disabled={actionBusy}
+                title="El cliente contrató el trabajo"
               >
-                Cerrar
+                Cerrar · ganado
+              </button>
+              <button
+                type="button"
+                onClick={() => void runAction('close', 'LOST')}
+                disabled={actionBusy}
+                title="El cliente no contrató"
+              >
+                Cerrar · perdido
               </button>
               <button type="button" onClick={() => setConfirm('archive')} disabled={actionBusy}>
                 Archivar

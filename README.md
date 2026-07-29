@@ -71,6 +71,40 @@ cierra el ciclo en tres puntos:
 Los trabajos anteriores a esta función no traen `opportunities` en su JSON y se
 siguen leyendo sin problema (la sección aparece vacía).
 
+### Seguimiento proactivo
+
+Ofrecer sin dar seguimiento es media venta: hasta aquí el agente solo actuaba
+cuando el cliente escribía (`adapter → coordinator → agente`), así que una oferta
+sin contestar se moría en silencio. El **barrido de seguimiento**
+(`FollowUpCoordinator`) es el único camino por el que el agente habla **sin
+mensaje entrante**: cada `followUp.sweepMinutes` busca trabajos donde hablamos
+nosotros al final y el cliente lleva callado más de `followUp.afterHours`, y le
+escribe para retomar — recordando lo que quedó ofrecido (`pending_offer`) o
+pidiendo el dato que falta (`incomplete_intake`), con la oferta pendiente como
+prioridad. El turno usa el mismo agente y las mismas tools, pero en lugar de un
+mensaje del cliente lleva una **directiva del sistema** (`TurnContext.systemDirective`).
+
+Es **opt-in por tenant** (`TenantSettings.followUpEnabled`, en **Configuración →
+Seguimiento**): son mensajes no solicitados y la decisión —y el riesgo para el
+número de WhatsApp del negocio— es del dueño. Además nunca escribe:
+
+- fuera del horario de atención (`config.hours`);
+- a quien pausó el bot, fue marcado como spam o está archivado;
+- más de `followUp.maxFollowUps` veces por trabajo, ni antes de
+  `followUp.minHoursBetween` desde el anterior;
+- si el tenant agotó su cuota mensual (un seguimiento gasta un `AgentRun`, y
+  responderle a un cliente vale más que nuestra iniciativa);
+- si el turno del agente falló — el fallback de error no se manda a alguien que
+  no escribió, y el trabajo conserva su seguimiento para el próximo barrido.
+
+### Medir la venta
+
+`GET /metrics` expone `intake_opportunities_total{status}` (ofrecidos, aceptados,
+rechazados) e `intake_followups_total{reason}`. Para cerrar la atribución, el
+dueño marca el resultado al cerrar un trabajo: **Cerrar · ganado** o **Cerrar ·
+perdido** (`Job.outcome` = `WON`/`LOST`; reabrir un trabajo lo limpia). Con eso
+la tasa ofrecido→aceptado→ganado deja de ser una impresión.
+
 ### Skills (técnicas reutilizables)
 
 Para enseñarle al modelo **técnicas transversales** —cómo vender mejor, manejar

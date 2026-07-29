@@ -83,10 +83,12 @@ export function buildOpenJobsBlock(otherOpenJobs: OpenJobSummary[]): string {
 type DayKey = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 const DAY_KEYS: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
-export function buildHoursBlock(config: Config, now: Date): string {
+/** Día/hora local del negocio y si cae dentro del horario configurado. */
+export function localBusinessTime(
+  config: Config,
+  now: Date,
+): { dayKey: DayKey; hour: string; minute: string; withinHours: boolean } {
   const h = config.hours;
-  if (!h.enabled) return '';
-
   // Toma la hora en la zona horaria configurada usando Intl.
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: h.timezone,
@@ -103,16 +105,34 @@ export function buildHoursBlock(config: Config, now: Date): string {
   const dayKey = weekday as DayKey;
   const range = h.schedule[dayKey];
 
-  const lines: string[] = [];
-  lines.push('=== HORARIO ACTUAL ===');
-  lines.push(`Día/hora local (${h.timezone}): ${dayKey} ${hour}:${minute}`);
-
   let withinHours = false;
   if (range && DAY_KEYS.includes(dayKey)) {
     const [start, end] = range;
     const cur = `${hour}:${minute}`;
     withinHours = cur >= start && cur <= end;
   }
+  return { dayKey, hour, minute, withinHours };
+}
+
+/**
+ * ¿Es momento de escribirle al cliente por iniciativa nuestra? Con el horario
+ * apagado no hay restricción; con horario, solo dentro de él. Lo usa el
+ * seguimiento proactivo: un mensaje no solicitado a medianoche es una molestia.
+ */
+export function isWithinBusinessHours(config: Config, now: Date): boolean {
+  if (!config.hours.enabled) return true;
+  return localBusinessTime(config, now).withinHours;
+}
+
+export function buildHoursBlock(config: Config, now: Date): string {
+  const h = config.hours;
+  if (!h.enabled) return '';
+
+  const { dayKey, hour, minute, withinHours } = localBusinessTime(config, now);
+
+  const lines: string[] = [];
+  lines.push('=== HORARIO ACTUAL ===');
+  lines.push(`Día/hora local (${h.timezone}): ${dayKey} ${hour}:${minute}`);
 
   if (withinHours) {
     lines.push('Estás dentro de horario.');

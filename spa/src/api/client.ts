@@ -98,7 +98,8 @@ export const api = {
   deleteJob: (id: string) => request<{ ok: boolean }>('DELETE', `/jobs/${id}`),
   getJob: (id: string) => request<{ job: any; intake: any; messages: any[] }>('GET', `/jobs/${id}`),
   patchIntake: (id: string, payload: { path: string; value?: unknown; declined?: boolean; declined_reason?: string }) => request<{ ok: boolean; intake: any }>('PATCH', `/jobs/${id}/intake`, payload),
-  jobAction: (id: string, action: 'mark_ready' | 'close', summary?: string) => request<{ ok: boolean; status: string }>('POST', `/jobs/${id}/actions`, { action, summary }),
+  jobAction: (id: string, action: 'mark_ready' | 'close', summary?: string, outcome?: 'WON' | 'LOST') =>
+    request<{ ok: boolean; status: string; outcome?: string | null }>('POST', `/jobs/${id}/actions`, { action, summary, outcome }),
   getContacts: (includeArchived = false) =>
     request<{ contacts: any[] }>('GET', `/contacts${includeArchived ? '?includeArchived=true' : ''}`),
   toggleContact: (id: string, botPaused: boolean) => request<{ ok: boolean; contact: any }>('PATCH', `/contacts/${id}`, { botPaused }),
@@ -252,6 +253,8 @@ export interface MediaSettings {
   describeImages: boolean;
   transcribeAudio: boolean;
   editImages: boolean;
+  /** El bot reabre la conversación cuando el cliente deja de responder. */
+  followUpEnabled: boolean;
   /** Nombres de las skills (técnicas) activas para este tenant. */
   skills: string[];
 }

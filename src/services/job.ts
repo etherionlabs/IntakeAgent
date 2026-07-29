@@ -69,10 +69,16 @@ export async function markInProgress(
   });
 }
 
+/** Resultado comercial con el que se cierra un trabajo. */
+export const JOB_OUTCOME = { WON: 'WON', LOST: 'LOST' } as const;
+export type JobOutcome = (typeof JOB_OUTCOME)[keyof typeof JOB_OUTCOME];
+
 export async function closeJob(
   prisma: PrismaClient,
   tenantId: string,
   jobId: string,
+  /** Ganado/perdido. Omitirlo cierra sin registrar resultado (cierres del agente). */
+  outcome?: JobOutcome,
 ): Promise<Job> {
   const job = await prisma.job.findFirst({ where: { id: jobId, tenantId } });
   if (!job) throw new ServiceError(`job ${jobId} no existe`, 'JOB_NOT_FOUND');
@@ -84,7 +90,11 @@ export async function closeJob(
   }
   return prisma.job.update({
     where: { id: jobId, tenantId },
-    data: { status: JOB_STATUS.CLOSED, closedAt: new Date() },
+    data: {
+      status: JOB_STATUS.CLOSED,
+      closedAt: new Date(),
+      ...(outcome ? { outcome } : {}),
+    },
   });
 }
 
@@ -103,7 +113,7 @@ export async function reopenJob(
   }
   return prisma.job.update({
     where: { id: jobId, tenantId },
-    data: { status: JOB_STATUS.OPEN, closedAt: null, readyAt: null },
+    data: { status: JOB_STATUS.OPEN, closedAt: null, readyAt: null, outcome: null },
   });
 }
 

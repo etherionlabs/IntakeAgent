@@ -53,6 +53,12 @@ export interface TurnContext {
   /** Hora actual ISO 8601 (inyectable para tests). */
   now: string;
   /**
+   * Turno iniciado por el SISTEMA, no por el cliente (seguimiento proactivo).
+   * Cuando está presente, `batchMessages` viene vacío y esta instrucción ocupa
+   * el lugar del mensaje del cliente en la conversación con el modelo.
+   */
+  systemDirective?: string;
+  /**
    * Historial reciente del job (mensajes inbound + outbound previos al batch actual,
    * ordenados cronológicamente). El agente lo ve para mantener coherencia conversacional.
    * Opcional para retro-compatibilidad con tests existentes.

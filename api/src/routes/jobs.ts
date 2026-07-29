@@ -12,7 +12,12 @@ const PatchIntakeZ = z.object({
   declined_reason: z.string().optional(),
 });
 
-const ActionZ = z.object({ action: z.enum(['mark_ready', 'close']), summary: z.string().optional() });
+const ActionZ = z.object({
+  action: z.enum(['mark_ready', 'close']),
+  summary: z.string().optional(),
+  /** Solo para 'close': resultado comercial. Sin él, el cierre no lo registra. */
+  outcome: z.enum(['WON', 'LOST']).optional(),
+});
 
 export async function jobsRoutes(app: FastifyInstance) {
   app.get('/jobs', { preHandler: app.authenticate }, async (request) => {
@@ -68,8 +73,8 @@ export async function jobsRoutes(app: FastifyInstance) {
     if (!job) return reply.code(404).send({ error: 'job no encontrado' });
     try {
       if (parse.data.action === 'close') {
-        const updated = await closeJob(prisma, request.tenantId, job.id);
-        return { ok: true, status: updated.status };
+        const updated = await closeJob(prisma, request.tenantId, job.id, parse.data.outcome);
+        return { ok: true, status: updated.status, outcome: updated.outcome };
       }
       const summary = parse.data.summary ?? job.summary ?? '';
       if (summary.trim().length < 20) return reply.code(400).send({ error: 'mark_ready requiere summary de al menos 20 caracteres' });

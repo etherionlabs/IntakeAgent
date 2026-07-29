@@ -99,6 +99,32 @@ export const ConfigZ = z.object({
       editImages: false,
       imageEditModel: 'google/gemini-2.5-flash-image-preview',
     }),
+  /**
+   * Seguimiento proactivo: el bot reabre la conversación cuando el cliente se
+   * queda callado (una oferta sin responder, un intake a medias). Interruptor
+   * GLOBAL del deployment; además cada tenant lo activa desde el panel
+   * (TenantSettings.followUpEnabled), porque son mensajes NO solicitados y el
+   * riesgo (molestar al cliente, que WhatsApp castigue el número) es del negocio.
+   */
+  followUp: z
+    .object({
+      enabled: z.boolean().default(true),
+      /** Silencio del cliente (horas) antes del primer seguimiento. */
+      afterHours: z.number().positive().default(24),
+      /** Tope de seguimientos por job. Agotado, el bot no vuelve a insistir. */
+      maxFollowUps: z.number().int().nonnegative().default(2),
+      /** Espera mínima (horas) entre dos seguimientos del mismo job. */
+      minHoursBetween: z.number().positive().default(24),
+      /** Cada cuánto barre el worker buscando candidatos. */
+      sweepMinutes: z.number().positive().default(30),
+    })
+    .default({
+      enabled: true,
+      afterHours: 24,
+      maxFollowUps: 2,
+      minHoursBetween: 24,
+      sweepMinutes: 30,
+    }),
   limits: z
     .object({
       monthlyCostUsd: z.number().positive().default(50),

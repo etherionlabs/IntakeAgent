@@ -209,6 +209,22 @@ export default function Settings() {
             Generar previsualizaciones editando la foto del cliente (más costoso)
           </label>
 
+          <h3>Seguimiento</h3>
+          <p className="settings-hint">
+            Cuando un cliente deja de responder, el asistente le escribe para retomar la
+            conversación: recuerda lo que le ofreciste o pide el dato que falta. Máximo 2
+            mensajes por trabajo, solo en tu horario de atención, y nunca a quien ya dijo
+            que no.
+          </p>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={media.followUpEnabled}
+              onChange={(e) => setMedia({ ...media, followUpEnabled: e.target.checked })}
+            />
+            Dar seguimiento a los clientes que no contestan
+          </label>
+
           {availableSkills.length > 0 && (
             <>
               <h3>Habilidades / técnicas</h3>

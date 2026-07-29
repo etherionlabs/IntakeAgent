@@ -16,6 +16,7 @@ const MediaSettingsInputZ = z.object({
   describeImages: z.boolean(),
   transcribeAudio: z.boolean(),
   editImages: z.boolean(),
+  followUpEnabled: z.boolean(),
   skills: z.array(z.string()),
 });
 
@@ -47,7 +48,13 @@ export async function settingsRoutes(app: FastifyInstance) {
       readProfileSettings(prisma, request.tenantId, profileDir),
       prisma.tenantSettings.findUnique({
         where: { tenantId: request.tenantId },
-        select: { describeImages: true, transcribeAudio: true, editImages: true, skills: true },
+        select: {
+          describeImages: true,
+          transcribeAudio: true,
+          editImages: true,
+          followUpEnabled: true,
+          skills: true,
+        },
       }),
       listSkillCatalog(),
     ]);
@@ -55,6 +62,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       describeImages: boolean;
       transcribeAudio: boolean;
       editImages: boolean;
+      followUpEnabled: boolean;
       skills: string[];
     } | null = null;
     if (ts) {
@@ -65,6 +73,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         describeImages: ts.describeImages,
         transcribeAudio: ts.transcribeAudio,
         editImages: ts.editImages,
+        followUpEnabled: ts.followUpEnabled,
         skills,
       };
     }
@@ -118,9 +127,16 @@ export async function settingsRoutes(app: FastifyInstance) {
         describeImages: parse.data.describeImages,
         transcribeAudio: parse.data.transcribeAudio,
         editImages: parse.data.editImages,
+        followUpEnabled: parse.data.followUpEnabled,
         skills,
       },
-      select: { describeImages: true, transcribeAudio: true, editImages: true, skills: true },
+      select: {
+        describeImages: true,
+        transcribeAudio: true,
+        editImages: true,
+        followUpEnabled: true,
+        skills: true,
+      },
     });
     return {
       ok: true,
@@ -128,6 +144,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         describeImages: row.describeImages,
         transcribeAudio: row.transcribeAudio,
         editImages: row.editImages,
+        followUpEnabled: row.followUpEnabled,
         skills: asStringArray(row.skills) ?? [],
       },
     };
