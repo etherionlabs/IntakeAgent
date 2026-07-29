@@ -244,17 +244,46 @@ negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 
 ### Editar desde el panel
 
-La sección **Configuración** del panel (visible solo para usuarios con rol
-`admin`) permite editar sin tocar archivos:
+La sección **Configuración** (solo rol `admin`) está pensada para un dueño de
+negocio, no para quien conoce el modelo de datos. Está dividida en pestañas:
 
-- **Negocio** (perfil del tenant): nombre y giro, mensaje de bienvenida,
-  variables del asistente (tono, instrucciones), y los datos del negocio.
-- **Sistema** (`config.json`): modelo, temperatura, horarios, teléfono del
-  dueño y notificaciones, y límites de costo.
+- **Tu negocio** — nombre, a qué se dedica y mensaje de bienvenida.
+- **Qué datos pides** — las secciones y campos que el asistente va llenando
+  conversando. Los tipos se nombran por lo que el cliente responde ("Texto
+  corto", "Sí / No", "Lista de opciones"); la clave interna no se muestra y **no
+  cambia al renombrar**, porque es la identidad con la que quedaron guardados los
+  datos de los trabajos que ya existen. Se guarda en `TenantSettings.intakeSchema`,
+  que es la MISMA fila que lee el worker.
+- **Lo que debe saber** — los datos del negocio que el asistente puede usar para
+  responder (y solo esos: lo que no esté aquí, no lo inventa).
+- **Cómo atiende** — tono (con presets), fotos y notas de voz, seguimiento
+  proactivo y técnicas de venta.
+- **Avanzado** — las instrucciones internas del asistente (`coreInstructions`,
+  `hardRules`, los playbooks) tras una advertencia, más el `config.json` global
+  cuando el deployment lo expone. Antes se mostraban como campos normales junto al
+  nombre del negocio, lo que invitaba a romper el bot sin saberlo.
 
-Los cambios se validan y se escriben a los archivos correspondientes. Como el
-worker carga la configuración al arrancar, **reinícialo para aplicar los
-cambios**.
+`multi_enum` no se ofrece como tipo a propósito: el asistente todavía no puede
+escribirlo (`bulkUpdate` lo rechaza), así que ofrecerlo sería una trampa.
+
+#### Ayuda del modelo al configurar
+
+Un dueño no sabe qué es un "campo de tipo enum", pero sí sabe qué le pregunta a
+sus clientes. `POST /settings/assist` usa el LLM como traductor en ese sentido:
+
+- **Datos del negocio** — pega de corrido lo que le dirías a un cliente ("abrimos
+  de 9 a 7, aceptamos tarjeta…") y lo separa por temas.
+- **Campos** — describe qué necesitas saber para cotizar y propone las secciones y
+  campos con su tipo.
+- **Bienvenida** — la redacta con el nombre del negocio y el tono elegido.
+
+La propuesta **nunca se guarda sola**: se aplica al formulario para que el dueño la
+revise y decida. Sin `OPENROUTER_API_KEY` el endpoint responde 503, el panel oculta
+los botones y los formularios manuales siguen siendo el camino completo. El modelo
+se elige con `ASSIST_MODEL` (por defecto `openai/gpt-4o-mini`).
+
+Los cambios del perfil se guardan en la base de datos (recurso compartido entre la
+API y el worker) y **aplican en la siguiente conversación**, sin reiniciar.
 
 ---
 

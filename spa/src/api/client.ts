@@ -129,7 +129,13 @@ export const api = {
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
-  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null; availableSkills: SkillInfo[] }>('GET', '/settings'),
+  getSettings: () =>
+    request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null; availableSkills: SkillInfo[]; fields: IntakeSection[] }>('GET', '/settings'),
+  assistSettings: (action: 'facts' | 'fields' | 'welcome', text: string) =>
+    request<{ ok: boolean; suggestion: unknown }>('POST', '/settings/assist', { action, text }),
+  assistStatus: () => request<{ available: boolean }>('GET', '/settings/assist/status'),
+  updateFieldsSettings: (sections: IntakeSection[]) =>
+    request<{ ok: boolean; fields: IntakeSection[] }>('PUT', '/settings/fields', { sections }),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
@@ -281,6 +287,23 @@ export interface Overview {
     lost: number;
     followUps: number;
   };
+}
+
+/** Un dato que el asistente pide al cliente. `key` es la identidad con la que se
+ *  guardan las respuestas: se deriva de la etiqueta al crear y no cambia después. */
+export interface IntakeField {
+  key: string;
+  label: string;
+  type: 'string' | 'text' | 'integer' | 'number' | 'currency' | 'boolean' | 'enum' | 'phone' | 'date';
+  required?: boolean;
+  hint?: string;
+  options?: string[];
+}
+
+export interface IntakeSection {
+  key: string;
+  label: string;
+  fields: IntakeField[];
 }
 
 export interface MediaSettings {

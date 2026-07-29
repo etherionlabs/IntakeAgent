@@ -801,3 +801,66 @@ textarea {
   .list-search { min-width: 0; }
   .message-list { max-height: none; }
 }
+
+/* ---------- Configuración ---------- */
+.settings-lead { color: var(--muted); margin: 0.25rem 0 1rem; max-width: 46rem; }
+.settings-tabs { margin-bottom: 1.25rem; max-width: 100%; overflow-x: auto; }
+.settings-warning {
+  background: var(--warning-bg); color: var(--warning);
+  border: 1px solid #f0d9ac; border-radius: var(--radius);
+  padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.92rem; line-height: 1.55;
+}
+.settings-warning strong { display: block; margin-bottom: 0.2rem; }
+.tone-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+.tone-presets .segment {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+
+/* Asistente de configuración (propuestas del modelo) */
+.assist-box {
+  background: var(--brand-50); border: 1px solid var(--brand-100);
+  border-radius: var(--radius); padding: 0.9rem 1rem; margin: 0.75rem 0 1.25rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.assist-box h4 { margin: 0; font-size: 0.95rem; color: var(--brand-700); }
+.assist-box .settings-hint { margin: 0; }
+.assist-box textarea { width: 100%; }
+.assist-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+/* Editor de campos del intake */
+.fields-editor { display: flex; flex-direction: column; gap: 1rem; margin: 1rem 0; }
+.fields-group {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: 0.5rem 1rem 1rem;
+}
+.fields-group legend { padding: 0 0.4rem; }
+.fields-group-name {
+  font-weight: 700; color: var(--brand-700); border: 1px dashed transparent;
+  background: transparent; padding: 0.2rem 0.35rem; min-width: 12rem;
+}
+.fields-group-name:hover, .fields-group-name:focus { border-color: var(--border); background: var(--surface-2); }
+.fields-editor .fe-row {
+  border-top: 1px solid var(--border); padding: 0.75rem 0;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.fe-row:first-of-type { border-top: 0; }
+.fe-main { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+.fields-editor .fe-label { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 160px; }
+.fe-label-text { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.fe-required { flex: 0 0 auto; align-self: center; white-space: nowrap; }
+.fe-move { display: flex; gap: 0.3rem; flex: 0 0 auto; }
+.fe-move button { padding: 0.35rem 0.55rem; font-size: 0.85rem; }
+.fe-options textarea, .fe-hint input { width: 100%; }
+.fe-confirm {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  background: var(--danger-bg); border: 1px solid #f0c2c2; border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem; font-size: 0.9rem;
+}
+.fields-group-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem; }
+
+@media (max-width: 720px) {
+  .settings-tabs { min-width: 0; }
+  .fe-main { flex-direction: column; align-items: stretch; }
+  .fe-required { align-self: flex-start; }
+  .fe-move { justify-content: flex-start; }
+}
