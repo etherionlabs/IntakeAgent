@@ -318,7 +318,7 @@ textarea {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 1rem;
 }
-.actions-panel textarea { min-height: 4.5rem; width: 100%; }
+.actions-panel textarea { min-height: 6.5rem; width: 100%; resize: vertical; }
 .char-counter { font-size: 0.75rem; color: var(--muted); }
 .char-counter.short { color: var(--warning); }
 .actions-buttons { display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -429,8 +429,6 @@ textarea {
 
 @media (max-width: 840px) {
   .platform-grid, .platform-user-form { grid-template-columns: 1fr; }
-  .topbar { flex-wrap: wrap; gap: 0.75rem; }
-  .topbar .nav { order: 3; flex-basis: 100%; overflow-x: auto; }
 }
 
 /* ---------- Oportunidades de venta (servicios adicionales) ---------- */
@@ -525,3 +523,78 @@ textarea {
   font-size: 0.85rem; padding: 0.35rem 0.7rem;
 }
 .btn-ghost:hover { border-color: var(--brand); color: var(--brand-700); }
+
+/* ---------- Menú móvil ---------- */
+/* El botón solo existe en pantallas chicas; en escritorio la nav va en línea. */
+.nav-toggle { display: none; font-size: 1.1rem; line-height: 1; padding: 0.45rem 0.6rem; }
+.nav-logout { display: none; }
+.nav-backdrop { display: none; }
+
+/* ============================================================
+   Móvil. El usuario real de este panel es un dueño de taller con
+   el teléfono en la mano; hasta aquí era un escritorio encogido.
+   ============================================================ */
+@media (max-width: 720px) {
+  /* Objetivos táctiles: 44px es el mínimo cómodo para el pulgar. */
+  button, .btn { min-height: 44px; padding: 0.6rem 0.9rem; }
+  .link-btn { min-height: 0; }
+  input:not([type='checkbox']):not([type='radio']), select, textarea {
+    font-size: 1rem; /* <16px hace que iOS haga zoom al enfocar */
+    padding: 0.6rem;
+  }
+
+  .content { padding: 1rem 0.9rem 2rem; }
+  h1 { font-size: 1.3rem; }
+
+  /* Barra superior: marca + menú. El "Salir" de escritorio se esconde. */
+  .topbar { gap: 0.6rem; padding: 0.6rem 0.9rem; }
+  .topbar .brand-biz {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .topbar .logout { display: none; }
+  .nav-toggle { display: inline-flex; align-items: center; order: -1; }
+
+  /* Cajón desplegable: cabe TODO el menú, sin scroll horizontal que esconda
+     destinos como hacía la versión anterior. */
+  .topbar .nav {
+    display: none;
+    position: absolute; left: 0; right: 0; top: 100%; z-index: 30;
+    flex-direction: column; gap: 0.15rem;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow); padding: 0.5rem;
+  }
+  .topbar { position: relative; }
+  .topbar .nav.nav-open { display: flex; }
+  .topbar .nav a, .nav-logout {
+    display: flex; align-items: center; min-height: 44px;
+    padding: 0.6rem 0.8rem; font-size: 1rem; border-radius: var(--radius-sm);
+  }
+  .nav-logout {
+    display: flex; width: 100%; justify-content: flex-start;
+    background: none; border: 0; border-top: 1px solid var(--border);
+    color: var(--danger); font-weight: 600; margin-top: 0.35rem; border-radius: 0;
+  }
+  .nav-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 20;
+    background: rgba(17, 24, 39, 0.25);
+  }
+
+  /* Encabezados de página: el botón de refrescar no pelea con el título. */
+  .dashboard-head, .usage-head, .contacts-head { flex-wrap: wrap; gap: 0.6rem; }
+
+  /* Tablero: una columna. Tres bloques apilados con su cuenta se leen bien. */
+  .status-columns { grid-template-columns: 1fr; gap: 0.75rem; }
+  .attention, .sales-summary { padding: 0.9rem 1rem; }
+  .sales-stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; }
+  .stat-value { font-size: 1.3rem; }
+
+  /* Ficha del trabajo: acciones a dos columnas, alcanzables con el pulgar. */
+  .actions-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .actions-buttons button { width: 100%; padding: 0.6rem 0.5rem; font-size: 0.92rem; }
+  .actions-buttons .btn-primary { grid-column: 1 / -1; }
+  .actions-panel textarea { min-height: 7.5rem; }
+
+  /* Tablas: que rueden dentro de su caja en vez de romper el ancho de la página. */
+  .contacts-table, .usage-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .contacts-actions { justify-content: flex-start; }
+}
