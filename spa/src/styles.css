@@ -864,3 +864,25 @@ textarea {
   .fe-required { align-self: flex-start; }
   .fe-move { justify-content: flex-start; }
 }
+
+/* ---------- Diagnóstico de venta ---------- */
+.diagnosis-empty { color: var(--muted); font-size: 0.9rem; }
+.diagnosis { display: flex; flex-direction: column; gap: 0.6rem; }
+.diagnosis-alert {
+  background: var(--warning-bg); color: var(--warning);
+  border-radius: var(--radius-sm); padding: 0.5rem 0.7rem;
+  font-size: 0.9rem; font-weight: 600; margin: 0;
+}
+.diagnosis-row { display: flex; flex-direction: column; gap: 0.2rem; }
+.diagnosis-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+.diagnosis-objections { list-style: none; margin: 0.2rem 0 0; padding: 0; display: grid; gap: 0.35rem; }
+.diagnosis-objections li {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem; background: var(--surface);
+}
+.diagnosis-objections li.resolved { opacity: 0.7; }
+.diagnosis-open-tag { color: var(--warning); font-size: 0.78rem; font-weight: 700; }
+.chip-urgency-alta { background: var(--warning-bg); color: var(--warning); }
+.chip-urgency-media { background: var(--brand-50); color: var(--brand-700); }
+.chip-urgency-baja { background: #eef0f4; color: #4b5563; }

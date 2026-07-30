@@ -209,6 +209,7 @@ describe('buildFollowUpDirective', () => {
     silentHours: 30,
     missingLabels: [],
     pendingServices: [],
+    openObjections: [],
   };
 
   it('deja claro que el turno no lo disparó el cliente', () => {
@@ -244,5 +245,26 @@ describe('buildFollowUpDirective', () => {
     expect(d).toMatch(/NO inventes/);
     // Le dice en qué intento va, para que module la insistencia.
     expect(d).toContain('seguimiento número 1');
+  });
+
+  it('lleva el dolor descubierto: retomar con contexto vale más que "¿seguimos?"', () => {
+    const d = buildFollowUpDirective({
+      ...base,
+      reason: 'pending_offer',
+      pendingServices: ['polarizado 20%'],
+      pain: 'se le calienta muchísimo el auto y el interior ya se está agrietando',
+    });
+    expect(d).toContain('se le calienta muchísimo');
+  });
+
+  it('una objeción sin resolver se señala como el motivo probable del silencio', () => {
+    const d = buildFollowUpDirective({
+      ...base,
+      reason: 'pending_offer',
+      pendingServices: ['PPF'],
+      openObjections: ['precio: lo ve caro comparado con otra cotización'],
+    });
+    expect(d).toContain('otra cotización');
+    expect(d).toMatch(/motivo real del silencio/);
   });
 });

@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import IntakeForm, { type Intake, type IntakeSchema } from '../components/IntakeForm';
 import MessageList, { type Message } from '../components/MessageList';
 import Opportunities, { type Opportunity } from '../components/Opportunities';
+import Diagnosis, { type SalesDiagnosis } from '../components/Diagnosis';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 type Contact = {
@@ -36,6 +37,7 @@ export default function JobDetail() {
   const [job, setJob] = useState<Job | null>(null);
   const [intake, setIntake] = useState<Intake>({});
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [diagnosis, setDiagnosis] = useState<SalesDiagnosis | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [schema, setSchema] = useState<IntakeSchema>({ sections: [] });
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,7 @@ export default function JobDetail() {
           ? jobData.intake.opportunities
           : []) as Opportunity[],
       );
+      setDiagnosis((jobData.intake?.diagnosis ?? null) as SalesDiagnosis | null);
       setMessages((jobData.messages ?? []) as Message[]);
       setSchema((profile.intakeSchema ?? { sections: [] }) as IntakeSchema);
       if (jobData.job?.summary) setSummary(jobData.job.summary);
@@ -160,6 +163,9 @@ export default function JobDetail() {
             intake={intake}
             onChanged={() => void load()}
           />
+
+          <h2>Qué descubrió el asistente</h2>
+          <Diagnosis diagnosis={diagnosis} />
 
           <h2>Servicios adicionales</h2>
           <Opportunities items={opportunities} />

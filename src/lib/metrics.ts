@@ -8,6 +8,7 @@ const llmErrorsByType = new Map<string, number>();
 const httpByStatusClass = new Map<string, number>(); // '2xx','4xx','5xx'
 const opportunitiesByStatus = new Map<string, number>(); // 'offered','accepted','declined'
 const followUpsByReason = new Map<string, number>(); // 'pending_offer','incomplete_intake'
+const objectionsByType = new Map<string, number>(); // 'precio:abierta', 'precio:resuelta'…
 let botsConnected = 0;
 
 export function incMessage(tenantId: string): void {
@@ -24,6 +25,11 @@ export function incOpportunity(status: string): void {
 export function incFollowUp(reason: string): void {
   followUpsByReason.set(reason, (followUpsByReason.get(reason) ?? 0) + 1);
 }
+/** Una objeción registrada por el agente, con si quedó resuelta. */
+export function incObjection(type: string, resolved: boolean): void {
+  const key = `${type}:${resolved ? 'resuelta' : 'abierta'}`;
+  objectionsByType.set(key, (objectionsByType.get(key) ?? 0) + 1);
+}
 export function incHttp(statusCode: number): void {
   const cls = `${Math.floor(statusCode / 100)}xx`;
   httpByStatusClass.set(cls, (httpByStatusClass.get(cls) ?? 0) + 1);
@@ -33,7 +39,7 @@ export function setBotsConnected(n: number): void { botsConnected = n; }
 /** Solo para tests: reinicia los contadores. */
 export function resetMetrics(): void {
   messagesByTenant.clear(); llmErrorsByType.clear(); httpByStatusClass.clear(); botsConnected = 0;
-  opportunitiesByStatus.clear(); followUpsByReason.clear();
+  opportunitiesByStatus.clear(); followUpsByReason.clear(); objectionsByType.clear();
 }
 
 function line(name: string, value: number, labels?: Record<string, string>): string {
@@ -54,6 +60,11 @@ export function renderMetrics(): string {
   for (const [status, n] of opportunitiesByStatus) out.push(line('intake_opportunities_total', n, { status }));
   out.push('# TYPE intake_followups_total counter');
   for (const [reason, n] of followUpsByReason) out.push(line('intake_followups_total', n, { reason }));
+  out.push('# TYPE intake_objections_total counter');
+  for (const [key, n] of objectionsByType) {
+    const [type, state] = key.split(':');
+    out.push(line('intake_objections_total', n, { type, state }));
+  }
   out.push('# TYPE intake_bots_connected gauge');
   out.push(line('intake_bots_connected', botsConnected));
   return out.join('\n') + '\n';

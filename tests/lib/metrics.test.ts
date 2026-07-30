@@ -5,6 +5,7 @@ import {
   incHttp,
   incOpportunity,
   incFollowUp,
+  incObjection,
   setBotsConnected,
   renderMetrics,
   resetMetrics,
@@ -56,5 +57,20 @@ describe('métricas de venta', () => {
     const out = renderMetrics();
     expect(out).not.toContain('intake_opportunities_total{');
     expect(out).not.toContain('intake_followups_total{');
+  });
+});
+
+describe('métricas de objeciones', () => {
+  beforeEach(() => resetMetrics());
+
+  it('separa las abiertas de las resueltas por tipo', () => {
+    incObjection('precio', false);
+    incObjection('precio', false);
+    incObjection('precio', true);
+    incObjection('tiempo', true);
+    const out = renderMetrics();
+    expect(out).toContain('intake_objections_total{type="precio",state="abierta"} 2');
+    expect(out).toContain('intake_objections_total{type="precio",state="resuelta"} 1');
+    expect(out).toContain('intake_objections_total{type="tiempo",state="resuelta"} 1');
   });
 });

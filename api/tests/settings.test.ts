@@ -173,7 +173,12 @@ describe('settings', () => {
     expect(res.statusCode).toBe(200);
     // skills null en la fila → hereda las referenciadas por el perfil. Todos los
     // giros adoptan la venta consultiva, así que tapicería hereda ['ventas'].
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: ['ventas'] });
+    expect(res.json().media).toEqual({
+      describeImages: true, transcribeAudio: false, editImages: false,
+      followUpEnabled: false, aiDisclosure: true,
+      // Todos los giros adoptan las tres técnicas de venta por defecto.
+      skills: ['descubrimiento', 'ventas', 'objeciones'],
+    });
   });
 
   it('GET /settings sin fila TenantSettings → media null (tenant legado)', async () => {

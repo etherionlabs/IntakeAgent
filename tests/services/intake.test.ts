@@ -8,6 +8,9 @@ import {
   upsertOpportunities,
   listOpportunities,
   acceptedOpportunities,
+  updateDiagnosis,
+  getDiagnosis,
+  openObjections,
 } from '../../src/services/intake';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 
@@ -349,5 +352,71 @@ describe('oportunidades de venta', () => {
     const intake = createEmptyIntakeFromSchema(schema);
     const out = renderIntakeForModel(schema, intake, { jobId: 'j1', status: 'OPEN_INTAKE' });
     expect(out).not.toContain('Servicios adicionales');
+  });
+});
+
+describe('diagnóstico de venta', () => {
+  it('acumula lo descubierto sin borrar lo anterior', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const a = updateDiagnosis(intake, { pain: 'el sillón está hundido' }, 't1');
+    const b = updateDiagnosis(a, { urgency: 'alta' }, 't2');
+    // Un turno posterior no pisa lo que se descubrió antes.
+    expect(getDiagnosis(b).pain).toBe('el sillón está hundido');
+    expect(getDiagnosis(b).urgency).toBe('alta');
+    expect(getDiagnosis(intake).pain).toBeUndefined();
+  });
+
+  it('las objeciones son upsert por tipo, no se duplican', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const a = updateDiagnosis(intake, { objection: { type: 'precio', note: 'lo ve caro' } }, 't1');
+    const b = updateDiagnosis(a, { objection: { type: 'precio', note: 'ya vio el valor', resolved: true } }, 't2');
+    expect(getDiagnosis(b).objections).toHaveLength(1);
+    expect(getDiagnosis(b).objections[0].resolved).toBe(true);
+    expect(openObjections(b)).toHaveLength(0);
+  });
+
+  it('objeciones de tipos distintos conviven', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const a = updateDiagnosis(intake, { objection: { type: 'precio', note: 'caro' } }, 't1');
+    const b = updateDiagnosis(a, { objection: { type: 'tiempo', note: 'tarda mucho' } }, 't2');
+    expect(openObjections(b).map((o) => o.type)).toEqual(['precio', 'tiempo']);
+  });
+
+  it('tolera un intake antiguo sin diagnóstico', () => {
+    const legacy = createEmptyIntakeFromSchema(schema);
+    delete legacy.diagnosis;
+    expect(getDiagnosis(legacy)).toEqual({ objections: [] });
+    expect(openObjections(legacy)).toEqual([]);
+    const next = updateDiagnosis(legacy, { pain: 'algo' }, 't1');
+    expect(getDiagnosis(next).pain).toBe('algo');
+  });
+
+  it('el prompt marca lo descubierto y lo que falta', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const partial = updateDiagnosis(intake, { pain: 'la tela ya no da' }, 't1');
+    const out = renderIntakeForModel(schema, partial, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toContain('Diagnóstico de venta');
+    expect(out).toContain('✓ Problema: la tela ya no da');
+    expect(out).toContain('✗ Qué le cuesta no resolverlo');
+    expect(out).toContain('Te falta descubrir');
+    expect(out).toContain('register_discovery');
+  });
+
+  it('con el diagnóstico completo ya no pide descubrir más', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const full = updateDiagnosis(
+      intake,
+      { pain: 'x', implication: 'y', urgency: 'media' },
+      't1',
+    );
+    const out = renderIntakeForModel(schema, full, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).not.toContain('Te falta descubrir');
+  });
+
+  it('una objeción sin resolver se marca en el prompt', () => {
+    const intake = createEmptyIntakeFromSchema(schema);
+    const withObj = updateDiagnosis(intake, { objection: { type: 'precio', note: 'lo ve caro' } }, 't1');
+    const out = renderIntakeForModel(schema, withObj, { jobId: 'j1', status: 'OPEN_INTAKE' });
+    expect(out).toContain('Objeción (precio): lo ve caro — SIN RESOLVER');
   });
 });

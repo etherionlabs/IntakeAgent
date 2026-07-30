@@ -97,10 +97,57 @@ número de WhatsApp del negocio— es del dueño. Además nunca escribe:
 - si el turno del agente falló — el fallback de error no se manda a alguien que
   no escribió, y el trabajo conserva su seguimiento para el próximo barrido.
 
+### Descubrir antes de proponer
+
+El error que más ventas cuesta es proponer antes de entender. El agente ahora
+diagnostica y **guarda lo que descubre** en el intake del job (`diagnosis`), no
+solo en la conversación:
+
+- `pain` — el problema en palabras del cliente.
+- `implication` — qué le cuesta si NO lo resuelve. Es la pregunta que casi nadie
+  hace y la que convierte una reparación pequeña en el trabajo que de verdad
+  necesita.
+- `urgency` — alta / media / baja.
+- `objections` — la fricción que planteó (precio, tiempo, confianza, competencia,
+  «lo voy a pensar»), con si quedó **resuelta**. Un upsert por tipo: el cliente que
+  vuelve al precio actualiza la objeción, no crea otra.
+
+Se escribe con la tool `register_discovery` y se le muestra al modelo en cada
+turno **lo que todavía le falta descubrir**, que es lo que lo frena de saltar al
+pitch. Alimenta tres cosas más: el seguimiento proactivo retoma citando lo que el
+cliente contó (y la objeción sin resolver, que suele ser el motivo real del
+silencio), el dueño lo lee en la ficha del trabajo antes de cotizar, y
+`intake_objections_total{type,state}` mide la fricción real.
+
+Las técnicas viven en la biblioteca de skills, no en un prompt monolítico:
+`descubrimiento` (SPIN adaptado: una pregunta por mensaje, devolverle lo entendido
+antes de proponer, y no interrogar a quien ya decidió), `objeciones` (explorar
+**antes** de responder — «¿caro comparado con qué?» — y el diagnóstico de tres vías
+para «lo voy a pensar») y `ventas` (complementos y cierre con próximo paso
+concreto).
+
+Dos reglas duras acompañan a la venta, porque deben ganar siempre: el agente
+**nunca dice ni insinúa que es una persona**, y si lo que el cliente necesita no es
+algo que el negocio haga, **lo dice** en vez de seguir tomando datos.
+
+### Transparencia (divulgación de IA)
+
+El AI Act (art. 50, aplicable desde el **2026-08-02**) exige informar a la persona
+cuando interactúa con un sistema de IA. El aviso va en el **primer mensaje**
+(`buildWelcome`), no en una respuesta del modelo: un aviso que dependa de que el
+modelo se acuerde de darlo no es una garantía. No se duplica si el dueño ya lo dice
+en su bienvenida.
+
+Es por tenant (`TenantSettings.aiDisclosure`, en **Configuración → Cómo atiende**)
+porque depende de su jurisdicción, y viene **activo por defecto**: no informar es
+riesgo legal, informar cuesta una línea. El texto es global del deployment
+(`config.json` → `disclosure.text`). Independientemente del toggle, la regla dura
+de no hacerse pasar por persona aplica siempre.
+
 ### Medir la venta
 
 `GET /metrics` expone `intake_opportunities_total{status}` (ofrecidos, aceptados,
-rechazados) e `intake_followups_total{reason}`. Para cerrar la atribución, el
+rechazados), `intake_followups_total{reason}` e `intake_objections_total{type,state}`. Para cerrar la atribución, el
 dueño marca el resultado al cerrar un trabajo: **Cerrar · ganado** o **Cerrar ·
 perdido** (`Job.outcome` = `WON`/`LOST`; reabrir un trabajo lo limpia). Con eso
 la tasa ofrecido→aceptado→ganado deja de ser una impresión.

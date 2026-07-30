@@ -8,6 +8,9 @@ import {
   isIntakeComplete,
   upsertOpportunities,
   acceptedOpportunities,
+  updateDiagnosis,
+  getDiagnosis,
+  openObjections,
   type IntakeState,
 } from '../services/intake';
 import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob } from '../services/job';
@@ -16,7 +19,7 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
 import { imageMimeFromPath } from '../media/describer';
-import { incOpportunity } from '../lib/metrics';
+import { incOpportunity, incObjection } from '../lib/metrics';
 
 /** Forma común a todas las tools del agent. Compatible con @openrouter/sdk `tool()`. */
 export interface AgentTool {
@@ -146,6 +149,75 @@ export function buildRegisterOpportunityTool(
         ok: true,
         registered: parse.data.items.length,
         accepted: acceptedOpportunities(nextIntake).map((o) => o.service),
+      };
+    },
+  };
+}
+
+const RegisterDiscoveryArgsZ = z
+  .object({
+    pain: z.string().min(3).max(300).optional(),
+    implication: z.string().min(3).max(300).optional(),
+    urgency: z.enum(['alta', 'media', 'baja']).optional(),
+    objection: z
+      .object({
+        type: z.enum(['precio', 'tiempo', 'confianza', 'competencia', 'lo_piensa', 'otro']),
+        note: z.string().min(3).max(300),
+        resolved: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .refine(
+    (d) => d.pain || d.implication || d.urgency || d.objection,
+    { message: 'manda al menos uno: pain, implication, urgency u objection' },
+  );
+
+export type RegisterDiscoveryArgs = z.infer<typeof RegisterDiscoveryArgsZ>;
+
+/**
+ * Guarda lo que el agente DESCUBRIÓ, no lo que el cliente pidió.
+ *
+ * El intake captura el pedido ("retapizar un sillón"); esto captura por qué le
+ * importa y qué le cuesta no hacerlo. Sin ese registro el agente vuelve a empezar
+ * en cada turno y termina proponiendo antes de entender, que es el error que más
+ * cuesta en una venta consultiva.
+ */
+export function buildRegisterDiscoveryTool(
+  ctx: TurnContext,
+  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
+): AgentTool {
+  return {
+    name: 'register_discovery',
+    description:
+      'Guarda lo que vas descubriendo de la NECESIDAD del cliente, en cuanto lo sepas y sin esperar al final: ' +
+      'pain = el problema en SUS palabras; implication = qué le cuesta si no lo resuelve (tiempo, dinero, ' +
+      'riesgo, incomodidad); urgency = alta/media/baja. Manda solo lo que hayas descubierto en este turno. ' +
+      'objection = una fricción que el cliente planteó (precio, tiempo, confianza, competencia, lo_piensa), ' +
+      'con resolved=true SOLO cuando de verdad quedó resuelta. No lo inventes: si no lo dijo, no lo guardes.',
+    inputSchema: RegisterDiscoveryArgsZ,
+    execute: async (rawArgs) => {
+      const parse = RegisterDiscoveryArgsZ.safeParse(rawArgs);
+      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+
+      const nextIntake = updateDiagnosis(ctx.intake, parse.data, ctx.now);
+      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
+      ctx.intake = nextIntake;
+
+      if (parse.data.objection) {
+        incObjection(parse.data.objection.type, parse.data.objection.resolved ?? false);
+      }
+
+      const diag = getDiagnosis(nextIntake);
+      return {
+        ok: true,
+        // Se le devuelve qué sigue faltando: es el recordatorio más barato de que
+        // todavía no toca proponer.
+        missing: [
+          !diag.pain ? 'pain' : null,
+          !diag.implication ? 'implication' : null,
+          !diag.urgency ? 'urgency' : null,
+        ].filter(Boolean),
+        open_objections: openObjections(nextIntake).length,
       };
     },
   };
@@ -476,6 +548,7 @@ export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
     buildFlagNonIntakeTool(ctx, deps),
     buildRequestPhotoTool(ctx),
     buildRegisterOpportunityTool(ctx, deps),
+    buildRegisterDiscoveryTool(ctx, deps),
   ];
   if (ctx.otherOpenJobs.length >= 2) {
     tools.push(buildSelectOrOpenJobTool(ctx));

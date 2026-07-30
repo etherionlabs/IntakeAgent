@@ -1,7 +1,7 @@
 import type { PrismaClient, Job, Contact, Message } from '@prisma/client';
 import type { Config } from '../config/schema';
 import { JOB_STATUS, parseJobIntake } from './job';
-import { listOpportunities } from './intake';
+import { listOpportunities, getDiagnosis, openObjections } from './intake';
 import type { IntakeSchema } from '../config/intake-schema';
 import { listRequiredPaths } from '../config/intake-schema';
 import { getByPath } from '../lib/path';
@@ -45,6 +45,10 @@ export interface FollowUpCandidate {
   missingLabels: string[];
   /** Horas de silencio desde nuestro último mensaje. */
   silentHours: number;
+  /** El problema del cliente en sus palabras, si el agente llegó a descubrirlo. */
+  pain?: string;
+  /** Objeciones que quedaron sin resolver: suelen ser el motivo real del silencio. */
+  openObjections: string[];
 }
 
 const HOUR_MS = 3600_000;
@@ -96,11 +100,15 @@ export function evaluateJob(args: {
 
   // Una oferta en el aire es el mejor motivo: el cliente ya mostró interés y
   // nadie cerró el tema. Va antes que el intake incompleto.
+  const diagnosis = getDiagnosis(intake);
+  const unresolved = openObjections(intake).map((o) => `${o.type}: ${o.note}`);
+  const base = { pain: diagnosis.pain, openObjections: unresolved };
+
   const pendingServices = listOpportunities(intake)
     .filter((o) => o.status === 'offered')
     .map((o) => o.service);
   if (pendingServices.length > 0) {
-    return { reason: 'pending_offer', pendingServices, missingLabels: [], silentHours };
+    return { ...base, reason: 'pending_offer', pendingServices, missingLabels: [], silentHours };
   }
 
   const missingLabels: string[] = [];
@@ -110,7 +118,7 @@ export function evaluateJob(args: {
     if (!satisfied) missingLabels.push(labelForPath(schema, path));
   }
   if (missingLabels.length > 0) {
-    return { reason: 'incomplete_intake', pendingServices: [], missingLabels, silentHours };
+    return { ...base, reason: 'incomplete_intake', pendingServices: [], missingLabels, silentHours };
   }
 
   // Intake completo y sin ofertas pendientes: no hay nada que perseguir. Si el
@@ -185,6 +193,15 @@ export function buildFollowUpDirective(candidate: FollowUpCandidate): string {
     `El cliente lleva ~${Math.round(candidate.silentHours)} h sin responder a tu último mensaje. ` +
       'Escríbele TÚ para retomar la conversación.',
   );
+  if (candidate.pain) {
+    lines.push(`Lo que te contó que necesita: ${candidate.pain}`);
+  }
+  if (candidate.openObjections.length > 0) {
+    lines.push(
+      `Quedó sin resolver: ${candidate.openObjections.join(' | ')}. Retómalo por AHÍ — ` +
+        'lo más probable es que sea el motivo real del silencio.',
+    );
+  }
   lines.push('');
 
   if (candidate.reason === 'pending_offer') {

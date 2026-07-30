@@ -7,12 +7,15 @@ import {
   bulkUpdate,
   upsertOpportunities,
   listOpportunities,
+  getDiagnosis,
+  openObjections,
   type IntakeState,
 } from '../../src/services/intake';
 import {
   buildUpdateIntakeTool,
   buildMarkReadyTool,
   buildRegisterOpportunityTool,
+  buildRegisterDiscoveryTool,
 } from '../../src/agent/tools';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
@@ -195,6 +198,86 @@ describe('tool register_opportunity', () => {
     expect(bad.ok).toBe(false);
     const empty = await tool.execute({ items: [] });
     expect(empty.ok).toBe(false);
+  });
+});
+
+describe('tool register_discovery', () => {
+  const deps = { prisma, tenantId: TEST_TENANT_ID };
+
+  it('guarda el diagnóstico y devuelve lo que sigue faltando', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const out = await tool.execute({ pain: 'el sillón está hundido y ya no lo usan' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    // El recordatorio de que todavía no toca proponer.
+    expect(out.missing).toEqual(['implication', 'urgency']);
+
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    expect(JSON.parse(reload!.intake).diagnosis.pain).toContain('hundido');
+  });
+
+  it('acumula entre llamadas sin perder lo anterior', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    await tool.execute({ pain: 'la tela ya no da' });
+    const out = await tool.execute({ implication: 'le da pena recibir visitas', urgency: 'alta' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.missing).toEqual([]);
+
+    const diag = getDiagnosis(ctx.intake);
+    expect(diag.pain).toBe('la tela ya no da');
+    expect(diag.implication).toContain('visitas');
+    expect(diag.urgency).toBe('alta');
+  });
+
+  it('registra una objeción abierta y la cuenta', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const out = await tool.execute({
+      objection: { type: 'precio', note: 'lo compara con otra cotización' },
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.open_objections).toBe(1);
+    expect(openObjections(ctx.intake)[0].type).toBe('precio');
+  });
+
+  it('resolver una objeción la cierra sin duplicarla', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    await tool.execute({ objection: { type: 'precio', note: 'lo ve caro' } });
+    const out = await tool.execute({
+      objection: { type: 'precio', note: 'entendió el alcance', resolved: true },
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.open_objections).toBe(0);
+    expect(getDiagnosis(ctx.intake).objections).toHaveLength(1);
+  });
+
+  it('rechaza una llamada vacía y una urgencia inventada', async () => {
+    const ctx = await setupCtx();
+    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    expect((await tool.execute({})).ok).toBe(false);
+    expect((await tool.execute({ urgency: 'muchísima' })).ok).toBe(false);
+  });
+
+  it('no pisa los campos del intake ya capturados', async () => {
+    const ctx = await setupCtx();
+    const filled = bulkUpdate(schema, ctx.intake, [{ path: 'client.name', value: 'María' }], {
+      now: ctx.now,
+      source_message_id: 'm1',
+    });
+    if (!filled.ok) throw new Error('fail');
+    ctx.intake = filled.intake;
+
+    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    await tool.execute({ pain: 'algo' });
+
+    const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
+    expect(JSON.parse(reload!.intake).client.name.value).toBe('María');
   });
 });
 
@@ -500,6 +583,7 @@ describe('buildTools', () => {
       'close_job',
       'flag_non_intake',
       'mark_ready_for_review',
+      'register_discovery',
       'register_opportunity',
       'request_photo',
       'update_intake',
@@ -520,6 +604,6 @@ describe('buildTools', () => {
       config: { owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'x' } } as any,
     } as any);
     expect(tools.map((t) => t.name)).toContain('select_or_open_job');
-    expect(tools).toHaveLength(7);
+    expect(tools).toHaveLength(8);
   });
 });
