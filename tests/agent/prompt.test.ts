@@ -203,6 +203,7 @@ const profile: Profile = {
   imageFocus: '',
   imageEditGuidance: '',
   skills: [],
+  aiDisclosure: false,
   hash: 'abc',
 };
 

@@ -191,7 +191,8 @@ describe('evaluateJob — a quién le damos seguimiento', () => {
 describe('policyFromConfig', () => {
   it('toma los valores del config', () => {
     const config = {
-      followUp: { enabled: true, afterHours: 6, maxFollowUps: 1, minHoursBetween: 12, sweepMinutes: 15 },
+      disclosure: { text: 'Te atiende un asistente automatizado.' },
+  followUp: { enabled: true, afterHours: 6, maxFollowUps: 1, minHoursBetween: 12, sweepMinutes: 15 },
     } as Config;
     expect(policyFromConfig(config)).toEqual({
       afterHours: 6,

@@ -34,6 +34,7 @@ const profile: Profile = {
   imageFocus: '',
   imageEditGuidance: '',
   skills: [],
+  aiDisclosure: false,
   hash: 'h1',
 };
 
@@ -49,6 +50,7 @@ const config: Config = {
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
   media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini', editImages: false, imageEditModel: 'google/gemini-2.5-flash-image-preview' },
+  disclosure: { text: 'Te atiende un asistente automatizado.' },
   followUp: { enabled: true, afterHours: 24, maxFollowUps: 2, minHoursBetween: 24, sweepMinutes: 30 },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;

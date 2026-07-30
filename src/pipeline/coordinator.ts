@@ -126,10 +126,7 @@ export class InboundCoordinator {
     }
 
     if (jobRes.isFirstMessage) {
-      const welcome = applyTemplate(profile.welcome, {
-        businessName: profile.intakeSchema.$businessName,
-        businessDomain: profile.intakeSchema.$businessDomain,
-      });
+      const welcome = buildWelcome(profile, config);
       await this.deps.sender.sendText(contactRes.contact.phoneE164, welcome);
       // Persistirlo como mensaje outbound: el agente lo verá en el historial
       // reciente y evitará saludar de nuevo.
@@ -351,6 +348,26 @@ export class InboundCoordinator {
 
 function applyTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+}
+
+/**
+ * Saludo de apertura, con la divulgación de IA cuando el tenant la tiene activa.
+ *
+ * Va en el PRIMER mensaje y no en una respuesta del modelo a propósito: el AI Act
+ * (art. 50) exige informar a la persona *cuando interactúa* con un sistema de IA,
+ * y un aviso que dependa de que el modelo se acuerde de darlo no es una garantía.
+ * Si el dueño ya lo dice en su bienvenida, no se repite.
+ */
+export function buildWelcome(profile: Profile, config: Config): string {
+  const welcome = applyTemplate(profile.welcome, {
+    businessName: profile.intakeSchema.$businessName,
+    businessDomain: profile.intakeSchema.$businessDomain,
+  });
+  if (!profile.aiDisclosure) return welcome;
+  const notice = config.disclosure.text.trim();
+  if (notice.length === 0) return welcome;
+  if (welcome.toLowerCase().includes(notice.slice(0, 24).toLowerCase())) return welcome;
+  return `${welcome}\n\n${notice}`;
 }
 
 const GREETING_TOKENS = new Set([

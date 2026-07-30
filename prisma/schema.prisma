@@ -110,6 +110,10 @@ model TenantSettings {
   /// Seguimiento proactivo: el bot reabre la conversación cuando el cliente se queda
   /// callado. Opt-in por tenant — son mensajes NO solicitados y el dueño decide.
   followUpEnabled Boolean  @default(false)
+  /// Avisa al cliente, en el primer mensaje, que le atiende un asistente automatizado.
+  /// Por defecto ACTIVO: el AI Act (art. 50, aplicable 2026-08-02) exige informar a la
+  /// persona cuando interactúa con una IA, y el riesgo de no hacerlo es legal.
+  aiDisclosure    Boolean  @default(true)
   panelUrl        String?
   /// Ventana de retención de mensajes (meses). El job de retención purga lo más viejo.
   messageRetentionMonths Int @default(12)

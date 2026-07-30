@@ -121,6 +121,7 @@ export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, 
     // El welcome editado en el panel (override) gana; si no, el de TenantSettings.
     welcome: profileOverride?.welcome ?? settings.welcomeTemplate,
     skills,
+    aiDisclosure: settings.aiDisclosure,
   };
   return { config, profile };
 }

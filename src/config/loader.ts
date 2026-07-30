@@ -133,6 +133,7 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
   const hash = createHash('sha256').update(combined).digest('hex').slice(0, 12);
 
   return {
+    aiDisclosure: true,
     intakeSchema: schemaResult.schema,
     promptVars: promptVars.data,
     businessFacts: businessFacts.data,
@@ -173,6 +174,7 @@ export function applyProfileOverride(base: Profile, ov: ProfileSettings): Profil
     .digest('hex')
     .slice(0, 12);
   return {
+    aiDisclosure: base.aiDisclosure,
     intakeSchema,
     promptVars,
     businessFacts: ov.businessFacts,

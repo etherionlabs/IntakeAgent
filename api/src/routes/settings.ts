@@ -18,6 +18,7 @@ const MediaSettingsInputZ = z.object({
   transcribeAudio: z.boolean(),
   editImages: z.boolean(),
   followUpEnabled: z.boolean(),
+  aiDisclosure: z.boolean(),
   skills: z.array(z.string()),
 });
 
@@ -60,6 +61,7 @@ export async function settingsRoutes(app: FastifyInstance) {
           transcribeAudio: true,
           editImages: true,
           followUpEnabled: true,
+          aiDisclosure: true,
           skills: true,
         },
       }),
@@ -70,6 +72,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       transcribeAudio: boolean;
       editImages: boolean;
       followUpEnabled: boolean;
+      aiDisclosure: boolean;
       skills: string[];
     } | null = null;
     if (ts) {
@@ -81,6 +84,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         transcribeAudio: ts.transcribeAudio,
         editImages: ts.editImages,
         followUpEnabled: ts.followUpEnabled,
+        aiDisclosure: ts.aiDisclosure,
         skills,
       };
     }
@@ -170,6 +174,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         transcribeAudio: parse.data.transcribeAudio,
         editImages: parse.data.editImages,
         followUpEnabled: parse.data.followUpEnabled,
+        aiDisclosure: parse.data.aiDisclosure,
         skills,
       },
       select: {
@@ -177,6 +182,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         transcribeAudio: true,
         editImages: true,
         followUpEnabled: true,
+        aiDisclosure: true,
         skills: true,
       },
     });
@@ -187,6 +193,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         transcribeAudio: row.transcribeAudio,
         editImages: row.editImages,
         followUpEnabled: row.followUpEnabled,
+        aiDisclosure: row.aiDisclosure,
         skills: asStringArray(row.skills) ?? [],
       },
     };

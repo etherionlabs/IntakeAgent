@@ -32,6 +32,9 @@
     "editImages": true,
     "imageEditModel": "google/gemini-2.5-flash-image-preview"
   },
+  "disclosure": {
+    "text": "Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo."
+  },
   "followUp": {
     "enabled": true,
     "afterHours": 24,

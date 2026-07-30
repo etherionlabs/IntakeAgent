@@ -398,6 +398,21 @@ export default function Settings() {
                 Mostrarle al cliente cómo quedaría (edita su foto). Cuesta más por conversación.
               </label>
 
+              <h3>Transparencia</h3>
+              <p className="settings-hint">
+                Avisa en el primer mensaje que quien atiende es un asistente automatizado.
+                En la Unión Europea es obligatorio desde el 2 de agosto de 2026; el asistente
+                nunca dirá que es una persona, lo tengas activado o no.
+              </p>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={media.aiDisclosure}
+                  onChange={(e) => setMedia({ ...media, aiDisclosure: e.target.checked })}
+                />
+                Avisar que es un asistente automatizado
+              </label>
+
               <h3>Seguimiento</h3>
               <p className="settings-hint">
                 Cuando un cliente deja de responder, el asistente le escribe para retomar:

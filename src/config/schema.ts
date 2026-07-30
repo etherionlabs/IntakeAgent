@@ -100,6 +100,23 @@ export const ConfigZ = z.object({
       imageEditModel: 'google/gemini-2.5-flash-image-preview',
     }),
   /**
+   * Divulgación de IA. El AI Act (art. 50, aplicable desde el 2026-08-02) exige
+   * informar a la persona cuando interactúa con un sistema de IA. El texto es
+   * global del deployment; encender o apagar el aviso es por tenant
+   * (TenantSettings.aiDisclosure), porque depende de su jurisdicción.
+   */
+  disclosure: z
+    .object({
+      text: z
+        .string()
+        .default(
+          'Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo.',
+        ),
+    })
+    .default({
+      text: 'Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo.',
+    }),
+  /**
    * Seguimiento proactivo: el bot reabre la conversación cuando el cliente se
    * queda callado (una oferta sin responder, un intake a medias). Interruptor
    * GLOBAL del deployment; además cada tenant lo activa desde el panel
@@ -146,5 +163,7 @@ export interface Profile {
   imageEditGuidance: string;
   /** Skills (técnicas reutilizables) ya resueltas desde la biblioteca `skills/`. */
   skills: LoadedSkill[];
+  /** ¿Se avisa al cliente que le atiende una IA? Decisión por tenant. */
+  aiDisclosure: boolean;
   hash: string;
 }

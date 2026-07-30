@@ -312,6 +312,8 @@ export interface MediaSettings {
   editImages: boolean;
   /** El bot reabre la conversación cuando el cliente deja de responder. */
   followUpEnabled: boolean;
+  /** Avisa al cliente que le atiende un asistente automatizado (AI Act art. 50). */
+  aiDisclosure: boolean;
   /** Nombres de las skills (técnicas) activas para este tenant. */
   skills: string[];
 }

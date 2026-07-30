@@ -43,7 +43,7 @@ const CONFIG = {
   owner: { phoneE164: '+13058799511', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 };
-const MEDIA = { describeImages: false, transcribeAudio: true, editImages: false, followUpEnabled: false, skills: ['ventas'] };
+const MEDIA = { describeImages: false, transcribeAudio: true, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: ['ventas'] };
 const AVAILABLE_SKILLS = [
   { name: 'ventas', title: 'Venta consultiva', description: 'Cerrar sin presionar.' },
 ];

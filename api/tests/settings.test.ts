@@ -173,7 +173,7 @@ describe('settings', () => {
     expect(res.statusCode).toBe(200);
     // skills null en la fila → hereda las referenciadas por el perfil. Todos los
     // giros adoptan la venta consultiva, así que tapicería hereda ['ventas'].
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, followUpEnabled: false, skills: ['ventas'] });
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: ['ventas'] });
   });
 
   it('GET /settings sin fila TenantSettings → media null (tenant legado)', async () => {
@@ -191,10 +191,10 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: true, transcribeAudio: true, editImages: true, followUpEnabled: true, skills: [] },
+      payload: { describeImages: true, transcribeAudio: true, editImages: true, followUpEnabled: true, aiDisclosure: true, skills: [] },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true, editImages: true, followUpEnabled: true, skills: [] });
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true, editImages: true, followUpEnabled: true, aiDisclosure: true, skills: [] });
     const row = await testPrisma.tenantSettings.findUnique({ where: { tenantId } });
     expect(row!.describeImages).toBe(true);
     expect(row!.transcribeAudio).toBe(true);
@@ -210,7 +210,7 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: false, transcribeAudio: false, editImages: false, followUpEnabled: false, skills: ['ventas', 'no-existe-xyz'] },
+      payload: { describeImages: false, transcribeAudio: false, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: ['ventas', 'no-existe-xyz'] },
     });
     expect(res.statusCode).toBe(200);
     // 'ventas' existe en el catálogo; 'no-existe-xyz' se descarta.
@@ -249,7 +249,7 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: true, transcribeAudio: true, editImages: false, followUpEnabled: false, skills: [] },
+      payload: { describeImages: true, transcribeAudio: true, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: [] },
     });
     expect(res.statusCode).toBe(404);
   });
