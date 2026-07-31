@@ -569,7 +569,7 @@ describe('tool reanalyze_image', () => {
 import { buildTools } from '../../src/agent/tools';
 
 describe('buildTools', () => {
-  it('expone 5 tools cuando otherOpenJobs.length < 2', async () => {
+  it('sin otros trabajos abiertos no ofrece select_or_open_job', async () => {
     const ctx = await setupCtx();
     const tools = buildTools(ctx, {
       prisma,
@@ -590,12 +590,11 @@ describe('buildTools', () => {
     ]);
   });
 
-  it('agrega select_or_open_job cuando hay 2+ otherOpenJobs', async () => {
+  it('agrega select_or_open_job en cuanto hay UN otro trabajo abierto', async () => {
     const ctx = await setupCtx();
-    ctx.otherOpenJobs = [
-      { id: 'a', summary: null, openedAt: new Date() },
-      { id: 'b', summary: null, openedAt: new Date() },
-    ];
+    // Dos trabajos en total (este + uno) ya es ambiguo: es el caso normal de un
+    // cliente que vuelve, y antes se quedaba sin la tool.
+    ctx.otherOpenJobs = [{ id: 'a', summary: null, openedAt: new Date() }];
     const tools = buildTools(ctx, {
       prisma,
       tenantId: TEST_TENANT_ID,

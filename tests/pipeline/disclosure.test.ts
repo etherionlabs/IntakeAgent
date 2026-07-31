@@ -85,3 +85,49 @@ describe('regla dura de transparencia en los perfiles', () => {
     expect(p.aiDisclosure).toBe(true);
   });
 });
+
+describe('el saludo sale en el idioma del cliente', () => {
+  const NOTICE_EN = "You're chatting with an automated assistant.";
+  const bilingue = () =>
+    makeProfile({
+      welcomeTranslations: { en: "Hi! I'm {{businessName}}'s assistant. How can I help?" },
+    });
+  const configBi = {
+    disclosure: { text: NOTICE, translations: { en: NOTICE_EN } },
+  } as unknown as Config;
+
+  it('en inglés usa la bienvenida traducida', () => {
+    const out = buildWelcome(bilingue(), configBi, 'en');
+    expect(out).toContain("Hi! I'm Tapicería Demo's assistant");
+    expect(out).not.toContain('¡Hola!');
+  });
+
+  it('el aviso de IA acompaña al idioma: un aviso que no se entiende no avisa', () => {
+    const out = buildWelcome(bilingue(), configBi, 'en');
+    expect(out).toContain(NOTICE_EN);
+    expect(out).not.toContain(NOTICE);
+  });
+
+  it('sin traducción cargada se queda en el idioma del negocio, no rompe', () => {
+    // Un giro que solo atiende en español no tiene welcome.en.txt: sigue igual
+    // que siempre en vez de quedarse mudo.
+    const out = buildWelcome(makeProfile(), configBi, 'en');
+    expect(out).toContain('¡Hola!');
+    expect(out).toContain('Tapicería Demo');
+  });
+
+  it('sin idioma explícito usa el del negocio', () => {
+    const out = buildWelcome(bilingue(), configBi);
+    expect(out).toContain('¡Hola!');
+    expect(out).toContain(NOTICE);
+  });
+
+  it('si falta la traducción del aviso, avisa igual en el idioma original', () => {
+    // Peor es no avisar: la obligación del art. 50 no se salta por no tener
+    // el texto traducido.
+    const soloWelcome = { disclosure: { text: NOTICE, translations: {} } } as unknown as Config;
+    const out = buildWelcome(bilingue(), soloWelcome, 'en');
+    expect(out).toContain("Hi! I'm");
+    expect(out).toContain(NOTICE);
+  });
+});

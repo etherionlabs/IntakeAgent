@@ -49,7 +49,7 @@ function makeConfig(over: Partial<Config['followUp']> = {}, hours?: Config['hour
     owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
     panel: { users: [] },
     media: { storeDir: './media', transcribeAudio: false, whisperModel: 'w', describeImages: false, visionModel: 'v', editImages: false, imageEditModel: 'i' },
-    disclosure: { text: 'Te atiende un asistente automatizado.' },
+    disclosure: { text: 'Te atiende un asistente automatizado.', translations: { en: 'Automated assistant.' } },
   followUp: { enabled: true, afterHours: 24, maxFollowUps: 2, minHoursBetween: 24, sweepMinutes: 30, ...over },
     limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
   } as Config;

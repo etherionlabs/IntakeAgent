@@ -1,4 +1,4 @@
-import type { Message } from '@prisma/client';
+import type { Message, Job } from '@prisma/client';
 import type { Config, Profile } from '../config/schema';
 import type { PipelineDeps, RawInboundMessage } from './types';
 import { prefilter, alreadySeen } from './idempotency';
@@ -6,10 +6,12 @@ import { normalizeAndPersistMessage } from './normalize';
 import { resolveContact } from './resolveContact';
 import { resolveJobForMessage } from './resolveJob';
 import { InboundDebouncer } from './debouncer';
-import { parseJobIntake } from '../services/job';
+import { parseJobIntake, openJob } from '../services/job';
 import { runAgentTurn } from '../agent/runner';
+import { createEmptyIntakeFromSchema } from '../services/intake';
 import { checkMonthlyLimit, notifyLimitOnce } from './usageLimit';
 import { logger } from '../lib/logger';
+import { detectLanguage, langFromLocale, type Lang } from '../lib/language';
 import { incMessage } from '../lib/metrics';
 import { captureError } from '../lib/observability';
 import type { BatchMessage, AvailablePhoto } from '../agent/types';
@@ -126,7 +128,14 @@ export class InboundCoordinator {
     }
 
     if (jobRes.isFirstMessage) {
-      const welcome = buildWelcome(profile, config);
+      // El idioma sale del mensaje que acaba de llegar: la bienvenida es una
+      // RESPUESTA al primer mensaje, así que ya hay texto que mirar. Sin texto
+      // (foto o audio de entrada) se cae al idioma del negocio.
+      const lang = detectLanguage(
+        raw.kind === 'text' ? raw.text : null,
+        langFromLocale(profile.intakeSchema.$language),
+      );
+      const welcome = buildWelcome(profile, config, lang);
       await this.deps.sender.sendText(contactRes.contact.phoneE164, welcome);
       // Persistirlo como mensaje outbound: el agente lo verá en el historial
       // reciente y evitará saludar de nuevo.
@@ -152,6 +161,72 @@ export class InboundCoordinator {
     }
 
     this.debouncer.enqueue(contactRes.contact.id, message.id);
+  }
+
+  /**
+   * Aplica la decisión de `select_or_open_job`: mueve los mensajes de este turno
+   * al trabajo que eligió el agente, o a uno nuevo.
+   *
+   * La tool solo registra la decisión; mover la conversación es cosa del
+   * pipeline. Devuelve el trabajo al que queda enganchada la conversación (el
+   * de siempre si el agente no dijo nada, que es el caso normal).
+   */
+  private async applyJobSelection(
+    current: Job,
+    contactId: string,
+    batch: Message[],
+    toolCalls: { name: string; result: unknown; error?: string | null }[],
+    profile: Profile,
+  ): Promise<Job> {
+    const tenantId = this.deps.tenantId;
+    // La última decisión gana: si el agente se corrigió dentro del turno, vale
+    // la corrección.
+    const call = [...toolCalls].reverse().find((c) => c.name === 'select_or_open_job' && !c.error);
+    if (!call) return current;
+    const decision = call.result as { ok?: boolean; selected_job_id?: string; action?: string };
+    if (!decision?.ok) return current;
+
+    let target: Job | null = null;
+    if (decision.selected_job_id && decision.selected_job_id !== current.id) {
+      // Se revalida contra la base: el id vino del modelo y pudo cerrarse entre
+      // que se armó el prompt y ahora.
+      target = await this.deps.prisma.job.findFirst({
+        where: {
+          id: decision.selected_job_id,
+          tenantId,
+          contactId,
+          status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] },
+        },
+      });
+      if (!target) {
+        logger.warn(
+          { tenantId, jobId: current.id, requested: decision.selected_job_id },
+          'inbound.job_selection_invalida',
+        );
+        return current;
+      }
+    } else if (decision.action === 'open_new') {
+      target = await openJob(
+        this.deps.prisma,
+        tenantId,
+        contactId,
+        createEmptyIntakeFromSchema(profile.intakeSchema),
+      );
+    }
+
+    if (!target || target.id === current.id) return current;
+
+    // Los mensajes de este turno pasan al trabajo elegido. Con esto el siguiente
+    // turno también entra por ahí (resolveJobForMessage sigue al último mensaje).
+    await this.deps.prisma.message.updateMany({
+      where: { id: { in: batch.map((m) => m.id) }, tenantId },
+      data: { jobId: target.id },
+    });
+    logger.info(
+      { tenantId, from: current.id, to: target.id, opened: decision.action === 'open_new' },
+      'inbound.job_reasignado',
+    );
+    return target;
   }
 
   private async flushBatch(contactId: string, messageIds: string[]): Promise<void> {
@@ -298,12 +373,17 @@ export class InboundCoordinator {
       },
     );
 
+    // Si el agente dijo que el mensaje va a otro trabajo, se aplica AQUÍ: sin
+    // esto la decisión se quedaba en el registro de tool-calls y la conversación
+    // seguía colgando del trabajo equivocado.
+    const targetJob = await this.applyJobSelection(job, contact.id, messages, result.toolCalls, profile);
+
     if (result.responseText && result.responseText.trim().length > 0) {
       await this.deps.sender.sendText(contact.phoneE164, result.responseText);
       await this.deps.prisma.message.create({
         data: {
           tenantId,
-          jobId: job.id,
+          jobId: targetJob.id,
           contactId: contact.id,
           direction: 'outbound',
           kind: 'text',
@@ -358,13 +438,24 @@ function applyTemplate(template: string, vars: Record<string, string>): string {
  * y un aviso que dependa de que el modelo se acuerde de darlo no es una garantía.
  * Si el dueño ya lo dice en su bienvenida, no se repite.
  */
-export function buildWelcome(profile: Profile, config: Config): string {
-  const welcome = applyTemplate(profile.welcome, {
+export function buildWelcome(profile: Profile, config: Config, lang?: Lang): string {
+  // Idioma del negocio: es el que se usa si el cliente no da pistas (una foto
+  // sin texto, un "ok") y también el que manda si no hay traducción cargada.
+  const businessLang = langFromLocale(profile.intakeSchema.$language);
+  const target = lang ?? businessLang;
+  const template =
+    (target !== businessLang ? profile.welcomeTranslations?.[target] : undefined) ?? profile.welcome;
+
+  const welcome = applyTemplate(template, {
     businessName: profile.intakeSchema.$businessName,
     businessDomain: profile.intakeSchema.$businessDomain,
   });
   if (!profile.aiDisclosure) return welcome;
-  const notice = config.disclosure.text.trim();
+  // El aviso acompaña al idioma de la bienvenida: en inglés con bienvenida en
+  // inglés. Si no hay traducción del aviso se usa el original antes que dejar
+  // al cliente sin avisar.
+  const notice = ((target !== businessLang ? config.disclosure.translations?.[target] : undefined) ??
+    config.disclosure.text).trim();
   if (notice.length === 0) return welcome;
   if (welcome.toLowerCase().includes(notice.slice(0, 24).toLowerCase())) return welcome;
   return `${welcome}\n\n${notice}`;

@@ -104,13 +104,23 @@ describe('buildBusinessFactsBlock', () => {
 });
 
 describe('buildOpenJobsBlock', () => {
-  it('devuelve cadena vacía si hay 0 ó 1 otros jobs', () => {
+  it('con un solo trabajo abierto no hay nada que desambiguar', () => {
     expect(buildOpenJobsBlock([])).toBe('');
-    expect(
-      buildOpenJobsBlock([
-        { id: 'a', summary: 's', openedAt: new Date('2026-05-01') },
-      ]),
-    ).toBe('');
+  });
+
+  it('avisa ya con UN otro trabajo abierto: dos es el caso normal', () => {
+    // Antes hacía falta que hubiera 2 OTROS (o sea, 3 trabajos) para que el
+    // agente se enterara. Con dos trabajos abiertos —lo más común en un cliente
+    // que vuelve— seguía contestando sobre el más reciente sin saber que había
+    // otro, y sin tool para cambiarse.
+    const out = buildOpenJobsBlock([
+      { id: 'a', summary: 'sillón verde', openedAt: new Date('2026-05-01') },
+    ]);
+    expect(out).toContain('JOBS ABIERTOS MÚLTIPLES');
+    expect(out).toContain('sillón verde');
+    // Cuenta el actual: 1 otro + este = 2.
+    expect(out).toContain('2 trabajos abiertos');
+    expect(out).toContain('select_or_open_job');
   });
 
   it('lista los jobs cuando hay 2 o más', () => {

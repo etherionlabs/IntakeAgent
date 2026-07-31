@@ -112,9 +112,22 @@ export const ConfigZ = z.object({
         .default(
           'Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo.',
         ),
+      /**
+       * El aviso en otros idiomas. Si la bienvenida sale en inglés, el aviso de
+       * IA tiene que salir en inglés: un aviso que el cliente no entiende no
+       * informa a nadie, que es justo lo que el AI Act (art. 50) exige.
+       */
+      translations: z
+        .record(z.string(), z.string())
+        .default({
+          en: "You're chatting with an automated assistant. If you'd rather talk to a person, just say so and I'll pass you to the team.",
+        }),
     })
     .default({
       text: 'Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo.',
+      translations: {
+        en: "You're chatting with an automated assistant. If you'd rather talk to a person, just say so and I'll pass you to the team.",
+      },
     }),
   /**
    * Seguimiento proactivo: el bot reabre la conversación cuando el cliente se
@@ -157,6 +170,12 @@ export interface Profile {
   promptVars: PromptVars;
   businessFacts: BusinessFacts;
   welcome: string;
+  /**
+   * Bienvenida en otros idiomas, por código ('en'). Se elige según el idioma en
+   * que escribió el cliente; sin traducción para ese idioma se usa `welcome`.
+   * En archivos son `welcome.<lang>.txt` junto a `welcome.txt`.
+   */
+  welcomeTranslations?: Record<string, string>;
   /** Instrucciones de foco para describir imágenes (vertical-specific). Opcional. */
   imageFocus: string;
   /** Guía de estilo para EDITAR imágenes / previsualizaciones (vertical-specific). Opcional. */

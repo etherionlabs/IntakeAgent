@@ -289,6 +289,45 @@ Edita estos archivos antes de la primera prueba con el cliente para adaptarlo al
 negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 `npm start`.
 
+#### El saludo en el idioma del cliente
+
+La bienvenida se manda como **respuesta** al primer mensaje, así que ya hay texto
+del cliente que mirar. Si escribe en inglés, se le contesta en inglés:
+
+- `welcome.<lang>.txt` junto a `welcome.txt` en el perfil (hoy solo `en`). Sin
+  traducción para ese idioma se usa la de siempre: un giro que solo atiende en
+  español no cambia en nada.
+- El **aviso de IA acompaña al idioma** de la bienvenida
+  (`disclosure.translations` en `config.json`). Un aviso que el cliente no
+  entiende no informa a nadie, que es justo lo que exige el art. 50 del AI Act.
+  Si falta la traducción del aviso, se manda en el idioma original antes que no
+  avisar.
+- La detección es una heurística de palabras (`src/lib/language.ts`), no una
+  llamada al modelo: el saludo tiene que salir ya, y no puede depender de una
+  llamada de pago. Ante la duda **no cambia de idioma**: un "ok" o una foto sin
+  texto se saludan en el idioma del negocio.
+
+El panel todavía **no edita** las traducciones; se conservan las del archivo del
+giro aunque el dueño edite su bienvenida desde «Tu negocio».
+
+#### Varios trabajos del mismo número
+
+Un contacto puede tener varios trabajos abiertos a la vez (el sillón de la sala y
+la cabecera), y el sistema los mantiene separados:
+
+- Con más de uno abierto, el prompt lista los otros y el agente recibe la tool
+  `select_or_open_job` para decir a cuál pertenece el mensaje —o abrir uno nuevo.
+  Ante la duda se le instruye **preguntar** al cliente en vez de adivinar.
+- El pipeline **aplica** esa decisión: mueve los mensajes del turno al trabajo
+  elegido y cuelga ahí la respuesta.
+- El mensaje siguiente entra por el trabajo de la **conversación en curso** (el
+  del último mensaje del contacto), no por el más reciente. Sin esto, cada
+  cambio de trabajo se deshacía en el turno siguiente.
+
+Límite conocido: si el agente cambia de trabajo y en el mismo turno guarda datos
+con `update_intake`, esos datos van al trabajo del que venía. El prompt le indica
+que no lo haga y que los guarde en el turno siguiente.
+
 #### `profiles/intake/` — nosotros mismos
 
 El giro `intake` es el asistente con el que **Etherion Labs** vende Intake y su
@@ -307,7 +346,11 @@ quiere entrar al Partner Program y llevarlo a otros. El campo
 **El país es obligatorio antes de cotizar**, porque el precio cambia: US$99
 (Estados Unidos), US$69 (México), US$59 (Colombia). Fuera de esos tres mercados
 el asistente dice que todavía no hay lanzamiento y toma los datos, en vez de
-prometer servicio.
+prometer servicio. La prueba es de 30 días.
+
+Como Estados Unidos es uno de los mercados, este perfil trae `welcome.en.txt`: si
+el primer mensaje llega en inglés, la bienvenida —y el aviso de IA— salen en
+inglés (ver «El saludo en el idioma del cliente»).
 
 Sus reglas duras son más estrictas que las de un giro normal, porque aquí el
 asistente habla en nombre de la empresa: no inventa precios, comisiones,

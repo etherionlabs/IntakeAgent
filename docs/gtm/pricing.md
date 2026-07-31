@@ -44,8 +44,7 @@ Todo lo que necesitas para atender por WhatsApp:
 ## Preguntas frecuentes de cobro
 
 **¿Hay prueba gratis?**
-[Sí — X días de prueba. / La prueba requiere tarjeta para activarse.] *(Por
-definir.)*
+Sí — 30 días de prueba.
 
 **¿Cómo se paga?**
 Con tarjeta, mediante un proceso de pago seguro (Stripe). La suscripción se

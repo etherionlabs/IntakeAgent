@@ -550,7 +550,9 @@ export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
     buildRegisterOpportunityTool(ctx, deps),
     buildRegisterDiscoveryTool(ctx, deps),
   ];
-  if (ctx.otherOpenJobs.length >= 2) {
+  // Con UN solo otro trabajo abierto el mensaje ya puede ser ambiguo: el contacto
+  // tiene dos y hay que poder decir a cuál va.
+  if (ctx.otherOpenJobs.length >= 1) {
     tools.push(buildSelectOrOpenJobTool(ctx));
   }
   if ((ctx.availablePhotos?.length ?? 0) > 0 && deps.mediaStore && deps.describer) {

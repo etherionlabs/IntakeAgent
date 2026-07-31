@@ -1,0 +1,1 @@
+Hi! I'm {{businessName}}'s assistant — and yes, I'm the very product I'm about to tell you about: Intake, a WhatsApp receptionist. Tell me what your business does and which country you're writing from, and I'll tell you whether this is a fit.

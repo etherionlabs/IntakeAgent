@@ -48,7 +48,8 @@ export interface TurnContext {
   contact: Contact;
   intake: IntakeState;
   batchMessages: BatchMessage[];
-  /** Lista de OTROS jobs abiertos del contacto. Si length>=2, `select_or_open_job` se expone. */
+  /** Lista de OTROS jobs abiertos del contacto (sin el de este turno). Si hay
+   *  al menos uno, `select_or_open_job` se expone. */
   otherOpenJobs: OpenJobSummary[];
   /** Hora actual ISO 8601 (inyectable para tests). */
   now: string;

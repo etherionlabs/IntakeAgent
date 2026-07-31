@@ -66,12 +66,21 @@ export function buildBusinessFactsBlock(facts: BusinessFacts, businessName: stri
   return lines.join('\n');
 }
 
+/**
+ * `otherOpenJobs` son los OTROS trabajos abiertos del contacto: el actual no
+ * está en la lista. Basta con que haya UNO para que el mensaje sea ambiguo — el
+ * caso más común de un cliente que vuelve es tener dos trabajos, no tres.
+ */
 export function buildOpenJobsBlock(otherOpenJobs: OpenJobSummary[]): string {
-  if (otherOpenJobs.length < 2) return '';
+  if (otherOpenJobs.length < 1) return '';
   const lines: string[] = [];
   lines.push('=== JOBS ABIERTOS MÚLTIPLES ===');
   lines.push(
-    `Hay ${otherOpenJobs.length} jobs abiertos para este contacto. Decide a cuál pertenece el mensaje o abre uno nuevo usando la tool select_or_open_job.`,
+    `Este contacto tiene ${otherOpenJobs.length + 1} trabajos abiertos: el de esta conversación y ${otherOpenJobs.length === 1 ? 'el siguiente' : 'los siguientes'}. ` +
+      `Si el mensaje se refiere a otro, o a algo nuevo, dilo con select_or_open_job; si sigue con el de esta conversación, no llames a la tool. ` +
+      `Ante la duda, PREGÚNTALE al cliente de cuál habla en vez de adivinar. ` +
+      `Si te cambias de trabajo, NO llames a update_intake en este mismo turno: los datos se guardarían en el trabajo del que vienes. ` +
+      `Guárdalos en el turno siguiente, que ya entrará por el trabajo correcto.`,
   );
   for (const j of otherOpenJobs) {
     const date = j.openedAt.toISOString().slice(0, 10);
