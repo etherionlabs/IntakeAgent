@@ -76,7 +76,7 @@ describe('resolveJobForMessage', () => {
     expect(r.isFirstMessage).toBe(false);
   });
 
-  it('cuando hay múltiples abiertos elige el más reciente y reporta los otros', async () => {
+  it('cuando hay múltiples abiertos y no hay historia, elige el más reciente', async () => {
     const c = await upsertContactByPhone(prisma, T, '+521');
     const j1 = await openJob(prisma, T, c.id, createEmptyIntakeFromSchema(schema));
     await new Promise((r) => setTimeout(r, 5));
@@ -85,5 +85,48 @@ describe('resolveJobForMessage', () => {
     const r = await resolveJobForMessage(prisma, T, schema, c.id, 'msg_1');
     expect(r.job.id).toBe(j2.id);
     expect(r.otherOpenJobs.map((j) => j.id)).toEqual([j1.id]);
+  });
+
+  it('sigue la conversación en curso, no el trabajo más nuevo', async () => {
+    // El cliente estaba hablando del trabajo viejo. Antes, cada mensaje volvía
+    // solo al más reciente: el agente lo cambiaba al correcto y el mensaje
+    // siguiente lo deshacía.
+    const c = await upsertContactByPhone(prisma, T, '+521');
+    const viejo = await openJob(prisma, T, c.id, createEmptyIntakeFromSchema(schema));
+    await new Promise((r) => setTimeout(r, 5));
+    const nuevo = await openJob(prisma, T, c.id, createEmptyIntakeFromSchema(schema));
+
+    await prisma.message.create({
+      data: {
+        tenantId: T, jobId: viejo.id, contactId: c.id,
+        direction: 'inbound', kind: 'text', body: 'te hablo del sillón',
+      },
+    });
+
+    const r = await resolveJobForMessage(prisma, T, schema, c.id, 'msg_2');
+    expect(r.job.id).toBe(viejo.id);
+    expect(r.otherOpenJobs.map((j) => j.id)).toEqual([nuevo.id]);
+  });
+
+  it('el mensaje que se está procesando no se cuenta a sí mismo', async () => {
+    // Se le asigna jobId DESPUÉS de resolver: si contara, siempre se elegiría a
+    // sí mismo y la continuidad no valdría de nada.
+    const c = await upsertContactByPhone(prisma, T, '+521');
+    const viejo = await openJob(prisma, T, c.id, createEmptyIntakeFromSchema(schema));
+    await new Promise((r) => setTimeout(r, 5));
+    await openJob(prisma, T, c.id, createEmptyIntakeFromSchema(schema));
+    await prisma.message.create({
+      data: {
+        tenantId: T, jobId: viejo.id, contactId: c.id,
+        direction: 'inbound', kind: 'text', body: 'anterior',
+      },
+    });
+    // Mensaje entrante todavía sin job (como lo crea normalizeAndPersistMessage).
+    await prisma.message.create({
+      data: { tenantId: T, contactId: c.id, direction: 'inbound', kind: 'text', body: 'nuevo' },
+    });
+
+    const r = await resolveJobForMessage(prisma, T, schema, c.id, 'msg_3');
+    expect(r.job.id).toBe(viejo.id);
   });
 });

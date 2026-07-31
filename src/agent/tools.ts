@@ -10,10 +10,11 @@ import {
   acceptedOpportunities,
   updateDiagnosis,
   getDiagnosis,
+  createEmptyIntakeFromSchema,
   openObjections,
   type IntakeState,
 } from '../services/intake';
-import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob } from '../services/job';
+import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob, openJob, parseJobIntake } from '../services/job';
 import { flagNonIntake } from '../services/contact';
 import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
@@ -88,6 +89,9 @@ export function buildUpdateIntakeTool(
 
       await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
       ctx.intake = nextIntake;
+      // Se recuerda la escritura por si el agente se cambia de trabajo más
+      // adelante en este mismo turno: entonces hay que reaplicarla allí.
+      ctx.turnIntakeOps = [...(ctx.turnIntakeOps ?? []), args];
       return { ok: true, updated_fields: args.fields.length };
     },
   };
@@ -363,27 +367,106 @@ const SelectOrOpenJobArgsZ = z
     { message: 'use_existing requiere existing_job_id' },
   );
 
-export function buildSelectOrOpenJobTool(ctx: TurnContext): AgentTool {
+/**
+ * Cambia el turno de trabajo, con todo lo que eso arrastra.
+ *
+ * El cambio se aplica AQUÍ y no al final del turno: a partir de esta llamada,
+ * `update_intake`, `mark_ready_for_review` y `close_job` operan sobre el trabajo
+ * elegido, porque `ctx.job` ya es ese. Y lo que el agente hubiera guardado
+ * ANTES de decidirse se mueve también: se deja el trabajo de origen como estaba
+ * al empezar el turno y se reaplican esas escrituras en el destino. El dato que
+ * dio el cliente pertenece al trabajo del que habla, no a aquel por el que entró
+ * el mensaje.
+ */
+export function buildSelectOrOpenJobTool(
+  ctx: TurnContext,
+  deps: Pick<AgentDeps, 'prisma' | 'tenantId' | 'profile'>,
+): AgentTool {
   return {
     name: 'select_or_open_job',
     description:
-      'Solo disponible si hay múltiples jobs abiertos. Decide a cuál pertenece el mensaje o abre uno nuevo. La asignación efectiva la hace el pipeline; aquí sólo registras la decisión.',
+      'Solo disponible si hay varios jobs abiertos de este contacto. Decide a cuál pertenece el mensaje, o abre uno nuevo. A partir de esta llamada el turno trabaja sobre el job elegido: lo que guardes después se guarda ahí, y lo que hubieras guardado antes se mueve solo.',
     inputSchema: SelectOrOpenJobArgsZ,
     execute: async (rawArgs) => {
       const parse = SelectOrOpenJobArgsZ.safeParse(rawArgs);
       if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
       const args = parse.data;
+
+      let target;
       if (args.action === 'use_existing') {
-        const exists = ctx.otherOpenJobs.some((j) => j.id === args.existing_job_id);
-        if (!exists) {
+        if (!ctx.otherOpenJobs.some((j) => j.id === args.existing_job_id)) {
           return {
             ok: false,
             error: `existing_job_id ${args.existing_job_id} no está en la lista de jobs abiertos`,
           };
         }
-        return { ok: true, selected_job_id: args.existing_job_id };
+        // Se relee de la base: entre que se armó el prompt y ahora pudo cerrarse.
+        target = await deps.prisma.job.findFirst({
+          where: {
+            id: args.existing_job_id,
+            tenantId: deps.tenantId,
+            contactId: ctx.contact.id,
+            status: { in: [JOB_STATUS.OPEN, JOB_STATUS.READY] },
+          },
+        });
+        if (!target) {
+          return { ok: false, error: `el job ${args.existing_job_id} ya no está abierto` };
+        }
+      } else {
+        target = await openJob(
+          deps.prisma,
+          deps.tenantId,
+          ctx.contact.id,
+          createEmptyIntakeFromSchema(deps.profile.intakeSchema),
+        );
       }
-      return { ok: true, action: 'open_new' };
+
+      if (target.id === ctx.job.id) {
+        return { ok: true, selected_job_id: target.id, moved_updates: 0 };
+      }
+
+      // Lo escrito en el trabajo de origen durante ESTE turno se deshace y se
+      // reaplica en el destino. Fuera de este turno no se toca nada: lo que el
+      // cliente contó antes sigue donde estaba.
+      const ops = ctx.turnIntakeOps ?? [];
+      if (ops.length > 0 && ctx.intakeAtTurnStart) {
+        await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, ctx.intakeAtTurnStart);
+      }
+
+      let intake = parseJobIntake(target);
+      const intakeDestinoOriginal = intake;
+      const sourceMessageId = ctx.batchMessages[ctx.batchMessages.length - 1]?.id ?? null;
+      const meta = { now: ctx.now, source_message_id: sourceMessageId };
+      let movidas = 0;
+      for (const op of ops) {
+        const res = bulkUpdate(deps.profile.intakeSchema, intake, op.fields, meta);
+        // Un campo que no existe en el destino se descarta en vez de tumbar el
+        // cambio de trabajo: el resto de la conversación vale más que ese dato.
+        if (!res.ok) continue;
+        intake = res.intake;
+        for (const note of op.notes_to_add ?? []) {
+          intake = addFreeNote(intake, note, ctx.now, sourceMessageId);
+        }
+        movidas += 1;
+      }
+      if (movidas > 0) {
+        await updateJobIntake(deps.prisma, deps.tenantId, target.id, intake);
+      }
+
+      const anterior = ctx.job;
+      ctx.job = target;
+      ctx.intake = intake;
+      // El destino pasa a ser el nuevo punto de partida: si el agente se cambia
+      // otra vez, lo que se deshace es lo de este tramo.
+      ctx.intakeAtTurnStart = intakeDestinoOriginal;
+      // El destino sale de la lista de "otros" y entra el que se acaba de dejar,
+      // para que el agente pueda corregirse sin quedarse sin salida.
+      ctx.otherOpenJobs = [
+        ...ctx.otherOpenJobs.filter((j) => j.id !== target.id),
+        { id: anterior.id, summary: anterior.summary, openedAt: anterior.openedAt },
+      ];
+
+      return { ok: true, selected_job_id: target.id, moved_updates: movidas };
     },
   };
 }
@@ -550,8 +633,10 @@ export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
     buildRegisterOpportunityTool(ctx, deps),
     buildRegisterDiscoveryTool(ctx, deps),
   ];
-  if (ctx.otherOpenJobs.length >= 2) {
-    tools.push(buildSelectOrOpenJobTool(ctx));
+  // Con UN solo otro trabajo abierto el mensaje ya puede ser ambiguo: el contacto
+  // tiene dos y hay que poder decir a cuál va.
+  if (ctx.otherOpenJobs.length >= 1) {
+    tools.push(buildSelectOrOpenJobTool(ctx, deps));
   }
   if ((ctx.availablePhotos?.length ?? 0) > 0 && deps.mediaStore && deps.describer) {
     tools.push(

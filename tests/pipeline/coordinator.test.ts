@@ -53,7 +53,7 @@ const config: Config = {
   owner: { phoneE164: '+5215', notifyOnReady: true, notifyOnDisconnect: true, panelUrl: 'http://x' },
   panel: { users: [] },
   media: { storeDir: './media', transcribeAudio: true, whisperModel: 'openai/whisper-1', describeImages: true, visionModel: 'openai/gpt-4o-mini', editImages: false, imageEditModel: 'google/gemini-2.5-flash-image-preview' },
-  disclosure: { text: 'Te atiende un asistente automatizado.' },
+  disclosure: { text: 'Te atiende un asistente automatizado.', translations: { en: 'Automated assistant.' } },
   followUp: { enabled: true, afterHours: 24, maxFollowUps: 2, minHoursBetween: 24, sweepMinutes: 30 },
   limits: { monthlyCostUsd: 50, alertOnCostUsd: 40, maxConsecutiveErrors: 3 },
 } as Config;
@@ -381,5 +381,175 @@ describe('InboundCoordinator', () => {
 
     const msg = await prisma.message.findFirst({ where: { externalMsgId: 'wa_audio_off' } });
     expect(msg!.body).toBeNull();
+  });
+});
+
+/**
+ * Varios trabajos abiertos del MISMO número.
+ *
+ * La tool `select_or_open_job` existía desde antes, pero solo dejaba constancia
+ * de la decisión: nadie la aplicaba. El agente decía «esto es del sillón verde»
+ * y la conversación seguía colgando del otro trabajo.
+ */
+describe('InboundCoordinator · varios trabajos del mismo contacto', () => {
+  beforeEach(async () => {
+    await cleanup();
+    await seedTestTenant();
+    vi.useFakeTimers();
+  });
+  afterEach(async () => {
+    vi.useRealTimers();
+    if (mediaRoot) await rm(mediaRoot, { recursive: true, force: true });
+  });
+
+  /** Agente que elige un trabajo concreto usando la tool. */
+  const eligeJob = (getId: () => string): AgentFactory =>
+    ((cfg: { tools: unknown[] }) => ({
+      on: () => {},
+      sendSync: async () => {
+        const tool = (cfg.tools as { name: string; execute: (a: unknown) => Promise<unknown> }[])
+          .find((t) => t.name === 'select_or_open_job');
+        if (!tool) throw new Error('el agente no recibió select_or_open_job');
+        await tool.execute({ action: 'use_existing', existing_job_id: getId() });
+        return { text: 'Claro, del sillón verde.', usage: { inputTokens: 1, outputTokens: 1, costUsd: 0 } };
+      },
+    })) as unknown as AgentFactory;
+
+  async function dosTrabajosAbiertos() {
+    const { openJob } = await import('../../src/services/job');
+    const { createEmptyIntakeFromSchema } = await import('../../src/services/intake');
+    const { upsertContactByPhone } = await import('../../src/services/contact');
+    const contact = await upsertContactByPhone(prisma, TEST_TENANT_ID, '+5215555');
+    const viejo = await openJob(prisma, TEST_TENANT_ID, contact.id, createEmptyIntakeFromSchema(schema));
+    await realDelay(5);
+    const nuevo = await openJob(prisma, TEST_TENANT_ID, contact.id, createEmptyIntakeFromSchema(schema));
+    return { contact, viejo, nuevo };
+  }
+
+  it('mueve la conversación al trabajo que eligió el agente', async () => {
+    const { viejo, nuevo } = await dosTrabajosAbiertos();
+    const deps = await makeDeps({ agentFactory: eligeJob(() => viejo.id) });
+    const coord = new InboundCoordinator(deps);
+
+    await coord.handleInbound(rawMsg({ text: 'oye, del sillón verde ¿cómo va?' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // El mensaje entró por el trabajo más nuevo y acabó en el que dijo el agente.
+    const entrante = await prisma.message.findFirst({
+      where: { tenantId: TEST_TENANT_ID, direction: 'inbound' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(entrante!.jobId).toBe(viejo.id);
+
+    // Y la respuesta se guarda en ESE trabajo, no en el que se abrió primero.
+    const salida = await prisma.message.findFirst({
+      where: { tenantId: TEST_TENANT_ID, direction: 'outbound' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(salida!.jobId).toBe(viejo.id);
+    expect(salida!.jobId).not.toBe(nuevo.id);
+  });
+
+  it('el turno siguiente sigue en el trabajo elegido, no vuelve al más nuevo', async () => {
+    const { viejo } = await dosTrabajosAbiertos();
+    const deps = await makeDeps({ agentFactory: eligeJob(() => viejo.id) });
+    const coord = new InboundCoordinator(deps);
+
+    await coord.handleInbound(rawMsg({ text: 'del sillón verde ¿cómo va?' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // Segundo mensaje: el agente ya no toca la tool; debe seguir donde estaba.
+    const deps2 = { ...deps, agentFactory: stubFactory('Ya casi.') };
+    const coord2 = new InboundCoordinator(deps2);
+    await coord2.handleInbound(rawMsg({ text: 'gracias' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    const ultimo = await prisma.message.findFirst({
+      where: { tenantId: TEST_TENANT_ID, direction: 'inbound' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(ultimo!.jobId).toBe(viejo.id);
+  });
+
+  it('los datos guardados en el turno viajan con la conversación', async () => {
+    const { viejo, nuevo } = await dosTrabajosAbiertos();
+    // El agente guarda PRIMERO y se da cuenta DESPUÉS de que era el otro trabajo:
+    // el orden que antes dejaba el dato en el trabajo equivocado.
+    const guardaYCambia: AgentFactory = ((cfg: { tools: unknown[] }) => ({
+      on: () => {},
+      sendSync: async () => {
+        const tools = cfg.tools as { name: string; execute: (a: unknown) => Promise<unknown> }[];
+        await tools.find((t) => t.name === 'update_intake')!
+          .execute({ fields: [{ path: 'client.name', value: 'María' }] });
+        await tools.find((t) => t.name === 'select_or_open_job')!
+          .execute({ action: 'use_existing', existing_job_id: viejo.id });
+        return { text: 'Anotado.', usage: { inputTokens: 1, outputTokens: 1, costUsd: 0 } };
+      },
+    })) as unknown as AgentFactory;
+
+    const deps = await makeDeps({ agentFactory: guardaYCambia });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(rawMsg({ text: 'del sillón verde, soy María' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // El dato quedó en el trabajo del que hablaba el cliente...
+    const destino = parseJobIntake((await prisma.job.findUnique({ where: { id: viejo.id } }))!);
+    expect((destino as any).client.name.value).toBe('María');
+    // ...y el trabajo por el que entró el mensaje no se quedó con residuo.
+    const origen = parseJobIntake((await prisma.job.findUnique({ where: { id: nuevo.id } }))!);
+    expect((origen as any).client.name.value ?? null).toBeNull();
+  });
+
+  it('la foto se cuenta en el trabajo al que acaba yendo', async () => {
+    const { viejo, nuevo } = await dosTrabajosAbiertos();
+    const deps = await makeDeps({ agentFactory: eligeJob(() => viejo.id) });
+    const coord = new InboundCoordinator(deps);
+
+    await coord.handleInbound(
+      rawMsg({
+        externalMsgId: 'wa_img_move',
+        kind: 'image',
+        text: 'así quedó el sillón',
+        media: { buffer: Buffer.from('fake-jpeg'), mimetype: 'image/jpeg' },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // El contador se sumó al entrar, cuando aún no se sabía de qué trabajo era.
+    const destino = parseJobIntake((await prisma.job.findUnique({ where: { id: viejo.id } }))!);
+    expect(destino.media.photo_count).toBe(1);
+    const origen = parseJobIntake((await prisma.job.findUnique({ where: { id: nuevo.id } }))!);
+    expect(origen.media.photo_count).toBe(0);
+  });
+
+  it('un id que ya no está abierto se ignora en vez de romper la conversación', async () => {
+    const { viejo } = await dosTrabajosAbiertos();
+    const { closeJob } = await import('../../src/services/job');
+    await closeJob(prisma, TEST_TENANT_ID, viejo.id);
+
+    const deps = await makeDeps({ agentFactory: eligeJob(() => viejo.id) });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(rawMsg({ text: 'del sillón verde' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // Sigue contestando: el mensaje se queda donde estaba, no se pierde.
+    const salida = await prisma.message.findFirst({
+      where: { tenantId: TEST_TENANT_ID, direction: 'outbound' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(salida).toBeTruthy();
+    expect(salida!.jobId).not.toBe(viejo.id);
   });
 });

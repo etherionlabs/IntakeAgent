@@ -99,6 +99,24 @@ export async function listSkillCatalog(skillsDir = './skills'): Promise<SkillInf
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Idiomas con bienvenida propia. Se amplía añadiendo `welcome.<lang>.txt`. */
+const WELCOME_LANGS = ['en'];
+
+/** Lee las bienvenidas traducidas del perfil. Ausentes = {} (no es un error). */
+async function loadWelcomeTranslations(dir: string): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  await Promise.all(
+    WELCOME_LANGS.map(async (lang) => {
+      try {
+        out[lang] = await readFile(join(dir, `welcome.${lang}.txt`), 'utf-8');
+      } catch {
+        // Sin traducción para ese idioma: se cae a `welcome.txt`.
+      }
+    }),
+  );
+  return out;
+}
+
 export async function loadProfile(profileDir: string, skillsDir = './skills'): Promise<Profile> {
   const dir = resolve(profileDir);
   const [schemaRaw, promptRaw, factsRaw, welcomeRaw] = await Promise.all([
@@ -126,10 +144,15 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
 
   const skills = await loadSkills(promptVars.data.skills, skillsDir);
 
+  // Bienvenidas traducidas: `welcome.en.txt` junto a `welcome.txt`. Son
+  // opcionales — un giro que solo atiende en español no tiene ninguna y sigue
+  // funcionando igual que siempre.
+  const welcomeTranslations = await loadWelcomeTranslations(dir);
+
   // El hash incluye el contenido de las skills resueltas, para que editar una
   // skill (o la lista referenciada) se refleje en configHash.
   const skillsFingerprint = skills.map((s) => `${s.name}:${s.instructions}`).join('\n');
-  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${skillsFingerprint}`;
+  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${JSON.stringify(welcomeTranslations)}\n${skillsFingerprint}`;
   const hash = createHash('sha256').update(combined).digest('hex').slice(0, 12);
 
   return {
@@ -138,6 +161,7 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
     promptVars: promptVars.data,
     businessFacts: businessFacts.data,
     welcome: welcomeRaw,
+    welcomeTranslations,
     // Foco para describir imágenes: convención en prompt-vars.json (vars.imageFocus).
     imageFocus: promptVars.data.vars.imageFocus ?? '',
     // Guía para editar imágenes / previsualizaciones (vars.imageEditGuidance).
@@ -179,6 +203,10 @@ export function applyProfileOverride(base: Profile, ov: ProfileSettings): Profil
     promptVars,
     businessFacts: ov.businessFacts,
     welcome: ov.welcome,
+    // El panel todavía no edita las traducciones: se conservan las del archivo
+    // del giro. Sin esto, editar la bienvenida desde el panel dejaría mudo al
+    // cliente angloparlante sin que nadie lo notara.
+    welcomeTranslations: base.welcomeTranslations,
     imageFocus: ov.vars.imageFocus ?? base.imageFocus,
     imageEditGuidance: ov.vars.imageEditGuidance ?? base.imageEditGuidance,
     // Las skills se conservan del perfil base (la edición del panel no las toca).

@@ -33,7 +33,10 @@
     "imageEditModel": "google/gemini-2.5-flash-image-preview"
   },
   "disclosure": {
-    "text": "Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo."
+    "text": "Te atiende un asistente automatizado. Si prefieres hablar con una persona, dímelo y te paso con el equipo.",
+    "translations": {
+      "en": "You're chatting with an automated assistant. If you'd rather talk to a person, just say so and I'll pass you to the team."
+    }
   },
   "followUp": {
     "enabled": true,
