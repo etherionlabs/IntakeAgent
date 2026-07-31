@@ -9,11 +9,22 @@ describe('catálogo de giros', () => {
     const res = await app.inject({ method: 'GET', url: '/onboarding/industries' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.industries).toHaveLength(INDUSTRY_CATALOG.length);
+    const publicos = INDUSTRY_CATALOG.filter((i) => !('internal' in i && i.internal));
+    expect(body.industries).toHaveLength(publicos.length);
     expect(body.industries[0]).toHaveProperty('value');
     expect(body.industries[0]).toHaveProperty('label');
     expect(body.industries[0]).not.toHaveProperty('domain');
     expect(body.industries.map((i: any) => i.value)).toContain('mecanica');
+  });
+
+  it('los giros internos no se ofrecen en el alta pública', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/onboarding/industries' });
+    // Un prospecto no debe poder registrarse como «Intake» y quedarse con el
+    // guion de venta del propio producto.
+    expect(res.json().industries.map((i: any) => i.value)).not.toContain('intake');
+    // Pero el giro existe y tiene plantilla: el superadmin sí puede usarlo.
+    expect(INDUSTRY_CATALOG.map((i) => i.value)).toContain('intake');
   });
 
   it('cada giro del catálogo tiene una plantilla cargable en profiles/', async () => {

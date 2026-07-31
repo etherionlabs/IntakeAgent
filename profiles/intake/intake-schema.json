@@ -1,0 +1,43 @@
+{
+  "$businessName": "{{businessName}}",
+  "$businessDomain": "{{businessDomain}}",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "prospecto",
+      "label": "Quién pregunta",
+      "fields": [
+        { "key": "name", "label": "Nombre", "type": "string", "required": true },
+        { "key": "business_name", "label": "Nombre del negocio", "type": "string", "required": true },
+        { "key": "business_domain", "label": "A qué se dedica", "type": "string", "required": true, "hint": "En sus palabras: «tapicería», «taller mecánico», «envíos». No hace falta encajarlo en una lista." },
+        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": false }
+      ]
+    },
+    {
+      "key": "situacion",
+      "label": "Cómo atiende hoy",
+      "fields": [
+        { "key": "who_answers", "label": "Quién contesta el WhatsApp hoy", "type": "string", "required": true, "hint": "El dueño, un empleado, nadie fijo. Es la pregunta que revela el dolor real." },
+        { "key": "daily_messages", "label": "Mensajes al día (aproximado)", "type": "integer", "required": false, "hint": "Un número redondo basta; sirve para saber si el plan le queda corto." },
+        { "key": "data_always_asked", "label": "Qué le pregunta siempre a sus clientes", "type": "text", "required": true, "hint": "Esto es lo que se convierte en su intake. Ej. «foto, medidas y de qué zona es»." },
+        { "key": "pain", "label": "Qué se le complica", "type": "text", "required": false, "hint": "Mensajes fuera de horario, se pierden clientes, contestar lo mismo mil veces." },
+        { "key": "uses_whatsapp_business", "label": "¿Usa WhatsApp Business?", "type": "boolean", "required": false }
+      ]
+    },
+    {
+      "key": "cierre",
+      "label": "Siguiente paso",
+      "fields": [
+        { "key": "contact_phone", "label": "WhatsApp de contacto", "type": "phone", "required": false, "hint": "Normalmente es el mismo número desde el que escribe; solo pídelo si escribe desde otro." },
+        {
+          "key": "next_step",
+          "label": "Qué quiere hacer",
+          "type": "enum",
+          "required": false,
+          "options": ["Probarlo", "Que le llamen", "Solo está preguntando"]
+        },
+        { "key": "partner_interest", "label": "¿Le interesa el programa de socios?", "type": "boolean", "required": false, "hint": "Solo si él lo saca o si encaja (agencias, consultores, quien atiende a varios negocios)." }
+      ]
+    }
+  ]
+}

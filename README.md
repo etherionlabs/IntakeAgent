@@ -289,6 +289,27 @@ Edita estos archivos antes de la primera prueba con el cliente para adaptarlo al
 negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 `npm start`.
 
+#### `profiles/intake/` — nosotros mismos
+
+El giro `intake` es el asistente que atiende a quien pregunta **por el producto**:
+descubre a qué se dedica el prospecto, quién contesta hoy su WhatsApp y qué le
+pregunta siempre a sus clientes (que es, literalmente, la configuración que
+tendría). La demo es que el prospecto lo esté usando mientras pregunta.
+
+Está marcado como `internal: true` en el catálogo de giros: el superadmin puede
+crear tenants con él, pero **no aparece en el alta pública** — un prospecto no
+debe poder registrarse como «Intake» y quedarse con el guion de venta del propio
+producto.
+
+Sus reglas duras son más estrictas que las de un giro normal, porque aquí el
+asistente habla en nombre de la empresa: no puede inventar precios, comisiones ni
+plazos de prueba, ni presentar como disponible lo que está en el roadmap (SMS,
+voz, API oficial). El **programa de socios** es un segundo servicio que todavía no
+está abierto: el asistente solo lo menciona a quien atiende a varios negocios,
+sin prometer condiciones, y anota el interés con `register_opportunity` para que
+el equipo sepa a quién buscar cuando abra. Añadirlo de verdad, cuando esté
+definido, es cargar sus datos en `business-facts.json`.
+
 ### Editar desde el panel
 
 La sección **Configuración** (solo rol `admin`) está pensada para un dueño de

@@ -10,6 +10,10 @@ export interface IndustryDef {
   label: string;
   /** Dominio del negocio, se inyecta en {{businessDomain}} de la plantilla. */
   domain: string;
+  /** Giro de uso interno: el superadmin puede crear tenants con él, pero NO se
+   *  ofrece en el alta pública. Un prospecto no debe poder registrarse como
+   *  «Intake» y quedarse con el guion de venta del propio producto. */
+  internal?: true;
 }
 
 export const INDUSTRY_CATALOG = [
@@ -21,6 +25,9 @@ export const INDUSTRY_CATALOG = [
   { value: 'plomeria', label: 'Plomería', domain: 'plomería y fontanería' },
   { value: 'electricista', label: 'Electricista', domain: 'servicios eléctricos' },
   { value: 'refrigeracion', label: 'Refrigeración y clima', domain: 'refrigeración y aire acondicionado' },
+  // Nosotros mismos: el asistente que atiende a quien pregunta por el producto.
+  // La mejor demo es que el prospecto esté usándolo mientras pregunta.
+  { value: 'intake', label: 'Intake (interno)', domain: 'asistentes de WhatsApp para negocios', internal: true },
 ] as const satisfies readonly IndustryDef[];
 
 export type Industry = (typeof INDUSTRY_CATALOG)[number]['value'];
@@ -31,7 +38,10 @@ export const INDUSTRY_DOMAIN: Record<Industry, string> = Object.fromEntries(
 
 export const INDUSTRIES: Industry[] = INDUSTRY_CATALOG.map((i) => i.value);
 
-/** Forma pública para la SPA (sin el dominio interno). */
+/** Forma pública para la SPA: sin el dominio interno y sin los giros internos. */
 export function industryOptions(): { value: string; label: string }[] {
-  return INDUSTRY_CATALOG.map(({ value, label }) => ({ value, label }));
+  return INDUSTRY_CATALOG.filter((i) => !('internal' in i && i.internal)).map(({ value, label }) => ({
+    value,
+    label,
+  }));
 }
