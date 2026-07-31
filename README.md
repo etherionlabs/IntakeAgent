@@ -294,6 +294,8 @@ negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 La sección **Configuración** (solo rol `admin`) está pensada para un dueño de
 negocio, no para quien conoce el modelo de datos. Está dividida en pestañas:
 
+- **Asistente** — configurarlo conversando en vez de rellenando formularios (ver
+  más abajo). Es la pestaña por defecto cuando hay modelo disponible.
 - **Tu negocio** — nombre, a qué se dedica y mensaje de bienvenida.
 - **Qué datos pides** — las secciones y campos que el asistente va llenando
   conversando. Los tipos se nombran por lo que el cliente responde ("Texto
@@ -328,6 +330,27 @@ La propuesta **nunca se guarda sola**: se aplica al formulario para que el dueñ
 revise y decida. Sin `OPENROUTER_API_KEY` el endpoint responde 503, el panel oculta
 los botones y los formularios manuales siguen siendo el camino completo. El modelo
 se elige con `ASSIST_MODEL` (por defecto `openai/gpt-4o-mini`).
+
+#### Configurarlo conversando
+
+Las ayudas de arriba son de un disparo y por sección: siguen exigiendo que el dueño
+sepa en qué pestaña está lo que quiere cambiar. `POST /settings/assist/chat` lleva
+el hilo de **todo** el proceso: pregunta una cosa a la vez, sabe qué falta por
+cubrir (qué es el negocio → qué necesita saber de cada cliente → qué le preguntan
+siempre → cómo quiere que les hable) y va rellenando las demás pestañas.
+
+- El **hilo vive en el navegador** y viaja entero en cada turno; el servidor no
+  persiste conversaciones, así que cerrar el panel a media charla no deja nada a
+  medias en la base de datos. Se acota a 30 turnos porque cada uno cuesta dinero.
+- Cada turno devuelve `{ reply, patch, done }`. El `patch` se aplica al
+  **formulario**, se dice en pantalla qué se tocó, y el dueño lo revisa en su
+  pestaña antes de pulsar «Guardar todo». Igual que el resto del asistente: nada se
+  guarda solo.
+- El panel manda también lo que hay **sin guardar** en el formulario, para que el
+  asistente no vuelva a proponer lo que él mismo acaba de proponer.
+- Las claves de los campos las genera el panel, y **conserva la del dato que ya
+  existía con esa etiqueta**: aceptar una propuesta no deja huérfanas las
+  respuestas de los trabajos anteriores.
 
 Los cambios del perfil se guardan en la base de datos (recurso compartido entre la
 API y el worker) y **aplican en la siguiente conversación**, sin reiniciar.

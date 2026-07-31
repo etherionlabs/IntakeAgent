@@ -827,6 +827,31 @@ textarea {
 .assist-box textarea { width: 100%; }
 .assist-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 
+/* Asistente conversacional: acompaña toda la configuración */
+.config-chat { display: flex; flex-direction: column; gap: 0.75rem; }
+.chat-log {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  /* Igual que la conversación con clientes: el hilo largo no empuja la página. */
+  max-height: 55vh; overflow-y: auto;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.9rem;
+}
+.chat-turn { max-width: 85%; padding: 0.55rem 0.75rem; border-radius: 12px; }
+.chat-turn p { margin: 0; white-space: pre-wrap; }
+.chat-theirs { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+.chat-mine { align-self: flex-end; background: var(--brand-50); border: 1px solid var(--brand-100); }
+.chat-applied {
+  margin-top: 0.35rem !important; font-size: 0.8rem; color: var(--brand-700); font-weight: 600;
+}
+.chat-typing { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.chat-compose { display: flex; gap: 0.5rem; align-items: flex-end; }
+.chat-compose textarea { flex: 1; width: 100%; resize: vertical; }
+.chat-save {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  border-top: 1px solid var(--border); padding-top: 0.75rem;
+}
+.chat-save .settings-hint { margin: 0; flex: 1; min-width: 14rem; }
+
 /* Editor de campos del intake */
 .fields-editor { display: flex; flex-direction: column; gap: 1rem; margin: 1rem 0; }
 .fields-group {

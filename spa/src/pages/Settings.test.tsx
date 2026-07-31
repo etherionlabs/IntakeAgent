@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     updateFieldsSettings: vi.fn(),
     assistSettings: vi.fn(),
     assistStatus: vi.fn(),
+    assistChat: vi.fn(),
   },
 }));
 
@@ -23,6 +24,7 @@ const mockUpdateMedia = api.updateMediaSettings as unknown as ReturnType<typeof 
 const mockUpdateFields = api.updateFieldsSettings as unknown as ReturnType<typeof vi.fn>;
 const mockAssist = api.assistSettings as unknown as ReturnType<typeof vi.fn>;
 const mockAssistStatus = api.assistStatus as unknown as ReturnType<typeof vi.fn>;
+const mockAssistChat = api.assistChat as unknown as ReturnType<typeof vi.fn>;
 
 const PROFILE = {
   businessName: 'Tapicería Demo',
@@ -56,7 +58,7 @@ const FIELDS = [
 ];
 
 beforeEach(() => {
-  for (const m of [mockGet, mockUpdateProfile, mockUpdateConfig, mockUpdateMedia, mockUpdateFields, mockAssist, mockAssistStatus]) m.mockReset();
+  for (const m of [mockGet, mockUpdateProfile, mockUpdateConfig, mockUpdateMedia, mockUpdateFields, mockAssist, mockAssistStatus, mockAssistChat]) m.mockReset();
   mockGet.mockResolvedValue({
     profile: structuredClone(PROFILE),
     config: structuredClone(CONFIG),
@@ -208,7 +210,10 @@ test('con modelo disponible, la propuesta se aplica al formulario sin guardarla'
   mockAssistStatus.mockResolvedValue({ available: true });
   mockAssist.mockResolvedValue({ ok: true, suggestion: { welcome: '¡Hola! Soy el asistente de Tapicería Demo.' } });
   renderSettings();
-  await screen.findByDisplayValue('Tapicería Demo');
+  // Con modelo disponible el panel abre en la conversación: la ayuda por sección
+  // vive en su pestaña.
+  await screen.findByRole('tab', { name: 'Asistente' });
+  goTo('Tu negocio');
 
   const btn = await screen.findByRole('button', { name: /Proponer bienvenida/ });
   fireEvent.click(btn);
@@ -227,7 +232,7 @@ test('los datos del negocio propuestos se añaden a los que ya había', async ()
     suggestion: { facts: [{ topic: 'horarios', answer: 'Lunes a viernes de 9 a 7.' }] },
   });
   renderSettings();
-  await screen.findByDisplayValue('Tapicería Demo');
+  await screen.findByRole('tab', { name: 'Asistente' });
   goTo('Lo que debe saber');
 
   fireEvent.change(screen.getByLabelText(/Cuéntamelo y yo lo ordeno/), {
@@ -264,4 +269,106 @@ test('editar el modelo y guardar llama a updateConfigSettings', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar sistema' }));
   await waitFor(() => expect(mockUpdateConfig).toHaveBeenCalledTimes(1));
   expect(mockUpdateConfig.mock.calls[0][0].model).toBe('openai/gpt-4o');
+});
+
+// ---------------- Asistente conversacional ----------------
+
+/** Entra al panel con el asistente disponible y espera a que cargue. */
+async function renderWithAssistant() {
+  mockAssistStatus.mockResolvedValue({ available: true });
+  renderSettings();
+  return screen.findByRole('tab', { name: 'Asistente' });
+}
+
+/** Manda un turno en la conversación. */
+function say(text: string) {
+  fireEvent.change(screen.getByLabelText('Escríbele a tu asistente'), { target: { value: text } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+}
+
+test('con el asistente disponible, el panel abre conversando', async () => {
+  await renderWithAssistant();
+  expect(screen.getByRole('tab', { name: 'Asistente', selected: true })).toBeInTheDocument();
+  // Las pestañas manuales siguen ahí para quien prefiera el formulario.
+  expect(screen.getByRole('tab', { name: 'Tu negocio' })).toBeInTheDocument();
+});
+
+test('sin modelo configurado la pestaña del asistente no existe', async () => {
+  renderSettings();
+  await screen.findByDisplayValue('Tapicería Demo');
+  expect(screen.queryByRole('tab', { name: 'Asistente' })).not.toBeInTheDocument();
+});
+
+test('lo que propone la conversación cae en las pestañas, sin guardarse solo', async () => {
+  await renderWithAssistant();
+  mockAssistChat.mockResolvedValue({
+    ok: true,
+    reply: '¿Qué te preguntan más?',
+    patch: {
+      businessName: 'Tapicería El Roble',
+      tone: 'Formal y respetuoso, de usted, mensajes claros.',
+      facts: [{ topic: 'horarios', answer: 'De lunes a viernes de 9 a 7.' }],
+      sections: [
+        { label: 'Cliente', fields: [{ label: 'Nombre', type: 'string', required: true }] },
+        { label: 'Trabajo', fields: [{ label: 'Medidas', type: 'string', required: false }] },
+      ],
+    },
+    done: false,
+  });
+
+  say('nos llamamos Tapicería El Roble, abrimos de 9 a 7');
+  await waitFor(() => expect(screen.getByText('¿Qué te preguntan más?')).toBeInTheDocument());
+
+  // Nada tocó el servidor todavía.
+  expect(mockUpdateProfile).not.toHaveBeenCalled();
+  expect(mockUpdateFields).not.toHaveBeenCalled();
+
+  goTo('Tu negocio');
+  expect(screen.getByDisplayValue('Tapicería El Roble')).toBeInTheDocument();
+
+  goTo('Lo que debe saber');
+  expect(screen.getByDisplayValue('horarios')).toBeInTheDocument();
+  // El dato que ya tenía el negocio sigue estando.
+  expect(screen.getByDisplayValue('ubicación')).toBeInTheDocument();
+
+  goTo('Cómo atiende');
+  expect(screen.getByDisplayValue(/Formal y respetuoso/)).toBeInTheDocument();
+
+  goTo('Qué datos pides');
+  expect(screen.getByDisplayValue('Medidas')).toBeInTheDocument();
+});
+
+test('«Guardar todo» guarda el perfil y los datos que se piden', async () => {
+  await renderWithAssistant();
+  mockAssistChat.mockResolvedValue({
+    ok: true,
+    reply: 'Con esto ya puede atender.',
+    patch: { welcome: 'Hola, ¿en qué te ayudamos?' },
+    done: true,
+  });
+
+  say('así lo quiero');
+  await waitFor(() => expect(screen.getByText('Con esto ya puede atender.')).toBeInTheDocument());
+
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar todo' }));
+  await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledTimes(1));
+  expect(mockUpdateProfile.mock.calls[0][0].welcome).toBe('Hola, ¿en qué te ayudamos?');
+  expect(mockUpdateFields).toHaveBeenCalledTimes(1);
+});
+
+test('el asistente ve lo que hay en el formulario, incluso sin guardar', async () => {
+  await renderWithAssistant();
+  mockAssistChat.mockResolvedValue({ ok: true, reply: 'ok', patch: { businessDomain: 'tapicería de sillones' }, done: false });
+
+  say('tapizamos sillones');
+  await waitFor(() => expect(mockAssistChat).toHaveBeenCalledTimes(1));
+  // Primer turno: el snapshot es lo que había cargado.
+  expect(mockAssistChat.mock.calls[0][1].businessDomain).toBe('tapicería de muebles');
+
+  mockAssistChat.mockResolvedValue({ ok: true, reply: 'ok', patch: null, done: false });
+  say('sí, eso');
+  await waitFor(() => expect(mockAssistChat).toHaveBeenCalledTimes(2));
+  // Segundo turno: ya ve el cambio que él mismo propuso y aún no se ha guardado,
+  // así que no lo vuelve a proponer.
+  expect(mockAssistChat.mock.calls[1][1].businessDomain).toBe('tapicería de sillones');
 });

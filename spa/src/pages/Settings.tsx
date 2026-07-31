@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   api,
   type ProfileSettings,
@@ -7,11 +7,14 @@ import {
   type BusinessFact,
   type SkillInfo,
   type IntakeSection,
+  type ConfigPatch,
+  type ConfigSnapshot,
 } from '../api/client';
-import FieldsEditor, { keyFromLabel } from '../components/FieldsEditor';
+import FieldsEditor, { sectionsFromSuggestion } from '../components/FieldsEditor';
 import AssistBox from '../components/AssistBox';
+import ConfigChat from '../components/ConfigChat';
 
-type TabKey = 'negocio' | 'datos' | 'saber' | 'atiende' | 'avanzado';
+type TabKey = 'asistente' | 'negocio' | 'datos' | 'saber' | 'atiende' | 'avanzado';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'negocio', label: 'Tu negocio' },
@@ -20,6 +23,10 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'atiende', label: 'Cómo atiende' },
   { key: 'avanzado', label: 'Avanzado' },
 ];
+
+/** Con el asistente disponible, la conversación es la puerta de entrada: las
+ *  pestañas siguen ahí para quien prefiera el formulario o quiera corregir. */
+const ASSIST_TAB: { key: TabKey; label: string } = { key: 'asistente', label: 'Asistente' };
 
 // `tone` es lo único de `vars` que un dueño puede tocar sin romper nada. El resto
 // son instrucciones internas del asistente (cómo usa sus herramientas, sus reglas
@@ -54,6 +61,8 @@ export default function Settings() {
   const [fields, setFields] = useState<IntakeSection[]>([]);
   const [availableSkills, setAvailableSkills] = useState<SkillInfo[]>([]);
   const [assistOn, setAssistOn] = useState(false);
+  /** El asistente conversacional aplicó cambios al formulario y siguen sin guardar. */
+  const [chatDirty, setChatDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -70,7 +79,11 @@ export default function Settings() {
       setFields(data.fields ?? []);
       setAvailableSkills(data.availableSkills ?? []);
       // Si no hay modelo configurado el panel no ofrece las ayudas y no pasa nada.
-      api.assistStatus().then((s) => setAssistOn(s.available)).catch(() => setAssistOn(false));
+      // Se espera aquí (y no en paralelo) para elegir la pestaña inicial antes de
+      // pintar: si no, el panel abriría en "Tu negocio" y saltaría al asistente.
+      const available = await api.assistStatus().then((s) => s.available).catch(() => false);
+      setAssistOn(available);
+      if (available) setTab('asistente');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'error al cargar configuración');
     } finally {
@@ -111,6 +124,73 @@ export default function Settings() {
       setMedia(data.media);
     }, 'Guardado. Aplica en la siguiente conversación.');
 
+  // Lo que el asistente conversacional ve del formulario, con los cambios sin
+  // guardar incluidos: si no, volvería a proponer lo que ya aceptaste.
+  const snapshot: ConfigSnapshot = useMemo(
+    () => ({
+      businessName: profile?.businessName ?? '',
+      businessDomain: profile?.businessDomain ?? '',
+      welcome: profile?.welcome ?? '',
+      tone: profile?.vars.tone ?? '',
+      freeContext: profile?.businessFacts.freeContext ?? '',
+      facts: (profile?.businessFacts.facts ?? []).map((f) => ({ topic: f.topic, answer: f.answer })),
+      sections: fields.map((s) => ({
+        label: s.label,
+        fields: s.fields.map((f) => ({ label: f.label, type: f.type, required: f.required })),
+      })),
+    }),
+    [profile, fields],
+  );
+
+  /**
+   * Aplica al FORMULARIO lo que propuso el asistente. Nunca guarda: el dueño ve
+   * el cambio en su pestaña, lo corrige si hace falta y decide.
+   */
+  function applyPatch(patch: ConfigPatch) {
+    setProfile((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, businessFacts: { ...prev.businessFacts }, vars: { ...prev.vars } };
+      if (patch.businessName !== undefined) next.businessName = patch.businessName;
+      if (patch.businessDomain !== undefined) next.businessDomain = patch.businessDomain;
+      if (patch.welcome !== undefined) next.welcome = patch.welcome;
+      if (patch.tone !== undefined) next.vars.tone = patch.tone;
+      if (patch.freeContext !== undefined) next.businessFacts.freeContext = patch.freeContext;
+      if (patch.facts?.length) {
+        // Por tema: si el dueño precisa un horario del que ya hablaron, se
+        // corrige el dato en vez de dejar dos respuestas que se contradicen.
+        const byTopic = new Map(next.businessFacts.facts.map((f) => [f.topic.toLowerCase(), f]));
+        for (const f of patch.facts) {
+          const prevFact = byTopic.get(f.topic.toLowerCase());
+          byTopic.set(f.topic.toLowerCase(), {
+            topic: f.topic,
+            aliases: prevFact?.aliases ?? [],
+            answer: f.answer,
+          });
+        }
+        next.businessFacts.facts = [...byTopic.values()];
+      }
+      return next;
+    });
+    // Las claves las pone el panel, no el modelo, y se conservan las de los datos
+    // que ya existían (ver sectionsFromSuggestion).
+    if (patch.sections?.length) {
+      setFields((prev) => sectionsFromSuggestion(patch.sections!, prev));
+    }
+    setChatDirty(true);
+  }
+
+  /** Guarda de una vez lo que la conversación fue proponiendo. */
+  const saveAll = () =>
+    save('asistente', async () => {
+      const saved = await api.updateProfileSettings(profile!);
+      setProfile(saved.profile);
+      if (fields.length > 0) {
+        const savedFields = await api.updateFieldsSettings(fields);
+        setFields(savedFields.fields);
+      }
+      setChatDirty(false);
+    }, 'Guardado. Tu asistente atiende así desde la próxima conversación.');
+
   const saveConfig = () =>
     save('sistema', async () => {
       const data = await api.updateConfigSettings(config!);
@@ -146,7 +226,7 @@ export default function Settings() {
       </p>
 
       <div className="segmented settings-tabs" role="tablist" aria-label="Secciones de configuración">
-        {TABS.map((t) => (
+        {(assistOn ? [ASSIST_TAB, ...TABS] : TABS).map((t) => (
           <button
             key={t.key}
             type="button"
@@ -159,6 +239,25 @@ export default function Settings() {
           </button>
         ))}
       </div>
+
+      {/* ---------------- Asistente (conversación) ---------------- */}
+      {tab === 'asistente' && assistOn && (
+        <section className="settings-section">
+          <h2>Configúralo conversando</h2>
+          <p className="settings-hint">
+            Contéstame sobre tu negocio y yo voy llenando las demás pestañas. Nada se guarda
+            hasta que tú lo apruebes.
+          </p>
+          <ConfigChat
+            snapshot={snapshot}
+            onPatch={applyPatch}
+            onSaveAll={() => void saveAll()}
+            saving={saving === 'asistente'}
+            dirty={chatDirty}
+          />
+          {feedback('asistente')}
+        </section>
+      )}
 
       {/* ---------------- Tu negocio ---------------- */}
       {tab === 'negocio' && (
@@ -228,26 +327,11 @@ export default function Settings() {
               placeholder="Para cotizar necesito saber qué mueble es, de qué material está, las medidas y si tiene daños. También su nombre y de qué zona es."
               cta="Proponer campos"
               onSuggestion={(s) => {
-                // Las claves se generan aquí, no las inventa el modelo: son la
-                // identidad con la que se guardan las respuestas. Secciones y campos
-                // llevan listas de ocupadas separadas (viven en espacios distintos).
-                const sectionKeys: string[] = [];
-                const fieldKeys: string[] = [];
-                setFields(
-                  s.sections.map((sec) => {
-                    const sectionKey = keyFromLabel(sec.label, sectionKeys);
-                    sectionKeys.push(sectionKey);
-                    return {
-                      key: sectionKey,
-                      label: sec.label,
-                      fields: sec.fields.map((f) => {
-                        const key = keyFromLabel(f.label, fieldKeys);
-                        fieldKeys.push(key);
-                        return { ...f, key };
-                      }),
-                    };
-                  }),
-                );
+                // Las claves se generan en el panel, no las inventa el modelo: son
+                // la identidad con la que se guardan las respuestas. Si el dato ya
+                // existía con esa etiqueta se conserva su clave, para no dejar
+                // huérfano lo que ya contestaron los clientes.
+                setFields((prev) => sectionsFromSuggestion(s.sections, prev));
               }}
             />
           )}

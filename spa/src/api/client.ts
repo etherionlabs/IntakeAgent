@@ -134,6 +134,10 @@ export const api = {
   assistSettings: (action: 'facts' | 'fields' | 'welcome', text: string) =>
     request<{ ok: boolean; suggestion: unknown }>('POST', '/settings/assist', { action, text }),
   assistStatus: () => request<{ available: boolean }>('GET', '/settings/assist/status'),
+  assistChat: (messages: ChatTurn[], snapshot: ConfigSnapshot) =>
+    request<{ ok: boolean; reply: string; patch: ConfigPatch | null; done: boolean }>(
+      'POST', '/settings/assist/chat', { messages, snapshot },
+    ),
   updateFieldsSettings: (sections: IntakeSection[]) =>
     request<{ ok: boolean; fields: IntakeSection[] }>('PUT', '/settings/fields', { sections }),
   updateProfileSettings: (payload: ProfileSettings) =>
@@ -304,6 +308,34 @@ export interface IntakeSection {
   key: string;
   label: string;
   fields: IntakeField[];
+}
+
+/** Un turno de la conversación de configuración. El hilo lo guarda el panel. */
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** Lo que el panel tiene EN EL FORMULARIO (con cambios sin guardar incluidos). */
+export interface ConfigSnapshot {
+  businessName: string;
+  businessDomain: string;
+  welcome: string;
+  tone: string;
+  freeContext: string;
+  facts: { topic: string; answer: string }[];
+  sections: { label: string; fields: { label: string; type: string; required?: boolean }[] }[];
+}
+
+/** Cambios propuestos por el asistente. Se aplican al formulario, nunca a la base. */
+export interface ConfigPatch {
+  businessName?: string;
+  businessDomain?: string;
+  welcome?: string;
+  tone?: string;
+  freeContext?: string;
+  facts?: { topic: string; answer: string }[];
+  sections?: { label: string; fields: Omit<IntakeField, 'key'>[] }[];
 }
 
 export interface MediaSettings {

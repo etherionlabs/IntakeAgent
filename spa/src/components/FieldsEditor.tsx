@@ -41,6 +41,54 @@ export function keyFromLabel(label: string, taken: string[]): string {
   return `${safe}_${n}`;
 }
 
+/** Normaliza una etiqueta para comparar "Teléfono" con "telefono". */
+function sameLabel(a: string, b: string): boolean {
+  const norm = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  return norm(a) === norm(b);
+}
+
+/**
+ * Convierte una propuesta del asistente (que solo trae etiquetas) en secciones
+ * con clave, REUSANDO la clave de los datos que ya existían con esa etiqueta.
+ *
+ * Importa más de lo que parece: la clave es la identidad con la que quedaron
+ * guardadas las respuestas de los trabajos anteriores. Si al aceptar una
+ * propuesta se generaran claves nuevas para "Nombre" o "Teléfono", lo que ya
+ * habían contestado los clientes dejaría de verse. El asistente puede reagrupar
+ * los datos en otros bloques: por eso el emparejamiento busca en todas las
+ * secciones actuales, no solo en la que ocupa el mismo lugar.
+ */
+export function sectionsFromSuggestion(
+  suggested: { label: string; fields: Omit<IntakeField, 'key'>[] }[],
+  current: IntakeSection[],
+): IntakeSection[] {
+  const currentFields = current.flatMap((s) => s.fields);
+  const usedSectionKeys: string[] = [];
+  const usedFieldKeys: string[] = [];
+
+  return suggested.map((sec) => {
+    const prevSection = current.find((s) => sameLabel(s.label, sec.label));
+    const sectionKey =
+      prevSection && !usedSectionKeys.includes(prevSection.key)
+        ? prevSection.key
+        : keyFromLabel(sec.label, usedSectionKeys);
+    usedSectionKeys.push(sectionKey);
+
+    return {
+      key: sectionKey,
+      label: sec.label,
+      fields: sec.fields.map((f) => {
+        const prev = currentFields.find((c) => sameLabel(c.label, f.label));
+        const key =
+          prev && !usedFieldKeys.includes(prev.key) ? prev.key : keyFromLabel(f.label, usedFieldKeys);
+        usedFieldKeys.push(key);
+        return { ...f, key };
+      }),
+    };
+  });
+}
+
 export default function FieldsEditor({
   sections,
   onChange,
