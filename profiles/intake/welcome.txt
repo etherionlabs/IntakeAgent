@@ -1,1 +1,1 @@
-¡Hola! Soy el asistente de {{businessName}} — y sí, soy el mismo producto que vendemos: un recepcionista de WhatsApp. Cuéntame a qué se dedica tu negocio y quién contesta hoy los mensajes, y te digo si esto te sirve.
+¡Hola! Soy el asistente de {{businessName}} — y sí, soy el mismo producto del que te voy a hablar: Intake, un recepcionista de WhatsApp. Cuéntame a qué se dedica tu negocio y desde qué país me escribes, y te digo si esto te sirve.

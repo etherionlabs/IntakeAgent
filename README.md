@@ -291,24 +291,39 @@ negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 
 #### `profiles/intake/` — nosotros mismos
 
-El giro `intake` es el asistente que atiende a quien pregunta **por el producto**:
-descubre a qué se dedica el prospecto, quién contesta hoy su WhatsApp y qué le
-pregunta siempre a sus clientes (que es, literalmente, la configuración que
-tendría). La demo es que el prospecto lo esté usando mientras pregunta.
+El giro `intake` es el asistente con el que **Etherion Labs** vende Intake y su
+Partner Program. La demo es que el prospecto lo esté usando mientras pregunta.
 
 Está marcado como `internal: true` en el catálogo de giros: el superadmin puede
 crear tenants con él, pero **no aparece en el alta pública** — un prospecto no
-debe poder registrarse como «Intake» y quedarse con el guion de venta del propio
-producto.
+debe poder registrarse como «Etherion Labs» y quedarse con el guion de venta del
+propio producto.
+
+Atiende **dos conversaciones distintas** y lo primero que hace es averiguar en
+cuál está: un negocio que quiere Intake para sus propios clientes, o alguien que
+quiere entrar al Partner Program y llevarlo a otros. El campo
+`conversation_type` las separa.
+
+**El país es obligatorio antes de cotizar**, porque el precio cambia: US$99
+(Estados Unidos), US$69 (México), US$59 (Colombia). Fuera de esos tres mercados
+el asistente dice que todavía no hay lanzamiento y toma los datos, en vez de
+prometer servicio.
 
 Sus reglas duras son más estrictas que las de un giro normal, porque aquí el
-asistente habla en nombre de la empresa: no puede inventar precios, comisiones ni
-plazos de prueba, ni presentar como disponible lo que está en el roadmap (SMS,
-voz, API oficial). El **programa de socios** es un segundo servicio que todavía no
-está abierto: el asistente solo lo menciona a quien atiende a varios negocios,
-sin prometer condiciones, y anota el interés con `register_opportunity` para que
-el equipo sepa a quién buscar cuando abra. Añadirlo de verdad, cuando esté
-definido, es cargar sus datos en `business-facts.json`.
+asistente habla en nombre de la empresa: no inventa precios, comisiones,
+promociones ni plazos de prueba; no presenta como disponible lo que está en el
+roadmap (SMS, voz, API oficial); y al argumentar el retorno de inversión **no
+supone sueldos** — usa el número que dé el prospecto.
+
+El **Partner Program** paga 20% recurrente de cada suscripción mientras el cliente
+siga activo. El playbook obliga a presentarlo como lo que es —socios comerciales
+que construyen una cartera— y no como un programa de afiliados, que paga una sola
+vez. El interés se registra con `register_opportunity`.
+
+> Los precios y las condiciones del programa vienen de la especificación
+> comercial de Etherion Labs; lo que el producto hace o no hace se define en este
+> repositorio y tiene prioridad. `tests/profiles/intake.test.ts` fija ambos: si
+> cambian los precios oficiales, ese archivo dice dónde tocarlos.
 
 ### Editar desde el panel
 

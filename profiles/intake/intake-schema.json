@@ -8,20 +8,57 @@
       "label": "Quién pregunta",
       "fields": [
         { "key": "name", "label": "Nombre", "type": "string", "required": true },
-        { "key": "business_name", "label": "Nombre del negocio", "type": "string", "required": true },
-        { "key": "business_domain", "label": "A qué se dedica", "type": "string", "required": true, "hint": "En sus palabras: «tapicería», «taller mecánico», «envíos». No hace falta encajarlo en una lista." },
+        { "key": "business_name", "label": "Nombre del negocio", "type": "string", "required": false },
+        { "key": "business_domain", "label": "A qué se dedica", "type": "string", "required": true, "hint": "En sus palabras: «tapicería», «taller mecánico», «agencia de marketing». No hace falta encajarlo en una lista." },
+        {
+          "key": "country",
+          "label": "País",
+          "type": "enum",
+          "required": true,
+          "options": ["Estados Unidos", "México", "Colombia", "Otro"],
+          "hint": "El precio depende del país. Sin este dato NO se puede cotizar; si es «Otro», todavía no hay lanzamiento ahí."
+        },
         { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": false }
       ]
     },
     {
-      "key": "situacion",
-      "label": "Cómo atiende hoy",
+      "key": "interes",
+      "label": "Qué le interesa",
       "fields": [
-        { "key": "who_answers", "label": "Quién contesta el WhatsApp hoy", "type": "string", "required": true, "hint": "El dueño, un empleado, nadie fijo. Es la pregunta que revela el dolor real." },
-        { "key": "daily_messages", "label": "Mensajes al día (aproximado)", "type": "integer", "required": false, "hint": "Un número redondo basta; sirve para saber si el plan le queda corto." },
-        { "key": "data_always_asked", "label": "Qué le pregunta siempre a sus clientes", "type": "text", "required": true, "hint": "Esto es lo que se convierte en su intake. Ej. «foto, medidas y de qué zona es»." },
+        {
+          "key": "conversation_type",
+          "label": "Qué busca",
+          "type": "enum",
+          "required": true,
+          "options": ["Intake para su negocio", "Ser Partner", "Las dos cosas", "Solo está preguntando"],
+          "hint": "Son dos ventas distintas: cliente que va a usar el producto, o socio que lo va a llevar a otros negocios."
+        }
+      ]
+    },
+    {
+      "key": "situacion",
+      "label": "Cómo atiende hoy (si va a usar Intake)",
+      "fields": [
+        { "key": "who_answers", "label": "Quién contesta el WhatsApp hoy", "type": "string", "required": false, "hint": "El dueño, un empleado, nadie fijo. Es la pregunta que revela el dolor real." },
+        { "key": "daily_messages", "label": "Mensajes al día (aproximado)", "type": "integer", "required": false, "hint": "Un número redondo basta." },
+        { "key": "data_always_asked", "label": "Qué le pregunta siempre a sus clientes", "type": "text", "required": false, "hint": "Esto es lo que se convierte en su intake. Ej. «foto, medidas y de qué zona es»." },
         { "key": "pain", "label": "Qué se le complica", "type": "text", "required": false, "hint": "Mensajes fuera de horario, se pierden clientes, contestar lo mismo mil veces." },
-        { "key": "uses_whatsapp_business", "label": "¿Usa WhatsApp Business?", "type": "boolean", "required": false }
+        { "key": "current_admin_cost", "label": "Qué le costaría alguien atendiendo eso", "type": "text", "required": false, "hint": "Solo si él lo menciona o si encaja preguntarlo. Es la cifra del ROI, y la pone ÉL: nunca la supongas." }
+      ]
+    },
+    {
+      "key": "partner",
+      "label": "Si quiere ser Partner",
+      "fields": [
+        {
+          "key": "partner_profile",
+          "label": "A qué se dedica como socio",
+          "type": "enum",
+          "required": false,
+          "options": ["Agencia digital", "Empresa de tecnología", "Consultor", "Integrador", "Automatización", "Marketing", "Consultor de negocio", "Vendedor B2B", "Emprendedor", "Otro"]
+        },
+        { "key": "partner_clients", "label": "A cuántos negocios atiende hoy", "type": "integer", "required": false, "hint": "Da la medida de la cartera que podría construir." },
+        { "key": "partner_markets", "label": "En qué países vendería", "type": "string", "required": false }
       ]
     },
     {
@@ -29,14 +66,14 @@
       "label": "Siguiente paso",
       "fields": [
         { "key": "contact_phone", "label": "WhatsApp de contacto", "type": "phone", "required": false, "hint": "Normalmente es el mismo número desde el que escribe; solo pídelo si escribe desde otro." },
+        { "key": "contact_email", "label": "Correo", "type": "string", "required": false },
         {
           "key": "next_step",
           "label": "Qué quiere hacer",
           "type": "enum",
           "required": false,
-          "options": ["Probarlo", "Que le llamen", "Solo está preguntando"]
-        },
-        { "key": "partner_interest", "label": "¿Le interesa el programa de socios?", "type": "boolean", "required": false, "hint": "Solo si él lo saca o si encaja (agencias, consultores, quien atiende a varios negocios)." }
+          "options": ["Probarlo", "Que le llamen", "Ver una demo", "Empezar como Partner", "Solo está preguntando"]
+        }
       ]
     }
   ]

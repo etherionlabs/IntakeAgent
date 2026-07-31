@@ -25,9 +25,9 @@ export const INDUSTRY_CATALOG = [
   { value: 'plomeria', label: 'Plomería', domain: 'plomería y fontanería' },
   { value: 'electricista', label: 'Electricista', domain: 'servicios eléctricos' },
   { value: 'refrigeracion', label: 'Refrigeración y clima', domain: 'refrigeración y aire acondicionado' },
-  // Nosotros mismos: el asistente que atiende a quien pregunta por el producto.
-  // La mejor demo es que el prospecto esté usándolo mientras pregunta.
-  { value: 'intake', label: 'Intake (interno)', domain: 'asistentes de WhatsApp para negocios', internal: true },
+  // Nosotros mismos: el asistente que vende Intake y el Partner Program. La mejor
+  // demo es que el prospecto esté usándolo mientras pregunta.
+  { value: 'intake', label: 'Etherion Labs (interno)', domain: 'asistentes de WhatsApp para negocios', internal: true },
 ] as const satisfies readonly IndustryDef[];
 
 export type Industry = (typeof INDUSTRY_CATALOG)[number]['value'];
