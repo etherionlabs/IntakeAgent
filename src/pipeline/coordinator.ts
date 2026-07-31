@@ -6,9 +6,8 @@ import { normalizeAndPersistMessage } from './normalize';
 import { resolveContact } from './resolveContact';
 import { resolveJobForMessage } from './resolveJob';
 import { InboundDebouncer } from './debouncer';
-import { parseJobIntake, openJob } from '../services/job';
+import { parseJobIntake } from '../services/job';
 import { runAgentTurn } from '../agent/runner';
-import { createEmptyIntakeFromSchema } from '../services/intake';
 import { checkMonthlyLimit, notifyLimitOnce } from './usageLimit';
 import { logger } from '../lib/logger';
 import { detectLanguage, langFromLocale, type Lang } from '../lib/language';
@@ -164,69 +163,73 @@ export class InboundCoordinator {
   }
 
   /**
-   * Aplica la decisión de `select_or_open_job`: mueve los mensajes de este turno
-   * al trabajo que eligió el agente, o a uno nuevo.
+   * Engancha la conversación al trabajo en el que terminó el turno.
    *
-   * La tool solo registra la decisión; mover la conversación es cosa del
-   * pipeline. Devuelve el trabajo al que queda enganchada la conversación (el
-   * de siempre si el agente no dijo nada, que es el caso normal).
+   * El cambio de trabajo (y el intake que lo acompaña) ya lo hizo la tool
+   * `select_or_open_job` mientras corría el turno; aquí se mueve lo que vive
+   * fuera del intake: los mensajes y los contadores de media. Devuelve el id
+   * final, que es el mismo de entrada en el caso normal.
    */
   private async applyJobSelection(
     current: Job,
-    contactId: string,
+    finalJobId: string,
     batch: Message[],
-    toolCalls: { name: string; result: unknown; error?: string | null }[],
-    profile: Profile,
-  ): Promise<Job> {
+  ): Promise<string> {
+    if (finalJobId === current.id) return current.id;
     const tenantId = this.deps.tenantId;
-    // La última decisión gana: si el agente se corrigió dentro del turno, vale
-    // la corrección.
-    const call = [...toolCalls].reverse().find((c) => c.name === 'select_or_open_job' && !c.error);
-    if (!call) return current;
-    const decision = call.result as { ok?: boolean; selected_job_id?: string; action?: string };
-    if (!decision?.ok) return current;
-
-    let target: Job | null = null;
-    if (decision.selected_job_id && decision.selected_job_id !== current.id) {
-      // Se revalida contra la base: el id vino del modelo y pudo cerrarse entre
-      // que se armó el prompt y ahora.
-      target = await this.deps.prisma.job.findFirst({
-        where: {
-          id: decision.selected_job_id,
-          tenantId,
-          contactId,
-          status: { in: ['OPEN_INTAKE', 'READY_FOR_REVIEW'] },
-        },
-      });
-      if (!target) {
-        logger.warn(
-          { tenantId, jobId: current.id, requested: decision.selected_job_id },
-          'inbound.job_selection_invalida',
-        );
-        return current;
-      }
-    } else if (decision.action === 'open_new') {
-      target = await openJob(
-        this.deps.prisma,
-        tenantId,
-        contactId,
-        createEmptyIntakeFromSchema(profile.intakeSchema),
-      );
-    }
-
-    if (!target || target.id === current.id) return current;
 
     // Los mensajes de este turno pasan al trabajo elegido. Con esto el siguiente
     // turno también entra por ahí (resolveJobForMessage sigue al último mensaje).
     await this.deps.prisma.message.updateMany({
       where: { id: { in: batch.map((m) => m.id) }, tenantId },
-      data: { jobId: target.id },
+      data: { jobId: finalJobId },
     });
-    logger.info(
-      { tenantId, from: current.id, to: target.id, opened: decision.action === 'open_new' },
-      'inbound.job_reasignado',
-    );
-    return target;
+
+    // Los contadores de fotos/audios se sumaron al entrar el mensaje, cuando
+    // todavía no se sabía a qué trabajo pertenecía. Se mueven con él: si no, la
+    // foto del sillón acaba contada en el trabajo de la cabecera.
+    const fotos = batch.filter((m) => m.kind === 'image').length;
+    const audios = batch.filter((m) => m.kind === 'audio').length;
+    if (fotos > 0 || audios > 0) {
+      await this.moveMediaCounters(current.id, finalJobId, fotos, audios);
+    }
+
+    logger.info({ tenantId, from: current.id, to: finalJobId }, 'inbound.job_reasignado');
+    return finalJobId;
+  }
+
+  /** Pasa `fotos`/`audios` del contador de un trabajo al de otro. */
+  private async moveMediaCounters(
+    fromJobId: string,
+    toJobId: string,
+    fotos: number,
+    audios: number,
+  ): Promise<void> {
+    const tenantId = this.deps.tenantId;
+    const [from, to] = await Promise.all([
+      this.deps.prisma.job.findFirst({ where: { id: fromJobId, tenantId } }),
+      this.deps.prisma.job.findFirst({ where: { id: toJobId, tenantId } }),
+    ]);
+    if (!from || !to) return;
+
+    const fromIntake = parseJobIntake(from);
+    fromIntake.media.photo_count = Math.max(0, fromIntake.media.photo_count - fotos);
+    fromIntake.media.audio_count = Math.max(0, fromIntake.media.audio_count - audios);
+
+    const toIntake = parseJobIntake(to);
+    toIntake.media.photo_count += fotos;
+    toIntake.media.audio_count += audios;
+
+    await this.deps.prisma.$transaction([
+      this.deps.prisma.job.update({
+        where: { id: fromJobId, tenantId },
+        data: { intake: JSON.stringify(fromIntake) },
+      }),
+      this.deps.prisma.job.update({
+        where: { id: toJobId, tenantId },
+        data: { intake: JSON.stringify(toIntake) },
+      }),
+    ]);
   }
 
   private async flushBatch(contactId: string, messageIds: string[]): Promise<void> {
@@ -376,14 +379,14 @@ export class InboundCoordinator {
     // Si el agente dijo que el mensaje va a otro trabajo, se aplica AQUÍ: sin
     // esto la decisión se quedaba en el registro de tool-calls y la conversación
     // seguía colgando del trabajo equivocado.
-    const targetJob = await this.applyJobSelection(job, contact.id, messages, result.toolCalls, profile);
+    const targetJobId = await this.applyJobSelection(job, result.finalJobId, messages);
 
     if (result.responseText && result.responseText.trim().length > 0) {
       await this.deps.sender.sendText(contact.phoneE164, result.responseText);
       await this.deps.prisma.message.create({
         data: {
           tenantId,
-          jobId: targetJob.id,
+          jobId: targetJobId,
           contactId: contact.id,
           direction: 'outbound',
           kind: 'text',

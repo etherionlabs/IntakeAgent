@@ -318,15 +318,18 @@ la cabecera), y el sistema los mantiene separados:
 - Con más de uno abierto, el prompt lista los otros y el agente recibe la tool
   `select_or_open_job` para decir a cuál pertenece el mensaje —o abrir uno nuevo.
   Ante la duda se le instruye **preguntar** al cliente en vez de adivinar.
-- El pipeline **aplica** esa decisión: mueve los mensajes del turno al trabajo
-  elegido y cuelga ahí la respuesta.
+- El cambio se aplica **en el momento**, no al final del turno: a partir de ahí
+  `update_intake`, `mark_ready_for_review` y `close_job` operan sobre el trabajo
+  elegido.
+- Lo que el agente hubiera guardado **antes** de decidirse se mueve también: el
+  trabajo de origen queda como estaba al empezar el turno y esas escrituras se
+  reaplican en el destino. El dato que dio el cliente pertenece al trabajo del
+  que habla, no a aquel por el que entró el mensaje.
+- El pipeline mueve con la conversación lo que vive fuera del intake: los
+  mensajes del turno y los contadores de fotos/audios.
 - El mensaje siguiente entra por el trabajo de la **conversación en curso** (el
   del último mensaje del contacto), no por el más reciente. Sin esto, cada
   cambio de trabajo se deshacía en el turno siguiente.
-
-Límite conocido: si el agente cambia de trabajo y en el mismo turno guarda datos
-con `update_intake`, esos datos van al trabajo del que venía. El prompt le indica
-que no lo haga y que los guarde en el turno siguiente.
 
 #### `profiles/intake/` — nosotros mismos
 

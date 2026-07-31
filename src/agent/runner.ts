@@ -16,6 +16,11 @@ export async function runAgentTurn(
   // Adjuntos generados por tools durante el turno (ej. generate_preview).
   ctx.pendingAttachments = ctx.pendingAttachments ?? [];
   ctx.extraCostUsd = ctx.extraCostUsd ?? 0;
+  // Punto de partida del turno: si el agente se cambia de trabajo a media
+  // conversación, `select_or_open_job` deja el de origen así y se lleva al
+  // destino lo escrito en este turno.
+  ctx.intakeAtTurnStart = ctx.intake;
+  ctx.turnIntakeOps = [];
 
   // Construimos las tools con un wrapper que registra cada llamada.
   const rawTools = buildTools(ctx, deps);
@@ -106,6 +111,8 @@ export async function runAgentTurn(
   });
 
   return {
+    // `ctx.job` puede haber cambiado durante el turno (select_or_open_job).
+    finalJobId: ctx.job.id,
     responseText,
     toolCalls,
     inputTokens,

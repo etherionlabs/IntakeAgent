@@ -53,6 +53,10 @@ async function setupCtx() {
     batchMessages: [{ id: 'm1', kind: 'text', body: 'hola' }],
     otherOpenJobs: [],
     now: '2026-05-25T10:00:00Z',
+    // Lo que hace runAgentTurn al empezar: sin este punto de partida,
+    // select_or_open_job no sabría qué deshacer en el trabajo de origen.
+    intakeAtTurnStart: intake,
+    turnIntakeOps: [],
   };
   return ctx;
 }
@@ -452,39 +456,129 @@ describe('tool request_photo', () => {
 
 import { buildSelectOrOpenJobTool } from '../../src/agent/tools';
 
+const toolDeps = () =>
+  ({
+    prisma,
+    tenantId: TEST_TENANT_ID,
+    profile: { intakeSchema: schema },
+    notifier: new NoopNotifier(),
+  }) as any;
+
+/** Abre un segundo trabajo del mismo contacto y lo deja listado como "otro". */
+async function conSegundoTrabajo(ctx: any) {
+  const otro = await openJob(prisma, TEST_TENANT_ID, ctx.contact.id, createEmptyIntakeFromSchema(schema));
+  ctx.otherOpenJobs = [{ id: otro.id, summary: null, openedAt: otro.openedAt }];
+  return otro;
+}
+
 describe('tool select_or_open_job', () => {
-  it('valida use_existing con id de la lista de otherOpenJobs', async () => {
+  it('cambia el turno al trabajo elegido', async () => {
     const ctx = await setupCtx();
-    ctx.otherOpenJobs = [
-      { id: 'job-a', summary: null, openedAt: new Date() },
-      { id: 'job-b', summary: null, openedAt: new Date() },
-    ];
-    const tool = buildSelectOrOpenJobTool(ctx);
-    const out = await tool.execute({ action: 'use_existing', existing_job_id: 'job-a' });
+    const otro = await conSegundoTrabajo(ctx);
+    const tool = buildSelectOrOpenJobTool(ctx, toolDeps());
+
+    const out = await tool.execute({ action: 'use_existing', existing_job_id: otro.id });
     expect(out.ok).toBe(true);
     if (!out.ok) return;
-    expect(out.selected_job_id).toBe('job-a');
+    expect(out.selected_job_id).toBe(otro.id);
+    // El turno YA opera sobre el otro trabajo: lo que se guarde ahora va ahí.
+    expect(ctx.job.id).toBe(otro.id);
   });
 
-  it('rechaza use_existing con id no listado', async () => {
+  it('lo guardado ANTES de cambiarse se mueve al trabajo elegido', async () => {
     const ctx = await setupCtx();
-    ctx.otherOpenJobs = [{ id: 'job-a', summary: null, openedAt: new Date() }];
-    const tool = buildSelectOrOpenJobTool(ctx);
+    const origen = ctx.job;
+    const otro = await conSegundoTrabajo(ctx);
+
+    // El agente guarda primero y se da cuenta después de que era el otro trabajo.
+    const update = buildUpdateIntakeTool(ctx, toolDeps());
+    await update.execute({ fields: [{ path: 'client.name', value: 'María' }] });
+
+    const select = buildSelectOrOpenJobTool(ctx, toolDeps());
+    const out = await select.execute({ action: 'use_existing', existing_job_id: otro.id });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.moved_updates).toBe(1);
+
+    // El dato acabó en el trabajo del que hablaba el cliente...
+    const destino = JSON.parse((await prisma.job.findUnique({ where: { id: otro.id } }))!.intake);
+    expect(destino.client.name.value).toBe('María');
+    // ...y el de origen quedó como estaba antes del turno, sin residuo.
+    const source = JSON.parse((await prisma.job.findUnique({ where: { id: origen.id } }))!.intake);
+    expect(source.client.name.value ?? null).toBeNull();
+  });
+
+  it('lo guardado DESPUÉS de cambiarse va al trabajo elegido', async () => {
+    const ctx = await setupCtx();
+    const origen = ctx.job;
+    const otro = await conSegundoTrabajo(ctx);
+
+    const select = buildSelectOrOpenJobTool(ctx, toolDeps());
+    await select.execute({ action: 'use_existing', existing_job_id: otro.id });
+
+    const update = buildUpdateIntakeTool(ctx, toolDeps());
+    await update.execute({ fields: [{ path: 'client.name', value: 'Lucía' }] });
+
+    const destino = JSON.parse((await prisma.job.findUnique({ where: { id: otro.id } }))!.intake);
+    expect(destino.client.name.value).toBe('Lucía');
+    const source = JSON.parse((await prisma.job.findUnique({ where: { id: origen.id } }))!.intake);
+    expect(source.client.name.value ?? null).toBeNull();
+  });
+
+  it('open_new abre un trabajo de verdad y se lleva lo del turno', async () => {
+    const ctx = await setupCtx();
+    const origen = ctx.job;
+    await conSegundoTrabajo(ctx);
+
+    const update = buildUpdateIntakeTool(ctx, toolDeps());
+    await update.execute({ fields: [{ path: 'client.name', value: 'Nuevo cliente' }] });
+
+    const select = buildSelectOrOpenJobTool(ctx, toolDeps());
+    const out = await select.execute({ action: 'open_new' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(ctx.job.id).not.toBe(origen.id);
+
+    const destino = JSON.parse((await prisma.job.findUnique({ where: { id: ctx.job.id } }))!.intake);
+    expect(destino.client.name.value).toBe('Nuevo cliente');
+  });
+
+  it('tras cambiarse, el anterior queda listado para poder corregirse', async () => {
+    const ctx = await setupCtx();
+    const origen = ctx.job;
+    const otro = await conSegundoTrabajo(ctx);
+
+    const tool = buildSelectOrOpenJobTool(ctx, toolDeps());
+    await tool.execute({ action: 'use_existing', existing_job_id: otro.id });
+
+    expect(ctx.otherOpenJobs.map((j: any) => j.id)).toEqual([origen.id]);
+  });
+
+  it('rechaza un id que no está en la lista de abiertos', async () => {
+    const ctx = await setupCtx();
+    await conSegundoTrabajo(ctx);
+    const tool = buildSelectOrOpenJobTool(ctx, toolDeps());
     const out = await tool.execute({ action: 'use_existing', existing_job_id: 'fake' });
     expect(out.ok).toBe(false);
   });
 
-  it('acepta open_new sin id', async () => {
+  it('rechaza un trabajo que ya se cerró entre medias', async () => {
     const ctx = await setupCtx();
-    const tool = buildSelectOrOpenJobTool(ctx);
-    const out = await tool.execute({ action: 'open_new' });
-    expect(out.ok).toBe(true);
+    const otro = await conSegundoTrabajo(ctx);
+    const { closeJob: cerrar } = await import('../../src/services/job');
+    await cerrar(prisma, TEST_TENANT_ID, otro.id);
+
+    const tool = buildSelectOrOpenJobTool(ctx, toolDeps());
+    const out = await tool.execute({ action: 'use_existing', existing_job_id: otro.id });
+    expect(out.ok).toBe(false);
+    // Y el turno se queda donde estaba, sin romperse.
+    expect(ctx.job.id).not.toBe(otro.id);
   });
 
   it('rechaza use_existing sin id', async () => {
     const ctx = await setupCtx();
-    ctx.otherOpenJobs = [{ id: 'job-a', summary: null, openedAt: new Date() }];
-    const tool = buildSelectOrOpenJobTool(ctx);
+    await conSegundoTrabajo(ctx);
+    const tool = buildSelectOrOpenJobTool(ctx, toolDeps());
     const out = await tool.execute({ action: 'use_existing' });
     expect(out.ok).toBe(false);
   });

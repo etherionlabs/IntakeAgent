@@ -51,6 +51,15 @@ export interface TurnContext {
   /** Lista de OTROS jobs abiertos del contacto (sin el de este turno). Si hay
    *  al menos uno, `select_or_open_job` se expone. */
   otherOpenJobs: OpenJobSummary[];
+  /**
+   * Intake del job tal como estaba al EMPEZAR el turno, y las escrituras hechas
+   * durante él. Si el agente se cambia de trabajo a media conversación,
+   * `select_or_open_job` deja el job de origen como estaba y reaplica esas
+   * escrituras en el job elegido: el dato que dio el cliente pertenece al
+   * trabajo del que habla, no a aquel por el que entró el mensaje.
+   */
+  intakeAtTurnStart?: IntakeState;
+  turnIntakeOps?: import('./tools').UpdateIntakeArgs[];
   /** Hora actual ISO 8601 (inyectable para tests). */
   now: string;
   /**
@@ -149,4 +158,9 @@ export interface TurnResult {
   errorKind?: import('./errors').LlmErrorKind;
   /** Imágenes generadas en el turno (previsualizaciones) a enviar al cliente. */
   attachments: OutboundAttachment[];
+  /**
+   * Job en el que terminó el turno. Distinto del de entrada cuando el agente usó
+   * `select_or_open_job`: el coordinator mueve ahí los mensajes y la respuesta.
+   */
+  finalJobId: string;
 }

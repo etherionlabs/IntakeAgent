@@ -477,6 +477,61 @@ describe('InboundCoordinator · varios trabajos del mismo contacto', () => {
     expect(ultimo!.jobId).toBe(viejo.id);
   });
 
+  it('los datos guardados en el turno viajan con la conversación', async () => {
+    const { viejo, nuevo } = await dosTrabajosAbiertos();
+    // El agente guarda PRIMERO y se da cuenta DESPUÉS de que era el otro trabajo:
+    // el orden que antes dejaba el dato en el trabajo equivocado.
+    const guardaYCambia: AgentFactory = ((cfg: { tools: unknown[] }) => ({
+      on: () => {},
+      sendSync: async () => {
+        const tools = cfg.tools as { name: string; execute: (a: unknown) => Promise<unknown> }[];
+        await tools.find((t) => t.name === 'update_intake')!
+          .execute({ fields: [{ path: 'client.name', value: 'María' }] });
+        await tools.find((t) => t.name === 'select_or_open_job')!
+          .execute({ action: 'use_existing', existing_job_id: viejo.id });
+        return { text: 'Anotado.', usage: { inputTokens: 1, outputTokens: 1, costUsd: 0 } };
+      },
+    })) as unknown as AgentFactory;
+
+    const deps = await makeDeps({ agentFactory: guardaYCambia });
+    const coord = new InboundCoordinator(deps);
+    await coord.handleInbound(rawMsg({ text: 'del sillón verde, soy María' }));
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // El dato quedó en el trabajo del que hablaba el cliente...
+    const destino = parseJobIntake((await prisma.job.findUnique({ where: { id: viejo.id } }))!);
+    expect((destino as any).client.name.value).toBe('María');
+    // ...y el trabajo por el que entró el mensaje no se quedó con residuo.
+    const origen = parseJobIntake((await prisma.job.findUnique({ where: { id: nuevo.id } }))!);
+    expect((origen as any).client.name.value ?? null).toBeNull();
+  });
+
+  it('la foto se cuenta en el trabajo al que acaba yendo', async () => {
+    const { viejo, nuevo } = await dosTrabajosAbiertos();
+    const deps = await makeDeps({ agentFactory: eligeJob(() => viejo.id) });
+    const coord = new InboundCoordinator(deps);
+
+    await coord.handleInbound(
+      rawMsg({
+        externalMsgId: 'wa_img_move',
+        kind: 'image',
+        text: 'así quedó el sillón',
+        media: { buffer: Buffer.from('fake-jpeg'), mimetype: 'image/jpeg' },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.runAllTimersAsync();
+    await flushAsyncIO();
+
+    // El contador se sumó al entrar, cuando aún no se sabía de qué trabajo era.
+    const destino = parseJobIntake((await prisma.job.findUnique({ where: { id: viejo.id } }))!);
+    expect(destino.media.photo_count).toBe(1);
+    const origen = parseJobIntake((await prisma.job.findUnique({ where: { id: nuevo.id } }))!);
+    expect(origen.media.photo_count).toBe(0);
+  });
+
   it('un id que ya no está abierto se ignora en vez de romper la conversación', async () => {
     const { viejo } = await dosTrabajosAbiertos();
     const { closeJob } = await import('../../src/services/job');

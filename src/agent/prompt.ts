@@ -79,8 +79,7 @@ export function buildOpenJobsBlock(otherOpenJobs: OpenJobSummary[]): string {
     `Este contacto tiene ${otherOpenJobs.length + 1} trabajos abiertos: el de esta conversación y ${otherOpenJobs.length === 1 ? 'el siguiente' : 'los siguientes'}. ` +
       `Si el mensaje se refiere a otro, o a algo nuevo, dilo con select_or_open_job; si sigue con el de esta conversación, no llames a la tool. ` +
       `Ante la duda, PREGÚNTALE al cliente de cuál habla en vez de adivinar. ` +
-      `Si te cambias de trabajo, NO llames a update_intake en este mismo turno: los datos se guardarían en el trabajo del que vienes. ` +
-      `Guárdalos en el turno siguiente, que ya entrará por el trabajo correcto.`,
+      `Puedes guardar datos antes o después de cambiarte: lo que hayas guardado en este turno se mueve solo al trabajo que elijas.`,
   );
   for (const j of otherOpenJobs) {
     const date = j.openedAt.toISOString().slice(0, 10);
