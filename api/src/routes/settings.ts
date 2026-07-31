@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { getPrisma } from '../db';
-import { getTenantProfileDir, clearTenantProfileCache } from '../lib/tenant-profile';
+import { getTenantProfile, getTenantProfileDir, clearTenantProfileCache } from '../lib/tenant-profile';
+import { validateIntakeSchema } from '../../../src/config/intake-schema';
 import {
   readProfileSettings,
   ProfileSettingsInputZ,
@@ -16,7 +17,15 @@ const MediaSettingsInputZ = z.object({
   describeImages: z.boolean(),
   transcribeAudio: z.boolean(),
   editImages: z.boolean(),
+  followUpEnabled: z.boolean(),
+  aiDisclosure: z.boolean(),
   skills: z.array(z.string()),
+});
+
+/** Secciones/campos que el dueño edita desde el panel. La validación fuerte
+ *  (tipos, keys duplicadas, enums con opciones) la hace validateIntakeSchema. */
+const FieldsInputZ = z.object({
+  sections: z.array(z.unknown()).min(1, 'debe haber al menos una sección'),
 });
 
 /** Coacciona el JSON de `TenantSettings.skills` a string[] (o null si no es arreglo). */
@@ -47,7 +56,14 @@ export async function settingsRoutes(app: FastifyInstance) {
       readProfileSettings(prisma, request.tenantId, profileDir),
       prisma.tenantSettings.findUnique({
         where: { tenantId: request.tenantId },
-        select: { describeImages: true, transcribeAudio: true, editImages: true, skills: true },
+        select: {
+          describeImages: true,
+          transcribeAudio: true,
+          editImages: true,
+          followUpEnabled: true,
+          aiDisclosure: true,
+          skills: true,
+        },
       }),
       listSkillCatalog(),
     ]);
@@ -55,6 +71,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       describeImages: boolean;
       transcribeAudio: boolean;
       editImages: boolean;
+      followUpEnabled: boolean;
+      aiDisclosure: boolean;
       skills: string[];
     } | null = null;
     if (ts) {
@@ -65,10 +83,47 @@ export async function settingsRoutes(app: FastifyInstance) {
         describeImages: ts.describeImages,
         transcribeAudio: ts.transcribeAudio,
         editImages: ts.editImages,
+        followUpEnabled: ts.followUpEnabled,
+        aiDisclosure: ts.aiDisclosure,
         skills,
       };
     }
-    return { profile, config: null, media, availableSkills };
+    // Las secciones/campos que el asistente pide en cada conversación. Vienen del
+    // schema del tenant (misma fuente que usa el bot), no de la plantilla del giro.
+    const fields = (await getTenantProfile(request.tenantId)).intakeSchema.sections;
+    return { profile, config: null, media, availableSkills, fields };
+  });
+
+  /**
+   * Estructura del intake: qué le pregunta el asistente a cada cliente. Se guarda
+   * en `TenantSettings.intakeSchema`, que es lo que lee el worker, así que el
+   * cambio aplica al bot en la siguiente conversación.
+   */
+  app.put('/settings/fields', { preHandler: app.authenticate }, async (request, reply) => {
+    if (!requireAdmin(request, reply)) return;
+    const parse = FieldsInputZ.safeParse(request.body);
+    if (!parse.success) return reply.code(400).send({ error: parse.error.message });
+
+    const prisma = getPrisma();
+    const existing = await prisma.tenantSettings.findUnique({ where: { tenantId: request.tenantId } });
+    if (!existing) return reply.code(404).send({ error: 'TenantSettings ausente para este tenant' });
+
+    // Se conserva la cabecera ($businessName/$businessDomain/$language) del schema
+    // vigente: el dueño edita campos, no la identidad del negocio (esa vive en el
+    // perfil y se edita en su propia sección).
+    const current = (await getTenantProfile(request.tenantId)).intakeSchema;
+    const next = { ...current, sections: parse.data.sections };
+
+    const result = validateIntakeSchema(next);
+    if (!result.ok) return reply.code(400).send({ error: result.error });
+
+    await prisma.tenantSettings.update({
+      where: { tenantId: request.tenantId },
+      data: { intakeSchema: result.schema as object },
+    });
+    // El perfil está cacheado en memoria: sin esto el panel seguiría viendo lo viejo.
+    clearTenantProfileCache(request.tenantId);
+    return { ok: true, fields: result.schema.sections };
   });
 
   app.put('/settings/profile', { preHandler: app.authenticate }, async (request, reply) => {
@@ -118,9 +173,18 @@ export async function settingsRoutes(app: FastifyInstance) {
         describeImages: parse.data.describeImages,
         transcribeAudio: parse.data.transcribeAudio,
         editImages: parse.data.editImages,
+        followUpEnabled: parse.data.followUpEnabled,
+        aiDisclosure: parse.data.aiDisclosure,
         skills,
       },
-      select: { describeImages: true, transcribeAudio: true, editImages: true, skills: true },
+      select: {
+        describeImages: true,
+        transcribeAudio: true,
+        editImages: true,
+        followUpEnabled: true,
+        aiDisclosure: true,
+        skills: true,
+      },
     });
     return {
       ok: true,
@@ -128,6 +192,8 @@ export async function settingsRoutes(app: FastifyInstance) {
         describeImages: row.describeImages,
         transcribeAudio: row.transcribeAudio,
         editImages: row.editImages,
+        followUpEnabled: row.followUpEnabled,
+        aiDisclosure: row.aiDisclosure,
         skills: asStringArray(row.skills) ?? [],
       },
     };

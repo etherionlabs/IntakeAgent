@@ -8,6 +8,7 @@ import { NoopTranscriber, WhisperTranscriber, type Transcriber } from '../media/
 import { NoopDescriber, VisionDescriber, type Describer } from '../media/describer';
 import { NoopImageEditor, OpenRouterImageEditor, type ImageEditor } from '../media/imageEditor';
 import { InboundCoordinator } from '../pipeline/coordinator';
+import { FollowUpCoordinator } from '../pipeline/followUp';
 import { WhatsAppSender } from '../adapters/whatsapp/sender';
 import { WhatsAppNotifier } from '../adapters/whatsapp/notifier';
 import { BaileysAdapter } from '../adapters/whatsapp/adapter';
@@ -102,6 +103,12 @@ export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, 
       whisperModel: settings.whisperModel ?? base.media.whisperModel,
       visionModel: settings.visionModel ?? base.media.visionModel,
     },
+    followUp: {
+      ...base.followUp,
+      // Doble llave: el deployment habilita la función y CADA tenant la enciende
+      // desde el panel. Son mensajes no solicitados; nadie los manda por default.
+      enabled: base.followUp.enabled && settings.followUpEnabled,
+    },
   };
   // Skills: selección explícita del panel (arreglo, aunque vacío) GANA; si es null,
   // hereda las del perfil del giro (baseProfile.skills, ya resueltas de archivos).
@@ -114,6 +121,7 @@ export async function buildTenantConfig(prisma: PrismaClient, tenantId: string, 
     // El welcome editado en el panel (override) gana; si no, el de TenantSettings.
     welcome: profileOverride?.welcome ?? settings.welcomeTemplate,
     skills,
+    aiDisclosure: settings.aiDisclosure,
   };
   return { config, profile };
 }
@@ -128,10 +136,42 @@ class TenantRuntimeImpl implements TenantRuntime {
     private readonly tenantId: string,
     private readonly source: Source,
     private readonly schedule: (fn: () => void, ms: number) => void,
+    /**
+     * Barrido de seguimiento proactivo. Opcional: sin él el tenant es puramente
+     * reactivo (y es lo que hacen los tests que no lo inyectan).
+     */
+    private readonly followUp?: { sweep: () => Promise<unknown>; intervalMs: number },
   ) {}
 
   async start(): Promise<void> {
     await this.attempt();
+    if (this.followUp) this.scheduleSweep();
+  }
+
+  private scheduleSweep(): void {
+    if (this.stopped || !this.followUp) return;
+    this.schedule(() => void this.runSweep(), this.followUp.intervalMs);
+  }
+
+  /**
+   * Una pasada del barrido. Se re-agenda a sí misma AL TERMINAR (no con un
+   * intervalo fijo), para que dos barridos nunca se solapen si uno se alarga.
+   */
+  private async runSweep(): Promise<void> {
+    if (this.stopped) return;
+    // Suspendido (billing) o desconectado: no hay por dónde enviar. Se salta la
+    // pasada pero el bucle sigue vivo para cuando vuelva.
+    if (!this.suspended && this.source.state().status === 'connected') {
+      try {
+        await this.followUp!.sweep();
+      } catch (e) {
+        logger.error(
+          { tenantId: this.tenantId, err: e instanceof Error ? e.message : String(e) },
+          'tenant_runtime.followup_sweep_failed',
+        );
+      }
+    }
+    this.scheduleSweep();
   }
 
   /** Pausa el bot (enforcement de billing): cierra la conexión, conserva la sesión. */
@@ -212,13 +252,17 @@ export async function createTenantRuntime(tenantId: string, deps: RuntimeDeps): 
   const sender = new WhatsAppSender(() => (source as any)?.asSocket?.() ?? null);
   const notifier = new WhatsAppNotifier(sender, config.owner.phoneE164);
 
-  const coordinator = new InboundCoordinator({
+  const pipelineDeps = {
     prisma: deps.prisma, tenantId, config, profile, notifier, sender,
     transcriber, describer, imageEditor, mediaStore, agentFactory: defaultAgentFactory, now: () => new Date(),
     // Hot-reload por turno: relee TenantSettings (panel ↔ worker comparten Postgres),
     // así editar la config aplica sin reiniciar el tenant. Conserva la última válida.
     reloadConfig: () => buildTenantConfig(deps.prisma, tenantId, configPath),
-  });
+  };
+  const coordinator = new InboundCoordinator(pipelineDeps);
+  // El barrido comparte deps con el pipeline reactivo (mismo sender, mismo
+  // agente, misma config recargable): solo cambia por dónde entra el turno.
+  const followUpCoordinator = new FollowUpCoordinator(pipelineDeps);
 
   source = buildSource({
     tenantId,
@@ -228,5 +272,8 @@ export async function createTenantRuntime(tenantId: string, deps: RuntimeDeps): 
     notifyOwner: config.owner.notifyOnDisconnect,
   });
 
-  return new TenantRuntimeImpl(tenantId, source, schedule);
+  return new TenantRuntimeImpl(tenantId, source, schedule, {
+    sweep: () => followUpCoordinator.sweep(),
+    intervalMs: Math.round(config.followUp.sweepMinutes * 60_000),
+  });
 }

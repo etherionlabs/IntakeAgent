@@ -98,7 +98,8 @@ export const api = {
   deleteJob: (id: string) => request<{ ok: boolean }>('DELETE', `/jobs/${id}`),
   getJob: (id: string) => request<{ job: any; intake: any; messages: any[] }>('GET', `/jobs/${id}`),
   patchIntake: (id: string, payload: { path: string; value?: unknown; declined?: boolean; declined_reason?: string }) => request<{ ok: boolean; intake: any }>('PATCH', `/jobs/${id}/intake`, payload),
-  jobAction: (id: string, action: 'mark_ready' | 'close', summary?: string) => request<{ ok: boolean; status: string }>('POST', `/jobs/${id}/actions`, { action, summary }),
+  jobAction: (id: string, action: 'mark_ready' | 'close', summary?: string, outcome?: 'WON' | 'LOST') =>
+    request<{ ok: boolean; status: string; outcome?: string | null }>('POST', `/jobs/${id}/actions`, { action, summary, outcome }),
   getContacts: (includeArchived = false) =>
     request<{ contacts: any[] }>('GET', `/contacts${includeArchived ? '?includeArchived=true' : ''}`),
   toggleContact: (id: string, botPaused: boolean) => request<{ ok: boolean; contact: any }>('PATCH', `/contacts/${id}`, { botPaused }),
@@ -107,6 +108,7 @@ export const api = {
   archiveContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/archive`),
   restoreContact: (id: string) => request<{ ok: boolean; contact: any }>('POST', `/contacts/${id}/restore`),
   deleteContact: (id: string) => request<{ ok: boolean }>('DELETE', `/contacts/${id}`),
+  getOverview: () => request<Overview>('GET', '/overview'),
   getUsage: () => request<{ totals: any; recent: any[]; mode?: string; approvalStatus?: string; plan?: UsagePlan | null }>('GET', '/usage'),
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
@@ -127,7 +129,17 @@ export const api = {
   getBillingStatus: () => request<BillingStatus>('GET', '/billing/status'),
   startCheckout: () => request<{ url: string }>('POST', '/billing/checkout'),
   openBillingPortal: () => request<{ url: string }>('POST', '/billing/portal'),
-  getSettings: () => request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null; availableSkills: SkillInfo[] }>('GET', '/settings'),
+  getSettings: () =>
+    request<{ profile: ProfileSettings; config: ConfigSettings | null; media: MediaSettings | null; availableSkills: SkillInfo[]; fields: IntakeSection[] }>('GET', '/settings'),
+  assistSettings: (action: 'facts' | 'fields' | 'welcome', text: string) =>
+    request<{ ok: boolean; suggestion: unknown }>('POST', '/settings/assist', { action, text }),
+  assistStatus: () => request<{ available: boolean }>('GET', '/settings/assist/status'),
+  assistChat: (messages: ChatTurn[], snapshot: ConfigSnapshot) =>
+    request<{ ok: boolean; reply: string; patch: ConfigPatch | null; done: boolean }>(
+      'POST', '/settings/assist/chat', { messages, snapshot },
+    ),
+  updateFieldsSettings: (sections: IntakeSection[]) =>
+    request<{ ok: boolean; fields: IntakeSection[] }>('PUT', '/settings/fields', { sections }),
   updateProfileSettings: (payload: ProfileSettings) =>
     request<{ ok: boolean; profile: ProfileSettings }>('PUT', '/settings/profile', payload),
   updateConfigSettings: (payload: ConfigSettings) =>
@@ -248,10 +260,92 @@ export interface ProfileSettings {
   businessFacts: { facts: BusinessFact[]; freeContext: string };
 }
 
+/** Resumen de la pantalla principal: qué atender y cómo va la venta. */
+export interface PendingQuote {
+  jobId: string;
+  contactName: string;
+  status: string;
+  services: string[];
+  updatedAt: string | null;
+}
+
+export interface WaitingJob {
+  jobId: string;
+  contactName: string;
+  reason: 'bot_paused' | 'flagged' | 'no_reply';
+  since: string;
+}
+
+export interface Overview {
+  attention: {
+    pendingQuotes: PendingQuote[];
+    readyForReview: number;
+    waiting: WaitingJob[];
+  };
+  funnel: {
+    windowDays: number;
+    jobs: number;
+    withOffer: number;
+    withAccepted: number;
+    won: number;
+    lost: number;
+    followUps: number;
+  };
+}
+
+/** Un dato que el asistente pide al cliente. `key` es la identidad con la que se
+ *  guardan las respuestas: se deriva de la etiqueta al crear y no cambia después. */
+export interface IntakeField {
+  key: string;
+  label: string;
+  type: 'string' | 'text' | 'integer' | 'number' | 'currency' | 'boolean' | 'enum' | 'phone' | 'date';
+  required?: boolean;
+  hint?: string;
+  options?: string[];
+}
+
+export interface IntakeSection {
+  key: string;
+  label: string;
+  fields: IntakeField[];
+}
+
+/** Un turno de la conversación de configuración. El hilo lo guarda el panel. */
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** Lo que el panel tiene EN EL FORMULARIO (con cambios sin guardar incluidos). */
+export interface ConfigSnapshot {
+  businessName: string;
+  businessDomain: string;
+  welcome: string;
+  tone: string;
+  freeContext: string;
+  facts: { topic: string; answer: string }[];
+  sections: { label: string; fields: { label: string; type: string; required?: boolean }[] }[];
+}
+
+/** Cambios propuestos por el asistente. Se aplican al formulario, nunca a la base. */
+export interface ConfigPatch {
+  businessName?: string;
+  businessDomain?: string;
+  welcome?: string;
+  tone?: string;
+  freeContext?: string;
+  facts?: { topic: string; answer: string }[];
+  sections?: { label: string; fields: Omit<IntakeField, 'key'>[] }[];
+}
+
 export interface MediaSettings {
   describeImages: boolean;
   transcribeAudio: boolean;
   editImages: boolean;
+  /** El bot reabre la conversación cuando el cliente deja de responder. */
+  followUpEnabled: boolean;
+  /** Avisa al cliente que le atiende un asistente automatizado (AI Act art. 50). */
+  aiDisclosure: boolean;
   /** Nombres de las skills (técnicas) activas para este tenant. */
   skills: string[];
 }

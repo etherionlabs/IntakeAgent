@@ -17,18 +17,84 @@ export interface FreeNote {
   source_message_id: string | null;
 }
 
+/**
+ * Estado de un servicio ADICIONAL al que el agente le movió en la conversación.
+ * - `offered`: se ofreció y el cliente aún no se define.
+ * - `accepted`: el cliente lo quiere → el dueño debe cotizarlo junto al trabajo principal.
+ * - `declined`: el cliente dijo que no → NO se vuelve a ofrecer.
+ */
+export type OpportunityStatus = 'offered' | 'accepted' | 'declined';
+
+export interface Opportunity {
+  /** Servicio extra tal como se le nombró al cliente (ej. "polarizado 20%"). */
+  service: string;
+  status: OpportunityStatus;
+  note?: string;
+  updated_at: string;
+  source_message_id: string | null;
+}
+
+/**
+ * Diagnóstico de la conversación de venta (SPIN adaptado a nuestro caso).
+ *
+ * El hallazgo que más transfiere de la investigación comercial es que un buen
+ * vendedor no propone antes de entender el IMPACTO: no basta con "quiere retapizar
+ * un sillón", hace falta saber qué le cuesta no hacerlo. Guardarlo como estado —y
+ * no dejarlo en la conversación— sirve para tres cosas: el agente ve en cada turno
+ * qué le falta por descubrir y no salta al pitch, el seguimiento proactivo tiene
+ * material real para retomar, y el dueño lo lee antes de cotizar.
+ */
+export type Urgency = 'alta' | 'media' | 'baja';
+
+/** Tipos de fricción que aparecen en una venta de servicio local. */
+export type ObjectionType = 'precio' | 'tiempo' | 'confianza' | 'competencia' | 'lo_piensa' | 'otro';
+
+export interface Objection {
+  type: ObjectionType;
+  /** La objeción tal como la planteó el cliente. */
+  note: string;
+  /** ¿Se resolvió o sigue en el aire? Lo no resuelto es lo que mata el trato. */
+  resolved: boolean;
+  updated_at: string;
+}
+
+export interface SalesDiagnosis {
+  /** Qué problema tiene, en sus palabras. */
+  pain?: string;
+  /** Qué le cuesta si NO lo resuelve (la pregunta de implicación). */
+  implication?: string;
+  urgency?: Urgency;
+  objections: Objection[];
+}
+
 export interface IntakeState {
-  [section: string]: Record<string, FieldState> | { photo_count: number; audio_count: number } | FreeNote[];
+  [section: string]:
+    | Record<string, FieldState>
+    | { photo_count: number; audio_count: number }
+    | FreeNote[]
+    | Opportunity[]
+    | SalesDiagnosis
+    | undefined;
   media: { photo_count: number; audio_count: number };
   free_notes: FreeNote[];
+  /**
+   * Servicios adicionales ofrecidos/aceptados/rechazados en la conversación.
+   * Opcional en lectura: los jobs creados antes de esta función no lo traen en
+   * su JSON persistido, así que todo consumidor debe tolerar `undefined`.
+   */
+  opportunities?: Opportunity[];
+  /** Diagnóstico de venta. Opcional: los jobs anteriores no lo traen. */
+  diagnosis?: SalesDiagnosis;
   // Narrow section access: access via string keys gives the union type above,
-  // but explicit media/free_notes are known to be their specific types
+  // but explicit media/free_notes/opportunities are known to be their specific types
 }
 
 export function createEmptyIntakeFromSchema(schema: IntakeSchema): IntakeState {
   const intake: IntakeState = {
     media: { photo_count: 0, audio_count: 0 },
     free_notes: [],
+    opportunities: [],
+    diagnosis: { objections: [] },
   };
   for (const section of schema.sections) {
     const sec: Record<string, FieldState> = {};
@@ -170,6 +236,114 @@ export function addFreeNote(
   return next;
 }
 
+/**
+ * Clave de identidad de una oportunidad: minúsculas, sin acentos y con espacios
+ * colapsados. Así "Polarizado 20%" y "polarizado 20%" son el MISMO servicio y
+ * cambiar su estado (offered → accepted) actualiza la entrada en vez de duplicarla.
+ */
+function opportunityKey(service: string): string {
+  return service
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+export interface OpportunityUpdate {
+  service: string;
+  status: OpportunityStatus;
+  note?: string;
+}
+
+export function listOpportunities(intake: IntakeState): Opportunity[] {
+  return intake.opportunities ?? [];
+}
+
+/** Servicios extra que el cliente aceptó — lo que el dueño debe cotizar de más. */
+export function acceptedOpportunities(intake: IntakeState): Opportunity[] {
+  return listOpportunities(intake).filter((o) => o.status === 'accepted');
+}
+
+/**
+ * Registra o actualiza oportunidades de venta. Upsert por servicio: si el
+ * servicio ya existe se le sobrescribe el estado (un "no" posterior gana sobre
+ * el "ofrecido" previo); si no, se agrega al final conservando el orden.
+ */
+export function upsertOpportunities(
+  intake: IntakeState,
+  updates: OpportunityUpdate[],
+  now: string,
+  source_message_id: string | null,
+): IntakeState {
+  const next = structuredClone(intake);
+  const list = [...(next.opportunities ?? [])];
+  for (const u of updates) {
+    const service = u.service.trim();
+    const entry: Opportunity = {
+      service,
+      status: u.status,
+      ...(u.note ? { note: u.note } : {}),
+      updated_at: now,
+      source_message_id,
+    };
+    const idx = list.findIndex((o) => opportunityKey(o.service) === opportunityKey(service));
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
+  }
+  next.opportunities = list;
+  return next;
+}
+
+export function getDiagnosis(intake: IntakeState): SalesDiagnosis {
+  return intake.diagnosis ?? { objections: [] };
+}
+
+/** Objeciones que el cliente planteó y siguen sin resolverse. */
+export function openObjections(intake: IntakeState): Objection[] {
+  return getDiagnosis(intake).objections.filter((o) => !o.resolved);
+}
+
+export interface DiagnosisUpdate {
+  pain?: string;
+  implication?: string;
+  urgency?: Urgency;
+  objection?: { type: ObjectionType; note: string; resolved?: boolean };
+}
+
+/**
+ * Actualiza el diagnóstico. Los campos ausentes NO se borran: cada turno aporta
+ * lo que descubrió sin tener que repetir lo anterior. Las objeciones son upsert
+ * por tipo — el cliente que vuelve al precio no crea una segunda objeción de
+ * precio, actualiza la que ya estaba.
+ */
+export function updateDiagnosis(
+  intake: IntakeState,
+  update: DiagnosisUpdate,
+  now: string,
+): IntakeState {
+  const next = structuredClone(intake);
+  const current = next.diagnosis ?? { objections: [] };
+  const objections = [...current.objections];
+
+  if (update.objection) {
+    const { type, note, resolved } = update.objection;
+    const idx = objections.findIndex((o) => o.type === type);
+    const entry: Objection = { type, note, resolved: resolved ?? false, updated_at: now };
+    if (idx >= 0) objections[idx] = entry;
+    else objections.push(entry);
+  }
+
+  next.diagnosis = {
+    ...current,
+    ...(update.pain !== undefined ? { pain: update.pain } : {}),
+    ...(update.implication !== undefined ? { implication: update.implication } : {}),
+    ...(update.urgency !== undefined ? { urgency: update.urgency } : {}),
+    objections,
+  };
+  return next;
+}
+
 export function isIntakeComplete(schema: IntakeSchema, intake: IntakeState): boolean {
   for (const path of listRequiredPaths(schema)) {
     const field = getByPath(intake, path) as FieldState | undefined;
@@ -233,6 +407,52 @@ export function renderIntakeForModel(
     for (const n of intake.free_notes) {
       lines.push(`  - ${n.text}`);
     }
+  }
+
+  const diag = getDiagnosis(intake);
+  const missingDiag: string[] = [];
+  if (!diag.pain) missingDiag.push('el problema en sus palabras');
+  if (!diag.implication) missingDiag.push('qué le cuesta si NO lo resuelve');
+  if (!diag.urgency) missingDiag.push('qué tan urgente es');
+
+  lines.push('Diagnóstico de venta:');
+  lines.push(`  ${diag.pain ? '✓' : '✗'} Problema: ${diag.pain ?? '(sin descubrir)'}`);
+  lines.push(`  ${diag.implication ? '✓' : '✗'} Qué le cuesta no resolverlo: ${diag.implication ?? '(sin descubrir)'}`);
+  lines.push(`  ${diag.urgency ? '✓' : '✗'} Urgencia: ${diag.urgency ?? '(sin descubrir)'}`);
+  if (diag.objections.length > 0) {
+    for (const o of diag.objections) {
+      lines.push(`  ${o.resolved ? '✓' : '⚠'} Objeción (${o.type}): ${o.note}${o.resolved ? '' : ' — SIN RESOLVER'}`);
+    }
+  }
+  if (missingDiag.length > 0) {
+    lines.push(
+      `  → Te falta descubrir: ${missingDiag.join(', ')}. Descúbrelo con preguntas ANTES de ` +
+        'proponer nada, y guárdalo con register_discovery.',
+    );
+  }
+
+  const opportunities = listOpportunities(intake);
+  if (opportunities.length > 0) {
+    const icons: Record<OpportunityStatus, string> = {
+      offered: '·',
+      accepted: '✓',
+      declined: '✗',
+    };
+    const labels: Record<OpportunityStatus, string> = {
+      offered: 'ofrecido, sin respuesta',
+      accepted: 'ACEPTADO',
+      declined: 'rechazado — NO lo vuelvas a ofrecer',
+    };
+    lines.push('Servicios adicionales (venta):');
+    for (const o of opportunities) {
+      const note = o.note ? ` — ${o.note}` : '';
+      lines.push(`  ${icons[o.status]} ${o.service}: ${labels[o.status]}${note}`);
+    }
+    lines.push(
+      '  → Registra con register_opportunity cada extra que ofrezcas y actualízalo cuando el ' +
+        'cliente responda. Los ACEPTADOS van en el resumen para que el dueño los cotice; los ' +
+        'rechazados no se vuelven a mencionar.',
+    );
   }
 
   const missing: string[] = [];

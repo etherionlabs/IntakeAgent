@@ -13,9 +13,12 @@ import { profileRoutes } from './routes/profile';
 import { jobsRoutes } from './routes/jobs';
 import { contactsRoutes } from './routes/contacts';
 import { usageRoutes } from './routes/usage';
+import { overviewRoutes } from './routes/overview';
 import { waStatusRoutes } from './routes/wa-status';
 import { mediaRoutes } from './routes/media';
 import { settingsRoutes } from './routes/settings';
+import { assistRoutes } from './routes/assist';
+import type { AssistDeps } from './services/assist';
 import { billingRoutes } from './routes/billing';
 import { onboardingRoutes } from './routes/onboarding';
 import { tenantDataRoutes } from './routes/tenant-data';
@@ -33,6 +36,8 @@ export interface BuildOptions {
   emailSender?: EmailSender;
   /** Provisioning del tenant (inyectable en tests). Default: TemplateLoader + worker. */
   provision?: (tenantId: string) => Promise<void>;
+  /** Asistente de configuración por LLM (inyectable en tests: key, modelo, fetch). */
+  assistDeps?: AssistDeps;
 }
 
 // Rutas mutadoras exentas de CSRF: no pueden tener cookie CSRF aún (login/recuperación)
@@ -232,9 +237,11 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   await app.register(jobsRoutes);
   await app.register(contactsRoutes);
   await app.register(usageRoutes);
+  await app.register(overviewRoutes);
   await app.register(waStatusRoutes, { fetcher: opts.fetcher });
   await app.register(mediaRoutes, { fetcher: opts.fetcher });
   await app.register(settingsRoutes);
+  await app.register(assistRoutes, { assistDeps: opts.assistDeps });
   await app.register(billingRoutes, { stripe: opts.stripe, fetcher: opts.fetcher, provision });
   await app.register(onboardingRoutes);
   await app.register(tenantDataRoutes, { fetcher: opts.fetcher });

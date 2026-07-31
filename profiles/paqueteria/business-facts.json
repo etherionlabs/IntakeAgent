@@ -1,1 +1,6 @@
-{ "facts": [], "freeContext": "" }
+{
+  "facts": [
+    { "topic": "servicios", "aliases": ["qué hacen", "que ofrecen", "servicios", "catálogo", "envíos"], "answer": "Envíos nacionales estándar y exprés, embalaje y embalaje reforzado para artículos frágiles o de valor, seguro de envío, recolección a domicilio, rastreo de guías y tarifas por volumen para clientes que envían de forma frecuente." }
+  ],
+  "freeContext": "Los servicios se complementan: un envío frágil o de valor conviene mandarlo con embalaje reforzado y seguro; cuando hay una fecha límite se compara el estándar contra el exprés explicando la diferencia real de tiempo; y quien envía seguido o tiene una tienda se beneficia de la recolección a domicilio y de las tarifas por volumen. En zonas lejanas confirmamos cobertura y tiempos antes de aceptar el envío."
+}

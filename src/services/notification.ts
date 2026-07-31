@@ -3,6 +3,8 @@ export interface OwnerReadyPayload {
   contactDisplayName: string | null;
   contactPhone: string;
   summary: string;
+  /** Servicios adicionales que el cliente aceptó, para cotizarlos junto al principal. */
+  extras?: string[];
   panelUrl: string;
 }
 

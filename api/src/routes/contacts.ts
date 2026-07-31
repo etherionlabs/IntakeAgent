@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrisma } from '../db';
 import { setBotActive, updateContact, archiveContact, restoreContact, hardDeleteContact } from '../../../src/services/contact';
+import { listContacts } from '../services/contactList';
 
 const PatchZ = z.object({
   botPaused: z.boolean().optional(),
@@ -15,10 +16,7 @@ export async function contactsRoutes(app: FastifyInstance) {
   app.get('/contacts', { preHandler: app.authenticate }, async (request) => {
     const prisma = getPrisma();
     const includeArchived = (request.query as any)?.includeArchived === 'true';
-    const contacts = await prisma.contact.findMany({
-      where: { tenantId: request.tenantId, ...(includeArchived ? {} : { archivedAt: null }) },
-      orderBy: { updatedAt: 'desc' },
-    });
+    const contacts = await listContacts(prisma, request.tenantId, includeArchived);
     return { contacts };
   });
 

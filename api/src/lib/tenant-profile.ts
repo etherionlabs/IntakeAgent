@@ -1,5 +1,7 @@
 import { getPrisma } from '../db';
 import { loadEffectiveProfile } from '../../../src/config/loader';
+import { validateIntakeSchema } from '../../../src/config/intake-schema';
+import { logger } from '../../../src/lib/logger';
 
 const cache = new Map<string, Awaited<ReturnType<typeof loadEffectiveProfile>>>();
 
@@ -10,7 +12,28 @@ export async function getTenantProfile(tenantId: string) {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new Error(`tenant ${tenantId} no existe`);
   // Perfil efectivo: archivos base + override guardado en DB (panel).
-  const profile = await loadEffectiveProfile(prisma, tenantId, tenant.profileDir);
+  const base = await loadEffectiveProfile(prisma, tenantId, tenant.profileDir);
+  // La ESTRUCTURA del intake (secciones y campos) es la del tenant, igual que en
+  // el worker (buildTenantConfig). Sin esto el panel mostraría la plantilla del
+  // giro mientras el bot pide los campos que el dueño configuró: dos fuentes de
+  // verdad para lo mismo. Si la fila no existe o trae algo inválido, se cae a los
+  // archivos en vez de romper el panel.
+  const settings = await prisma.tenantSettings.findUnique({
+    where: { tenantId },
+    select: { intakeSchema: true },
+  });
+  let profile = base;
+  if (settings?.intakeSchema) {
+    const result = validateIntakeSchema(settings.intakeSchema);
+    if (result.ok) {
+      profile = { ...base, intakeSchema: result.schema };
+    } else {
+      logger.warn(
+        { tenantId, error: result.error },
+        'tenant_profile.intake_schema_invalido_usando_archivos',
+      );
+    }
+  }
   cache.set(tenantId, profile);
   return profile;
 }

@@ -1,10 +1,14 @@
 # Intake
 
-Recepcionista autónomo de WhatsApp para talleres de tapicería. Atiende los
-mensajes de los clientes, levanta el "intake" (datos del trabajo) de forma
-conversacional y avisa al dueño cuando un trabajo está listo para revisar. Trae
-un panel web para ver conversaciones, gestionar el pipeline de trabajos y la
-configuración.
+**Asesor de ventas autónomo de WhatsApp** para negocios de servicio (talleres,
+oficios y logística). Atiende los mensajes de los clientes, levanta el "intake"
+(datos del trabajo) de forma conversacional y —esto es lo que lo distingue de un
+recepcionista— **asesora y vende**: entiende qué quiere lograr el cliente, ofrece
+los servicios complementarios que apliquen a su caso y busca cerrar la orden de
+trabajo más completa y rentable que de verdad le convenga, sin inventar precios
+ni presionar. Cuando el trabajo está listo, avisa al dueño con el resumen y los
+**extras aceptados** para que cotice todo junto. Trae un panel web para ver
+conversaciones, gestionar el pipeline de trabajos y la configuración.
 
 - **Stack:** Node.js 20+, TypeScript (ejecutado con `tsx`, sin paso de build),
   Fastify + Handlebars + HTMX (panel), Prisma 7 + SQLite, Baileys (WhatsApp),
@@ -37,12 +41,116 @@ volumen de media. Así funciona en un solo host (docker-compose) y en despliegue
 con servicios separados (ej. Railway), donde un volumen no se comparte entre
 servicios y no hace falta object storage externo.
 
-El agente también actúa de forma **proactiva** como asesor de ventas: tras captar
-lo que el cliente pide, ofrece servicios complementarios que tengan sentido para
-su caso (razonando sobre un catálogo curado en `business-facts.json`), sin
-inventar precios ni presionar. El comportamiento vive en
-`profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`); el perfil
-`profiles/wrapping` es el ejemplo de referencia.
+### Venta proactiva
+
+El agente no se limita a levantar el pedido: tras captar lo que el cliente pide,
+ofrece los servicios **complementarios** que tengan sentido para su caso,
+explicando el beneficio y sin inventar precios ni presionar. El comportamiento
+por giro vive en `profiles/<perfil>/prompt-vars.json` (`vars.salesPlaybook`), y
+razona sobre un catálogo curado en `business-facts.json` — el agente **solo puede
+ofrecer lo que aparezca ahí**, por regla dura. **Todos los perfiles** lo traen
+(mecánica, tapicería, cerrajería, plomería, electricista, refrigeración,
+paquetería, wrapping y el genérico); el genérico, al ser el fallback de cualquier
+giro sin plantilla, se apoya en los servicios que el dueño cargue desde el panel
+en vez de un catálogo propio.
+
+Cada movimiento de venta queda **registrado**, no suelto en una nota: la tool
+`register_opportunity` guarda en el intake del job (`opportunities`) qué extra se
+ofreció y cómo respondió el cliente —`offered`, `accepted` o `declined`—. Eso
+cierra el ciclo en tres puntos:
+
+- **En la conversación:** el estado se le muestra al agente en cada turno, así que
+  no vuelve a ofrecer algo que el cliente ya rechazó.
+- **En el aviso al dueño:** `mark_ready_for_review` manda los extras aceptados en
+  una línea aparte del resumen (`Extras aceptados: …`), que es justo lo que se
+  suele pasar por alto al cotizar.
+- **En el panel:** la ficha del trabajo tiene una sección *Servicios adicionales*
+  con los aceptados primero y el aviso de cuántos hay que incluir en la
+  cotización.
+
+Los trabajos anteriores a esta función no traen `opportunities` en su JSON y se
+siguen leyendo sin problema (la sección aparece vacía).
+
+### Seguimiento proactivo
+
+Ofrecer sin dar seguimiento es media venta: hasta aquí el agente solo actuaba
+cuando el cliente escribía (`adapter → coordinator → agente`), así que una oferta
+sin contestar se moría en silencio. El **barrido de seguimiento**
+(`FollowUpCoordinator`) es el único camino por el que el agente habla **sin
+mensaje entrante**: cada `followUp.sweepMinutes` busca trabajos donde hablamos
+nosotros al final y el cliente lleva callado más de `followUp.afterHours`, y le
+escribe para retomar — recordando lo que quedó ofrecido (`pending_offer`) o
+pidiendo el dato que falta (`incomplete_intake`), con la oferta pendiente como
+prioridad. El turno usa el mismo agente y las mismas tools, pero en lugar de un
+mensaje del cliente lleva una **directiva del sistema** (`TurnContext.systemDirective`).
+
+Es **opt-in por tenant** (`TenantSettings.followUpEnabled`, en **Configuración →
+Seguimiento**): son mensajes no solicitados y la decisión —y el riesgo para el
+número de WhatsApp del negocio— es del dueño. Además nunca escribe:
+
+- fuera del horario de atención (`config.hours`);
+- a quien pausó el bot, fue marcado como spam o está archivado;
+- más de `followUp.maxFollowUps` veces por trabajo, ni antes de
+  `followUp.minHoursBetween` desde el anterior;
+- si el tenant agotó su cuota mensual (un seguimiento gasta un `AgentRun`, y
+  responderle a un cliente vale más que nuestra iniciativa);
+- si el turno del agente falló — el fallback de error no se manda a alguien que
+  no escribió, y el trabajo conserva su seguimiento para el próximo barrido.
+
+### Descubrir antes de proponer
+
+El error que más ventas cuesta es proponer antes de entender. El agente ahora
+diagnostica y **guarda lo que descubre** en el intake del job (`diagnosis`), no
+solo en la conversación:
+
+- `pain` — el problema en palabras del cliente.
+- `implication` — qué le cuesta si NO lo resuelve. Es la pregunta que casi nadie
+  hace y la que convierte una reparación pequeña en el trabajo que de verdad
+  necesita.
+- `urgency` — alta / media / baja.
+- `objections` — la fricción que planteó (precio, tiempo, confianza, competencia,
+  «lo voy a pensar»), con si quedó **resuelta**. Un upsert por tipo: el cliente que
+  vuelve al precio actualiza la objeción, no crea otra.
+
+Se escribe con la tool `register_discovery` y se le muestra al modelo en cada
+turno **lo que todavía le falta descubrir**, que es lo que lo frena de saltar al
+pitch. Alimenta tres cosas más: el seguimiento proactivo retoma citando lo que el
+cliente contó (y la objeción sin resolver, que suele ser el motivo real del
+silencio), el dueño lo lee en la ficha del trabajo antes de cotizar, y
+`intake_objections_total{type,state}` mide la fricción real.
+
+Las técnicas viven en la biblioteca de skills, no en un prompt monolítico:
+`descubrimiento` (SPIN adaptado: una pregunta por mensaje, devolverle lo entendido
+antes de proponer, y no interrogar a quien ya decidió), `objeciones` (explorar
+**antes** de responder — «¿caro comparado con qué?» — y el diagnóstico de tres vías
+para «lo voy a pensar») y `ventas` (complementos y cierre con próximo paso
+concreto).
+
+Dos reglas duras acompañan a la venta, porque deben ganar siempre: el agente
+**nunca dice ni insinúa que es una persona**, y si lo que el cliente necesita no es
+algo que el negocio haga, **lo dice** en vez de seguir tomando datos.
+
+### Transparencia (divulgación de IA)
+
+El AI Act (art. 50, aplicable desde el **2026-08-02**) exige informar a la persona
+cuando interactúa con un sistema de IA. El aviso va en el **primer mensaje**
+(`buildWelcome`), no en una respuesta del modelo: un aviso que dependa de que el
+modelo se acuerde de darlo no es una garantía. No se duplica si el dueño ya lo dice
+en su bienvenida.
+
+Es por tenant (`TenantSettings.aiDisclosure`, en **Configuración → Cómo atiende**)
+porque depende de su jurisdicción, y viene **activo por defecto**: no informar es
+riesgo legal, informar cuesta una línea. El texto es global del deployment
+(`config.json` → `disclosure.text`). Independientemente del toggle, la regla dura
+de no hacerse pasar por persona aplica siempre.
+
+### Medir la venta
+
+`GET /metrics` expone `intake_opportunities_total{status}` (ofrecidos, aceptados,
+rechazados), `intake_followups_total{reason}` e `intake_objections_total{type,state}`. Para cerrar la atribución, el
+dueño marca el resultado al cerrar un trabajo: **Cerrar · ganado** o **Cerrar ·
+perdido** (`Job.outcome` = `WON`/`LOST`; reabrir un trabajo lo limpia). Con eso
+la tasa ofrecido→aceptado→ganado deja de ser una impresión.
 
 ### Skills (técnicas reutilizables)
 
@@ -55,7 +163,10 @@ loader las resuelve y se inyectan en el system prompt bajo un bloque de
 "HABILIDADES / TÉCNICAS" (son para el comportamiento del modelo, no se mencionan
 al cliente y nunca ganan a las reglas duras). Una skill referenciada que falte se
 omite con un aviso, sin tumbar al bot. Incluye la skill `ventas` (venta
-consultiva) que usa el perfil `profiles/wrapping`.
+consultiva: descubrir la necesidad, hablar en beneficios, agrupar servicios,
+manejar objeciones y registrar el interés), que **todos** los perfiles adoptan
+por defecto — un dueño que prefiera un bot puramente receptivo la apaga desde el
+panel.
 
 Cada negocio elige qué skills activar desde el panel (**Configuración → Imágenes y
 audio → Habilidades**), que se guarda en `TenantSettings.skills`: una selección
@@ -180,17 +291,69 @@ negocio. Tras cambiar `config.json` o el perfil, reinicia con `Ctrl + C` y
 
 ### Editar desde el panel
 
-La sección **Configuración** del panel (visible solo para usuarios con rol
-`admin`) permite editar sin tocar archivos:
+La sección **Configuración** (solo rol `admin`) está pensada para un dueño de
+negocio, no para quien conoce el modelo de datos. Está dividida en pestañas:
 
-- **Negocio** (perfil del tenant): nombre y giro, mensaje de bienvenida,
-  variables del asistente (tono, instrucciones), y los datos del negocio.
-- **Sistema** (`config.json`): modelo, temperatura, horarios, teléfono del
-  dueño y notificaciones, y límites de costo.
+- **Asistente** — configurarlo conversando en vez de rellenando formularios (ver
+  más abajo). Es la pestaña por defecto cuando hay modelo disponible.
+- **Tu negocio** — nombre, a qué se dedica y mensaje de bienvenida.
+- **Qué datos pides** — las secciones y campos que el asistente va llenando
+  conversando. Los tipos se nombran por lo que el cliente responde ("Texto
+  corto", "Sí / No", "Lista de opciones"); la clave interna no se muestra y **no
+  cambia al renombrar**, porque es la identidad con la que quedaron guardados los
+  datos de los trabajos que ya existen. Se guarda en `TenantSettings.intakeSchema`,
+  que es la MISMA fila que lee el worker.
+- **Lo que debe saber** — los datos del negocio que el asistente puede usar para
+  responder (y solo esos: lo que no esté aquí, no lo inventa).
+- **Cómo atiende** — tono (con presets), fotos y notas de voz, seguimiento
+  proactivo y técnicas de venta.
+- **Avanzado** — las instrucciones internas del asistente (`coreInstructions`,
+  `hardRules`, los playbooks) tras una advertencia, más el `config.json` global
+  cuando el deployment lo expone. Antes se mostraban como campos normales junto al
+  nombre del negocio, lo que invitaba a romper el bot sin saberlo.
 
-Los cambios se validan y se escriben a los archivos correspondientes. Como el
-worker carga la configuración al arrancar, **reinícialo para aplicar los
-cambios**.
+`multi_enum` no se ofrece como tipo a propósito: el asistente todavía no puede
+escribirlo (`bulkUpdate` lo rechaza), así que ofrecerlo sería una trampa.
+
+#### Ayuda del modelo al configurar
+
+Un dueño no sabe qué es un "campo de tipo enum", pero sí sabe qué le pregunta a
+sus clientes. `POST /settings/assist` usa el LLM como traductor en ese sentido:
+
+- **Datos del negocio** — pega de corrido lo que le dirías a un cliente ("abrimos
+  de 9 a 7, aceptamos tarjeta…") y lo separa por temas.
+- **Campos** — describe qué necesitas saber para cotizar y propone las secciones y
+  campos con su tipo.
+- **Bienvenida** — la redacta con el nombre del negocio y el tono elegido.
+
+La propuesta **nunca se guarda sola**: se aplica al formulario para que el dueño la
+revise y decida. Sin `OPENROUTER_API_KEY` el endpoint responde 503, el panel oculta
+los botones y los formularios manuales siguen siendo el camino completo. El modelo
+se elige con `ASSIST_MODEL` (por defecto `openai/gpt-4o-mini`).
+
+#### Configurarlo conversando
+
+Las ayudas de arriba son de un disparo y por sección: siguen exigiendo que el dueño
+sepa en qué pestaña está lo que quiere cambiar. `POST /settings/assist/chat` lleva
+el hilo de **todo** el proceso: pregunta una cosa a la vez, sabe qué falta por
+cubrir (qué es el negocio → qué necesita saber de cada cliente → qué le preguntan
+siempre → cómo quiere que les hable) y va rellenando las demás pestañas.
+
+- El **hilo vive en el navegador** y viaja entero en cada turno; el servidor no
+  persiste conversaciones, así que cerrar el panel a media charla no deja nada a
+  medias en la base de datos. Se acota a 30 turnos porque cada uno cuesta dinero.
+- Cada turno devuelve `{ reply, patch, done }`. El `patch` se aplica al
+  **formulario**, se dice en pantalla qué se tocó, y el dueño lo revisa en su
+  pestaña antes de pulsar «Guardar todo». Igual que el resto del asistente: nada se
+  guarda solo.
+- El panel manda también lo que hay **sin guardar** en el formulario, para que el
+  asistente no vuelva a proponer lo que él mismo acaba de proponer.
+- Las claves de los campos las genera el panel, y **conserva la del dato que ya
+  existía con esa etiqueta**: aceptar una propuesta no deja huérfanas las
+  respuestas de los trabajos anteriores.
+
+Los cambios del perfil se guardan en la base de datos (recurso compartido entre la
+API y el worker) y **aplican en la siguiente conversación**, sin reiniciar.
 
 ---
 

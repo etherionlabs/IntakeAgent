@@ -55,16 +55,22 @@ export default function Signup() {
   return (
     <form onSubmit={onSubmit} className="signup-form">
       <h1>Crear cuenta</h1>
+      <p className="signup-intro">
+        Te enviamos un correo para verificar tu cuenta y luego conectas tu WhatsApp.
+        No pedimos tarjeta.
+      </p>
       <label>Email
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
+        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
       </label>
       <label>Contraseña
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        <span className="field-hint">Mínimo 8 caracteres.</span>
       </label>
       <label>Nombre del negocio
-        <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+        <input type="text" required value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Wrap Studio MX" />
       </label>
       <label>Giro
+        <span className="field-hint">Configura al asistente con las preguntas y los servicios de tu oficio.</span>
         <select value={industry} onChange={(e) => setIndustry(e.target.value)}>
           {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
         </select>

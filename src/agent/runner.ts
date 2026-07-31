@@ -48,7 +48,9 @@ export async function runAgentTurn(
     now: new Date(ctx.now),
     recentHistory: ctx.recentHistory,
   });
-  const userMessage = renderUserMessage(ctx.batchMessages);
+  // Un turno de seguimiento no tiene mensaje del cliente: la instrucción del
+  // sistema ocupa ese lugar (y el AgentRun queda sin triggerMessageIds).
+  const userMessage = ctx.systemDirective ?? renderUserMessage(ctx.batchMessages);
 
   let responseText = '';
   let inputTokens = 0;

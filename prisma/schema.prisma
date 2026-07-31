@@ -107,6 +107,13 @@ model TenantSettings {
   /// Skills (técnicas) activas para este tenant. null = hereda las del perfil del giro;
   /// un arreglo (aunque vacío) es una selección explícita del dueño desde el panel.
   skills          Json?
+  /// Seguimiento proactivo: el bot reabre la conversación cuando el cliente se queda
+  /// callado. Opt-in por tenant — son mensajes NO solicitados y el dueño decide.
+  followUpEnabled Boolean  @default(false)
+  /// Avisa al cliente, en el primer mensaje, que le atiende un asistente automatizado.
+  /// Por defecto ACTIVO: el AI Act (art. 50, aplicable 2026-08-02) exige informar a la
+  /// persona cuando interactúa con una IA, y el riesgo de no hacerlo es legal.
+  aiDisclosure    Boolean  @default(true)
   panelUrl        String?
   /// Ventana de retención de mensajes (meses). El job de retención purga lo más viejo.
   messageRetentionMonths Int @default(12)
@@ -210,6 +217,13 @@ model Job {
   intake          String    // JSON serializado
   intakeComplete  Boolean   @default(false)
   summary         String?
+  /// Resultado comercial del trabajo, lo marca el dueño al cerrar: 'WON' | 'LOST'.
+  /// null = cerrado sin registrar resultado (o todavía abierto).
+  outcome         String?
+  /// Seguimiento proactivo: cuántos se enviaron y cuándo fue el último. Sostienen
+  /// el tope por job y el mínimo entre envíos (política anti-insistencia).
+  followUpCount   Int       @default(0)
+  lastFollowUpAt  DateTime?
   openedAt        DateTime  @default(now())
   readyAt         DateTime?
   closedAt        DateTime?

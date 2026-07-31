@@ -171,8 +171,14 @@ describe('settings', () => {
     await useTempConfig();
     const res = await app.inject({ method: 'GET', url: '/settings', headers: admin(tenantId, userId) });
     expect(res.statusCode).toBe(200);
-    // skills null en la fila → hereda las referenciadas por el perfil (tapicería: []).
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: false, editImages: false, skills: [] });
+    // skills null en la fila → hereda las referenciadas por el perfil. Todos los
+    // giros adoptan la venta consultiva, así que tapicería hereda ['ventas'].
+    expect(res.json().media).toEqual({
+      describeImages: true, transcribeAudio: false, editImages: false,
+      followUpEnabled: false, aiDisclosure: true,
+      // Todos los giros adoptan las tres técnicas de venta por defecto.
+      skills: ['descubrimiento', 'ventas', 'objeciones'],
+    });
   });
 
   it('GET /settings sin fila TenantSettings → media null (tenant legado)', async () => {
@@ -190,14 +196,16 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: true, transcribeAudio: true, editImages: true, skills: [] },
+      payload: { describeImages: true, transcribeAudio: true, editImages: true, followUpEnabled: true, aiDisclosure: true, skills: [] },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true, editImages: true, skills: [] });
+    expect(res.json().media).toEqual({ describeImages: true, transcribeAudio: true, editImages: true, followUpEnabled: true, aiDisclosure: true, skills: [] });
     const row = await testPrisma.tenantSettings.findUnique({ where: { tenantId } });
     expect(row!.describeImages).toBe(true);
     expect(row!.transcribeAudio).toBe(true);
     expect(row!.editImages).toBe(true);
+    // El seguimiento proactivo también se guarda desde el panel (opt-in del dueño).
+    expect(row!.followUpEnabled).toBe(true);
   });
 
   it('PUT /settings/media guarda skills válidas y descarta las desconocidas', async () => {
@@ -207,7 +215,7 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: false, transcribeAudio: false, editImages: false, skills: ['ventas', 'no-existe-xyz'] },
+      payload: { describeImages: false, transcribeAudio: false, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: ['ventas', 'no-existe-xyz'] },
     });
     expect(res.statusCode).toBe(200);
     // 'ventas' existe en el catálogo; 'no-existe-xyz' se descarta.
@@ -246,7 +254,7 @@ describe('settings', () => {
       method: 'PUT',
       url: '/settings/media',
       headers: admin(tenantId, userId),
-      payload: { describeImages: true, transcribeAudio: true, editImages: false, skills: [] },
+      payload: { describeImages: true, transcribeAudio: true, editImages: false, followUpEnabled: false, aiDisclosure: true, skills: [] },
     });
     expect(res.statusCode).toBe(404);
   });

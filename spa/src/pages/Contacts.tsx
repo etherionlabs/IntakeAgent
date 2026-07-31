@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import ConfirmDialog from '../components/ConfirmDialog';
+import RowMenu from '../components/RowMenu';
+import { relativeTime, absoluteTime } from '../lib/time';
 
 export type Contact = {
   id: string;
@@ -10,12 +13,46 @@ export type Contact = {
   flaggedNonIntake?: boolean;
   flaggedReason?: string | null;
   archivedAt?: string | null;
+  jobCount?: number;
+  openJobCount?: number;
+  lastMessageAt?: string | null;
+  lastJobId?: string | null;
 };
 
-function chip(contact: Contact): { label: string; cls: string } {
-  if (contact.flaggedNonIntake) return { label: 'No-intake', cls: 'chip-nointake' };
+type FilterKey = 'all' | 'active' | 'paused' | 'flagged' | 'archived';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'active', label: 'Activos' },
+  { key: 'paused', label: 'Pausados' },
+  { key: 'flagged', label: 'Spam' },
+  { key: 'archived', label: 'Archivados' },
+];
+
+function statusChip(contact: Contact): { label: string; cls: string } {
+  if (contact.archivedAt) return { label: 'Archivado', cls: 'chip-paused' };
+  if (contact.flaggedNonIntake) return { label: 'Spam', cls: 'chip-nointake' };
   if (contact.botActive) return { label: 'Activo', cls: 'chip-active' };
   return { label: 'Pausado', cls: 'chip-paused' };
+}
+
+function matchesFilter(contact: Contact, filter: FilterKey): boolean {
+  switch (filter) {
+    case 'active': return !contact.archivedAt && !contact.flaggedNonIntake && !!contact.botActive;
+    case 'paused': return !contact.archivedAt && !contact.flaggedNonIntake && !contact.botActive;
+    case 'flagged': return !contact.archivedAt && !!contact.flaggedNonIntake;
+    case 'archived': return !!contact.archivedAt;
+    default: return true;
+  }
+}
+
+/** Normaliza para buscar: sin acentos, sin mayúsculas y sin separadores del teléfono. */
+function norm(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[\s()-]/g, '');
 }
 
 export default function Contacts() {
@@ -23,200 +60,225 @@ export default function Contacts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [query, setQuery] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
+
+  // Los archivados solo se piden al servidor cuando el filtro los incluye.
+  const includeArchived = filter === 'archived' || filter === 'all';
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getContacts(showArchived);
+      const data = await api.getContacts(includeArchived);
       setContacts(data.contacts as Contact[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'error al cargar contactos');
     } finally {
       setLoading(false);
     }
-  }, [showArchived]);
+  }, [includeArchived]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const patchLocal = (updated: Contact) =>
-    setContacts((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setContacts((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
 
-  const toggle = useCallback(async (contact: Contact) => {
+  async function run(contact: Contact, fn: () => Promise<void>) {
     setBusy(contact.id);
     setError(null);
-    try {
-      const data = await api.toggleContact(contact.id, !!contact.botActive);
-      patchLocal(data.contact as Contact);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'error al actualizar contacto');
-    } finally {
-      setBusy(null);
-    }
-  }, []);
-
-  async function saveName(contact: Contact) {
-    setBusy(contact.id);
-    setError(null);
-    try {
-      const data = await api.updateContact(contact.id, { displayName: editName });
-      patchLocal(data.contact as Contact);
-      setEditId(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'error al guardar nombre');
-    } finally {
-      setBusy(null);
-    }
+    try { await fn(); }
+    catch (err) { setError(err instanceof Error ? err.message : 'no se pudo completar la acción'); }
+    finally { setBusy(null); }
   }
 
-  async function unflag(contact: Contact) {
-    setBusy(contact.id);
-    setError(null);
-    try {
-      const data = await api.updateContact(contact.id, { unflag: true });
-      patchLocal(data.contact as Contact);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'error al quitar marca');
-    } finally {
-      setBusy(null);
-    }
-  }
+  const toggle = (contact: Contact) => run(contact, async () => {
+    const data = await api.toggleContact(contact.id, !!contact.botActive);
+    patchLocal(data.contact as Contact);
+  });
 
-  async function archiveOrRestore(contact: Contact) {
-    setBusy(contact.id);
-    setError(null);
-    try {
-      if (contact.archivedAt) await api.restoreContact(contact.id);
-      else await api.archiveContact(contact.id);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'error al archivar');
-    } finally {
-      setBusy(null);
-    }
-  }
+  const saveName = (contact: Contact) => run(contact, async () => {
+    const data = await api.updateContact(contact.id, { displayName: editName });
+    patchLocal(data.contact as Contact);
+    setEditId(null);
+  });
 
-  async function doDelete(contact: Contact) {
-    setBusy(contact.id);
-    setError(null);
-    try {
-      await api.deleteContact(contact.id);
-      setContacts((prev) => prev.filter((c) => c.id !== contact.id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'error al eliminar');
-    } finally {
-      setBusy(null);
-      setConfirmDelete(null);
-    }
+  const unflag = (contact: Contact) => run(contact, async () => {
+    const data = await api.updateContact(contact.id, { unflag: true });
+    patchLocal(data.contact as Contact);
+  });
+
+  const archiveOrRestore = (contact: Contact) => run(contact, async () => {
+    if (contact.archivedAt) await api.restoreContact(contact.id);
+    else await api.archiveContact(contact.id);
+    await load();
+  });
+
+  const doDelete = (contact: Contact) => run(contact, async () => {
+    await api.deleteContact(contact.id);
+    setContacts((prev) => prev.filter((c) => c.id !== contact.id));
+    setConfirmDelete(null);
+  });
+
+  const visible = useMemo(() => {
+    const q = norm(query.trim());
+    return contacts
+      .filter((c) => matchesFilter(c, filter))
+      .filter((c) => q.length === 0 || norm(`${c.displayName ?? ''} ${c.phoneE164}`).includes(q));
+  }, [contacts, filter, query]);
+
+  function actionsFor(contact: Contact) {
+    const disabled = busy === contact.id;
+    return [
+      {
+        label: 'Editar nombre',
+        disabled,
+        onSelect: () => { setEditId(contact.id); setEditName(contact.displayName ?? ''); },
+      },
+      contact.flaggedNonIntake
+        ? { label: 'Ya no es spam', disabled, onSelect: () => void unflag(contact) }
+        : {
+            label: contact.botActive ? 'Pausar el asistente' : 'Reanudar el asistente',
+            disabled,
+            onSelect: () => void toggle(contact),
+          },
+      {
+        label: contact.archivedAt ? 'Restaurar' : 'Archivar',
+        disabled,
+        onSelect: () => void archiveOrRestore(contact),
+      },
+      { label: 'Eliminar…', danger: true, disabled, onSelect: () => setConfirmDelete(contact) },
+    ];
   }
 
   return (
     <div className="contacts">
       <div className="contacts-head">
         <h1>Contactos</h1>
-        <label>
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />{' '}
-          Ver archivados
-        </label>
         <button type="button" onClick={() => void load()} disabled={loading}>
           Refrescar
         </button>
       </div>
 
+      <div className="list-toolbar">
+        <input
+          type="search"
+          className="list-search"
+          placeholder="Buscar por nombre o teléfono"
+          aria-label="Buscar contactos"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="segmented" role="group" aria-label="Filtrar por estado">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className={filter === f.key ? 'segment segment-on' : 'segment'}
+              aria-pressed={filter === f.key}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <p className="error" role="alert">{error}</p>}
       {loading && <p>Cargando…</p>}
-      {error && (
-        <p className="error" role="alert">
-          {error}
+
+      {!loading && (
+        <p className="list-count">
+          {visible.length === contacts.length
+            ? `${visible.length} ${visible.length === 1 ? 'contacto' : 'contactos'}`
+            : `${visible.length} de ${contacts.length} contactos`}
         </p>
       )}
-      {!loading && !error && contacts.length === 0 && <p>No hay contactos todavía.</p>}
 
-      {!loading && !error && contacts.length > 0 && (
-        <table className="contacts-table">
+      {!loading && !error && visible.length === 0 && (
+        <div className="empty-hint">
+          {contacts.length === 0 ? (
+            <p>Aún no hay contactos. Aparecerán aquí en cuanto alguien te escriba por WhatsApp.</p>
+          ) : (
+            <p>Ningún contacto coincide con la búsqueda o el filtro.</p>
+          )}
+        </div>
+      )}
+
+      {!loading && !error && visible.length > 0 && (
+        <table className="data-table contacts-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Teléfono</th>
+              <th>Contacto</th>
               <th>Estado</th>
-              <th></th>
+              <th>Trabajos</th>
+              <th>Última actividad</th>
+              <th><span className="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody>
-            {contacts.map((contact) => {
-              const c = chip(contact);
+            {visible.map((contact) => {
+              const chip = statusChip(contact);
               const isEditing = editId === contact.id;
+              const name = contact.displayName ?? 'Sin nombre';
               return (
-                <tr key={contact.id}>
-                  <td>
+                <tr key={contact.id} className={busy === contact.id ? 'row-busy' : undefined}>
+                  <td data-label="Contacto">
                     {isEditing ? (
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        aria-label="Nombre"
-                      />
-                    ) : (
-                      contact.displayName ?? contact.phoneE164
-                    )}
-                  </td>
-                  <td>{contact.phoneE164}</td>
-                  <td>
-                    <span className={`chip ${c.cls}`}>{c.label}</span>
-                    {contact.archivedAt && <span className="chip chip-paused">Archivado</span>}
-                  </td>
-                  <td className="contacts-actions">
-                    {isEditing ? (
-                      <>
-                        <button type="button" onClick={() => void saveName(contact)} disabled={busy === contact.id}>
+                      <div className="inline-edit">
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          aria-label="Nombre"
+                          autoFocus
+                        />
+                        <button type="button" className="btn-primary" onClick={() => void saveName(contact)} disabled={busy === contact.id}>
                           Guardar
                         </button>
-                        <button type="button" onClick={() => setEditId(null)}>
-                          Cancelar
-                        </button>
-                      </>
+                        <button type="button" onClick={() => setEditId(null)}>Cancelar</button>
+                      </div>
                     ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditId(contact.id);
-                            setEditName(contact.displayName ?? '');
-                          }}
-                        >
-                          Editar
-                        </button>
-                        {contact.flaggedNonIntake && (
-                          <button type="button" onClick={() => void unflag(contact)} disabled={busy === contact.id}>
-                            Quitar spam
-                          </button>
-                        )}
-                        {!contact.flaggedNonIntake && (
-                          <button type="button" onClick={() => void toggle(contact)} disabled={busy === contact.id}>
-                            {contact.botActive ? 'Pausar' : 'Reanudar'}
-                          </button>
-                        )}
-                        <button type="button" onClick={() => void archiveOrRestore(contact)} disabled={busy === contact.id}>
-                          {contact.archivedAt ? 'Restaurar' : 'Archivar'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger"
-                          onClick={() => setConfirmDelete(contact)}
-                          disabled={busy === contact.id}
-                        >
-                          Eliminar
-                        </button>
-                      </>
+                      <div className="cell-stack">
+                        <span className={contact.displayName ? 'cell-title' : 'cell-title cell-muted'}>{name}</span>
+                        <span className="cell-sub">{contact.phoneE164}</span>
+                      </div>
                     )}
+                  </td>
+                  <td data-label="Estado">
+                    <span className={`chip ${chip.cls}`} title={contact.flaggedReason ?? undefined}>
+                      {chip.label}
+                    </span>
+                  </td>
+                  <td data-label="Trabajos">
+                    {contact.jobCount ? (
+                      <Link to={`/?contact=${contact.id}`} className="cell-link">
+                        {contact.jobCount} {contact.jobCount === 1 ? 'trabajo' : 'trabajos'}
+                        {!!contact.openJobCount && (
+                          <span className="cell-sub"> · {contact.openJobCount} abierto{contact.openJobCount === 1 ? '' : 's'}</span>
+                        )}
+                      </Link>
+                    ) : (
+                      <span className="cell-muted">—</span>
+                    )}
+                  </td>
+                  <td data-label="Última actividad" title={absoluteTime(contact.lastMessageAt)}>
+                    {contact.lastMessageAt ? (
+                      contact.lastJobId ? (
+                        <Link to={`/jobs/${contact.lastJobId}`} className="cell-link">
+                          {relativeTime(contact.lastMessageAt)}
+                        </Link>
+                      ) : (
+                        relativeTime(contact.lastMessageAt)
+                      )
+                    ) : (
+                      <span className="cell-muted">—</span>
+                    )}
+                  </td>
+                  <td className="cell-actions">
+                    <RowMenu label={`Acciones de ${name}`} actions={actionsFor(contact)} />
                   </td>
                 </tr>
               );

@@ -3,6 +3,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import IntakeForm, { type Intake, type IntakeSchema } from '../components/IntakeForm';
 import MessageList, { type Message } from '../components/MessageList';
+import Opportunities, { type Opportunity } from '../components/Opportunities';
+import Diagnosis, { type SalesDiagnosis } from '../components/Diagnosis';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 type Contact = {
@@ -15,6 +17,7 @@ type Job = {
   id: string;
   status: string;
   summary?: string | null;
+  outcome?: 'WON' | 'LOST' | null;
   openedAt?: string | null;
   intakeComplete?: boolean;
   contact: Contact;
@@ -33,6 +36,8 @@ export default function JobDetail() {
   const [confirm, setConfirm] = useState<null | 'archive' | 'delete'>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [intake, setIntake] = useState<Intake>({});
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [diagnosis, setDiagnosis] = useState<SalesDiagnosis | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [schema, setSchema] = useState<IntakeSchema>({ sections: [] });
   const [loading, setLoading] = useState(true);
@@ -53,6 +58,14 @@ export default function JobDetail() {
       ]);
       setJob(jobData.job as Job);
       setIntake((jobData.intake ?? {}) as Intake);
+      // `opportunities` viaja dentro del intake; los jobs anteriores a la venta
+      // proactiva no lo traen, de ahí el arreglo vacío por defecto.
+      setOpportunities(
+        (Array.isArray(jobData.intake?.opportunities)
+          ? jobData.intake.opportunities
+          : []) as Opportunity[],
+      );
+      setDiagnosis((jobData.intake?.diagnosis ?? null) as SalesDiagnosis | null);
       setMessages((jobData.messages ?? []) as Message[]);
       setSchema((profile.intakeSchema ?? { sections: [] }) as IntakeSchema);
       if (jobData.job?.summary) setSummary(jobData.job.summary);
@@ -67,12 +80,12 @@ export default function JobDetail() {
     void load();
   }, [load]);
 
-  async function runAction(action: 'mark_ready' | 'close') {
+  async function runAction(action: 'mark_ready' | 'close', outcome?: 'WON' | 'LOST') {
     if (!id) return;
     setActionBusy(true);
     setActionError(null);
     try {
-      await api.jobAction(id, action, action === 'mark_ready' ? summary : undefined);
+      await api.jobAction(id, action, action === 'mark_ready' ? summary : undefined, outcome);
       await load();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'error en la acción');
@@ -132,6 +145,11 @@ export default function JobDetail() {
         <h1>{name}</h1>
         <div className="job-detail-sub">
           <span className={`badge badge-${job.status}`}>{statusLabel}</span>
+          {job.outcome && (
+            <span className={`badge badge-opp-${job.outcome === 'WON' ? 'accepted' : 'declined'}`}>
+              {job.outcome === 'WON' ? 'Ganado' : 'Perdido'}
+            </span>
+          )}
           <span className="job-detail-phone">{job.contact.phoneE164}</span>
         </div>
       </div>
@@ -145,6 +163,12 @@ export default function JobDetail() {
             intake={intake}
             onChanged={() => void load()}
           />
+
+          <h2>Qué descubrió el asistente</h2>
+          <Diagnosis diagnosis={diagnosis} />
+
+          <h2>Servicios adicionales</h2>
+          <Opportunities items={opportunities} />
         </section>
 
         <section className="job-detail-col">
@@ -178,10 +202,19 @@ export default function JobDetail() {
               </button>
               <button
                 type="button"
-                onClick={() => void runAction('close')}
+                onClick={() => void runAction('close', 'WON')}
                 disabled={actionBusy}
+                title="El cliente contrató el trabajo"
               >
-                Cerrar
+                Cerrar · ganado
+              </button>
+              <button
+                type="button"
+                onClick={() => void runAction('close', 'LOST')}
+                disabled={actionBusy}
+                title="El cliente no contrató"
+              >
+                Cerrar · perdido
               </button>
               <button type="button" onClick={() => setConfirm('archive')} disabled={actionBusy}>
                 Archivar

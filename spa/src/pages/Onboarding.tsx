@@ -2,6 +2,48 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, type OnboardingState } from '../api/client';
 
+type Step = OnboardingState['step'];
+
+/**
+ * Etiqueta humana de cada paso. Antes se imprimía la clave interna
+ * ("Paso: awaiting_approval"), que no le dice nada a un dueño de taller.
+ */
+const STEP_LABELS: Record<Step, string> = {
+  verify_email: 'Verifica tu correo',
+  subscription: 'Activa tu suscripción',
+  provisioning: 'Preparando tu asistente',
+  business: 'Datos de tu negocio',
+  welcome: 'Mensaje de bienvenida',
+  schema: 'Qué datos pedir',
+  awaiting_approval: 'Cuenta en revisión',
+  whatsapp: 'Conecta tu WhatsApp',
+  test: 'Prueba que responde',
+  checklist: 'Todo listo',
+  done: 'Listo',
+};
+
+// Orden visible para el indicador de avance. `provisioning` y `awaiting_approval`
+// son esperas, no pasos que el usuario complete: no cuentan en el total.
+const PROGRESS_STEPS: Step[] = [
+  'verify_email',
+  'subscription',
+  'business',
+  'welcome',
+  'schema',
+  'whatsapp',
+  'test',
+  'checklist',
+];
+
+function progressFor(step: Step, mode?: string): { current: number; total: number } | null {
+  const steps = mode === 'approval'
+    ? PROGRESS_STEPS.filter((s) => s !== 'subscription')
+    : PROGRESS_STEPS;
+  const idx = steps.indexOf(step);
+  if (idx < 0) return null;
+  return { current: idx + 1, total: steps.length };
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const [state, setState] = useState<OnboardingState | null>(null);
@@ -40,12 +82,26 @@ export default function Onboarding() {
   if (error && !state) return <div className="onboarding"><p role="alert" className="error">{error}</p></div>;
   if (!state) return <div className="onboarding"><p>Cargando…</p></div>;
 
+  const progress = progressFor(state.step, state.mode);
+
   return (
     <div className="onboarding">
       <h1>Configura tu cuenta</h1>
-      <p data-testid="onboarding-step">Paso: {state.step}</p>
+      {progress && (
+        <div className="onboarding-progress">
+          <div className="onboarding-bar" aria-hidden="true">
+            <span style={{ width: `${(progress.current / progress.total) * 100}%` }} />
+          </div>
+          <p data-testid="onboarding-step">
+            Paso {progress.current} de {progress.total} · {STEP_LABELS[state.step]}
+          </p>
+        </div>
+      )}
+      {!progress && <p data-testid="onboarding-step">{STEP_LABELS[state.step] ?? state.step}</p>}
       {error && <p role="alert" className="error">{error}</p>}
-      <Step state={state} busy={busy} act={act} navigate={navigate} refresh={refresh} />
+      <div className="onboarding-card">
+        <Step state={state} busy={busy} act={act} navigate={navigate} refresh={refresh} />
+      </div>
     </div>
   );
 }
@@ -57,20 +113,24 @@ function Step({ state, busy, act, navigate, refresh }: {
 }) {
   switch (state.step) {
     case 'verify_email':
-      return <div><p>Verifica tu correo con el enlace que te enviamos. ¿No llegó?</p>
-        <button disabled={busy} onClick={() => act(() => api.resendVerification(''))}>Reenviar (usa tu email)</button></div>;
+      return <VerifyEmailStep busy={busy} act={act} />;
     case 'subscription':
-      return <button disabled={busy} onClick={() => act(async () => { const { url } = await api.startCheckout(); window.location.href = url; })}>Suscribirme</button>;
+      return <div>
+        <p>Activa tu suscripción para que tu asistente empiece a atender.</p>
+        <button className="btn-primary" disabled={busy} onClick={() => act(async () => { const { url } = await api.startCheckout(); window.location.href = url; })}>Suscribirme</button>
+      </div>;
     case 'provisioning':
-      return <div><p>Preparando tu bot… esto tarda unos segundos.</p>
+      return <div><p>Preparando tu asistente… esto tarda unos segundos.</p>
         <button disabled={busy} onClick={() => refresh()}>Actualizar</button></div>;
     case 'business':
       return <BusinessStep busy={busy} act={act} />;
     case 'welcome':
       return <WelcomeStep busy={busy} act={act} />;
     case 'schema':
-      return <div><p>Tu formulario de intake viene precargado según tu giro. Puedes editarlo luego en Configuración.</p>
-        <button disabled={busy} onClick={() => act(() => api.patchOnboardingSchema(undefined))}>Usar la plantilla y continuar</button></div>;
+      return <div>
+        <p>Tu asistente ya sabe qué datos pedir según tu giro. Puedes ajustarlo después en Configuración.</p>
+        <button className="btn-primary" disabled={busy} onClick={() => act(() => api.patchOnboardingSchema(undefined))}>Usar la plantilla y continuar</button>
+      </div>;
     case 'awaiting_approval':
       return <div data-testid="awaiting-approval">
         <h2>Tu cuenta está en revisión</h2>
@@ -82,33 +142,72 @@ function Step({ state, busy, act, navigate, refresh }: {
     case 'whatsapp':
       return <WhatsAppStep busy={busy} act={act} />;
     case 'test':
-      return <div><p>Envía un WhatsApp de prueba a tu bot y confirma que responde.</p>
-        <button disabled={busy} onClick={() => act(() => api.onboardingFlag({ testDone: true }))}>Ya hice la prueba</button></div>;
+      return <div>
+        <p>Mándale un WhatsApp a tu propio número desde otro teléfono y confirma que el asistente responde.</p>
+        <button className="btn-primary" disabled={busy} onClick={() => act(() => api.onboardingFlag({ testDone: true }))}>Ya hice la prueba</button>
+      </div>;
     case 'checklist':
       return <div>
-        <p>¡Todo listo! Email verificado, {state.mode === 'approval' ? 'cuenta aprobada' : 'suscripción activa'}, bot vinculado, configuración guardada y prueba exitosa.</p>
-        <button disabled={busy} onClick={() => act(async () => { await api.completeOnboarding(); navigate('/'); })}>Ir al panel</button>
+        <p>¡Todo listo! Correo verificado, {state.mode === 'approval' ? 'cuenta aprobada' : 'suscripción activa'}, WhatsApp conectado, configuración guardada y prueba exitosa.</p>
+        <button className="btn-primary" disabled={busy} onClick={() => act(async () => { await api.completeOnboarding(); navigate('/'); })}>Ir al panel</button>
       </div>;
     default:
       return <p>Redirigiendo…</p>;
   }
 }
 
+/**
+ * El reenvío exige el correo: el endpoint valida formato de email y la versión
+ * anterior mandaba una cadena vacía, así que el botón siempre daba 400.
+ */
+function VerifyEmailStep({ busy, act }: { busy: boolean; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  return <div>
+    <p>Te enviamos un enlace de verificación. Ábrelo para continuar.</p>
+    <p className="onboarding-hint">¿No te llegó? Revisa el correo no deseado o pídelo de nuevo.</p>
+    <label>Tu correo
+      <input
+        type="email"
+        value={email}
+        placeholder="tu@correo.com"
+        onChange={(e) => { setEmail(e.target.value); setSent(false); }}
+      />
+    </label>
+    <button
+      disabled={busy || !email.includes('@')}
+      onClick={() => act(async () => { await api.resendVerification(email); setSent(true); })}
+    >
+      Reenviar enlace
+    </button>
+    {sent && <p className="onboarding-ok">Si ese correo tiene una cuenta pendiente, ya va en camino.</p>}
+  </div>;
+}
+
 function BusinessStep({ busy, act }: { busy: boolean; act: (fn: () => Promise<unknown>) => Promise<void> }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   return <div>
-    <label>Nombre del negocio<input value={name} onChange={(e) => setName(e.target.value)} /></label>
-    <label>WhatsApp del dueño (para avisos)<input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+52..." /></label>
-    <button disabled={busy} onClick={() => act(() => api.patchOnboardingBusiness({ businessName: name || undefined, ownerPhoneE164: phone || undefined }))}>Guardar y continuar</button>
+    <label>Nombre del negocio<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Wrap Studio MX" /></label>
+    <label>Tu WhatsApp (aquí te avisamos de cada trabajo listo)
+      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+52 55 1234 5678" />
+    </label>
+    <button className="btn-primary" disabled={busy} onClick={() => act(() => api.patchOnboardingBusiness({ businessName: name || undefined, ownerPhoneE164: phone || undefined }))}>Guardar y continuar</button>
   </div>;
 }
 
 function WelcomeStep({ busy, act }: { busy: boolean; act: (fn: () => Promise<unknown>) => Promise<void> }) {
   const [welcome, setWelcome] = useState('');
   return <div>
-    <label>Mensaje de bienvenida<textarea value={welcome} onChange={(e) => setWelcome(e.target.value)} /></label>
-    <button disabled={busy || !welcome} onClick={() => act(() => api.patchOnboardingWelcome(welcome))}>Guardar y continuar</button>
+    <label>Mensaje de bienvenida
+      <textarea
+        value={welcome}
+        onChange={(e) => setWelcome(e.target.value)}
+        placeholder="¡Hola! Soy el asistente de… ¿En qué te puedo ayudar?"
+      />
+    </label>
+    <p className="onboarding-hint">Es lo primero que lee un cliente que te escribe por primera vez.</p>
+    <button className="btn-primary" disabled={busy || !welcome} onClick={() => act(() => api.patchOnboardingWelcome(welcome))}>Guardar y continuar</button>
   </div>;
 }
 
@@ -125,9 +224,10 @@ function WhatsAppStep({ busy, act }: { busy: boolean; act: (fn: () => Promise<un
     return () => { alive = false; clearInterval(t); };
   }, []);
   return <div>
-    <p>Escanea el código con WhatsApp → Dispositivos vinculados.</p>
+    <p>En tu teléfono abre <strong>WhatsApp → Dispositivos vinculados → Vincular un dispositivo</strong> y escanea este código.</p>
     {qr && !connected && <pre data-testid="qr">{qr}</pre>}
-    {connected && <p>✅ Conectado.</p>}
-    <button disabled={busy || !connected} onClick={() => act(() => api.onboardingFlag({ whatsappLinked: true }))}>Continuar</button>
+    {!qr && !connected && <p className="onboarding-hint">Generando el código…</p>}
+    {connected && <p className="onboarding-ok">✅ Conectado.</p>}
+    <button className="btn-primary" disabled={busy || !connected} onClick={() => act(() => api.onboardingFlag({ whatsappLinked: true }))}>Continuar</button>
   </div>;
 }
