@@ -178,6 +178,47 @@ describe('POST /settings/assist/chat', () => {
     expect((row!.intakeSchema as any).sections).toHaveLength(1);
   });
 
+  it('sirve para EDITAR un tenant ya configurado, no solo para el alta', async () => {
+    // No hay puerta de onboarding: lo único que exige es rol admin. El asistente
+    // recibe lo que ya está puesto y propone el cambio sobre eso.
+    const fetcher = fakeLlm({
+      reply: 'Cambio el horario del sábado, ¿algo más?',
+      patch: { facts: [{ topic: 'horarios', answer: 'Sábados abrimos hasta las 4.' }] },
+      done: false,
+    });
+    app = await buildTestApp({ assistDeps: { apiKey: 'k', fetcher } });
+    const { tenantId, adminId } = await seedTenant();
+
+    const yaConfigurado = {
+      ...SNAPSHOT,
+      welcome: 'Hola, ¿en qué te ayudo?',
+      tone: 'cercano',
+      facts: [{ topic: 'horarios', answer: 'Lunes a viernes de 9 a 7.' }],
+      sections: [{ label: 'Cliente', fields: [{ label: 'Nombre', type: 'string', required: true }] }],
+    };
+    const res = await app.inject({
+      method: 'POST', url: '/settings/assist/chat', headers: auth(tenantId, adminId),
+      payload: {
+        messages: [
+          { role: 'user', content: 'quiero cambiar los horarios' },
+          { role: 'assistant', content: '¿Qué horario nuevo?' },
+          { role: 'user', content: 'los sábados ahora cerramos a las 4' },
+        ],
+        snapshot: yaConfigurado,
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().patch.facts[0].answer).toContain('4');
+
+    // El modelo vio lo que YA estaba configurado, no un formulario en blanco.
+    const body = JSON.parse((fetcher as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    const estado = body.messages[1].content;
+    expect(estado).toContain('Lunes a viernes de 9 a 7');
+    expect(estado).toContain('Hola, ¿en qué te ayudo?');
+    // Y el hilo completo, no solo el último mensaje.
+    expect(body.messages).toHaveLength(5);
+  });
+
   it('funciona sin snapshot: el panel puede no mandarlo', async () => {
     app = await buildTestApp({ assistDeps: { apiKey: 'k', fetcher: fakeLlm({ reply: 'hola', done: false }) } });
     const { tenantId, adminId } = await seedTenant();

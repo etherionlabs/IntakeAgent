@@ -372,3 +372,25 @@ test('el asistente ve lo que hay en el formulario, incluso sin guardar', async (
   // así que no lo vuelve a proponer.
   expect(mockAssistChat.mock.calls[1][1].businessDomain).toBe('tapicería de sillones');
 });
+
+test('la conversación sobrevive a ir y volver de otra pestaña', async () => {
+  // El propio panel invita a revisar los cambios en las otras pestañas. Si al
+  // volver el hilo se ha perdido, el asistente solo sirve para la primera vez.
+  await renderWithAssistant();
+  mockAssistChat.mockResolvedValue({
+    ok: true,
+    reply: 'Anotado, ¿qué te preguntan más?',
+    patch: { businessName: 'Tapicería El Roble' },
+    done: false,
+  });
+
+  say('nos llamamos Tapicería El Roble');
+  await waitFor(() => expect(screen.getByText('Anotado, ¿qué te preguntan más?')).toBeInTheDocument());
+
+  goTo('Tu negocio');
+  expect(screen.getByDisplayValue('Tapicería El Roble')).toBeInTheDocument();
+
+  goTo('Asistente');
+  expect(screen.getByText('Anotado, ¿qué te preguntan más?')).toBeInTheDocument();
+  expect(screen.getByText('nos llamamos Tapicería El Roble')).toBeInTheDocument();
+});

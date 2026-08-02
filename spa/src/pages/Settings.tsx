@@ -12,7 +12,7 @@ import {
 } from '../api/client';
 import FieldsEditor, { sectionsFromSuggestion } from '../components/FieldsEditor';
 import AssistBox from '../components/AssistBox';
-import ConfigChat from '../components/ConfigChat';
+import ConfigChat, { emptyChat, type ChatState } from '../components/ConfigChat';
 
 type TabKey = 'asistente' | 'negocio' | 'datos' | 'saber' | 'atiende' | 'avanzado';
 
@@ -63,6 +63,9 @@ export default function Settings() {
   const [assistOn, setAssistOn] = useState(false);
   /** El asistente conversacional aplicó cambios al formulario y siguen sin guardar. */
   const [chatDirty, setChatDirty] = useState(false);
+  // El hilo vive aquí, no en el componente: cambiar de pestaña lo desmonta, y el
+  // panel invita justo a ir a revisar los cambios en las otras pestañas.
+  const [chat, setChat] = useState<ChatState>(emptyChat);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -250,6 +253,8 @@ export default function Settings() {
           </p>
           <ConfigChat
             snapshot={snapshot}
+            state={chat}
+            onState={setChat}
             onPatch={applyPatch}
             onSaveAll={() => void saveAll()}
             saving={saving === 'asistente'}

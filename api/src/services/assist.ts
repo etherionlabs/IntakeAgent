@@ -282,6 +282,8 @@ const CHAT_SYSTEM =
   `Cuando propongas algo, deja claro que no se guarda hasta que él lo revise. ` +
   `${COMMON_RULES}`;
 
+const truncar = (s: string, max: number): string => (s.length <= max ? s : `${s.slice(0, max)}…`);
+
 /** Resumen del formulario para el modelo: qué hay puesto y qué falta. */
 function snapshotForPrompt(snap: ConfigSnapshot): string {
   const fields = snap.sections
@@ -293,7 +295,12 @@ function snapshotForPrompt(snap: ConfigSnapshot): string {
     `Bienvenida: ${snap.welcome || '(sin poner)'}`,
     `Tono: ${snap.tone || '(sin poner)'}`,
     `Datos que pide al cliente:\n${fields || '  (ninguno)'}`,
-    `Temas que ya sabe responder: ${snap.facts.map((f) => f.topic).join(', ') || '(ninguno)'}`,
+    // Con el tema solo no se puede EDITAR: para cambiar un horario hay que ver
+    // el que está puesto. Se recorta la respuesta porque el resumen viaja en
+    // cada turno y algunos negocios cargan datos largos.
+    `Lo que ya sabe responder:\n${
+      snap.facts.map((f) => `  ${f.topic}: ${truncar(f.answer, 140)}`).join('\n') || '  (nada)'
+    }`,
     `Notas libres: ${snap.freeContext || '(ninguna)'}`,
   ].join('\n');
 }

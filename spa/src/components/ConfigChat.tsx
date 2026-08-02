@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { api, type ChatTurn, type ConfigPatch, type ConfigSnapshot } from '../api/client';
 
 /**
@@ -48,27 +48,51 @@ function greeting(businessName: string): string {
     : 'Hola. Te acompaño a dejar listo tu asistente sin que tengas que pelearte con formularios. Para empezar: ¿cómo se llama tu negocio y a qué se dedica?';
 }
 
+/**
+ * El hilo vive FUERA del componente, en la página.
+ *
+ * La pestaña se desmonta al cambiar de sección, y el panel invita justo a eso:
+ * «revísalo en las otras pestañas antes de guardar». Con el estado dentro, ir a
+ * comprobar un cambio y volver borraba la conversación, y el asistente solo
+ * servía para la primera vez.
+ */
+export interface ChatState {
+  messages: Msg[];
+  /** Lo que hay escrito sin enviar: tampoco se pierde al cambiar de pestaña. */
+  text: string;
+  done: boolean;
+}
+
+export const emptyChat = (): ChatState => ({ messages: [], text: '', done: false });
+
 export default function ConfigChat({
   snapshot,
+  state,
+  onState,
   onPatch,
   onSaveAll,
   saving,
   dirty,
 }: {
   snapshot: ConfigSnapshot;
+  state: ChatState;
+  /** Igual que un setState de React: acepta actualizador para no leer estado viejo. */
+  onState: Dispatch<SetStateAction<ChatState>>;
   onPatch: (patch: ConfigPatch) => void;
   onSaveAll: () => void;
   saving: boolean;
   /** Hay cambios aplicados al formulario sin guardar. */
   dirty: boolean;
 }) {
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant', content: greeting(snapshot.businessName) },
-  ]);
-  const [text, setText] = useState('');
+  // El saludo no se guarda en el estado: es deterministic y así el hilo vacío
+  // sigue siendo vacío.
+  const apertura: Msg = { role: 'assistant', content: greeting(snapshot.businessName) };
+  const messages = [apertura, ...state.messages];
+  const text = state.text;
+  const done = state.done;
+  const setText = (next: string) => onState((prev) => ({ ...prev, text: next }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   // El turno nuevo aparece abajo: sin esto el dueño se queda mirando el principio
@@ -89,8 +113,14 @@ export default function ConfigChat({
       const res = await api.assistChat(turns, snapshot);
       const applied = res.patch ? describePatch(res.patch) : [];
       if (res.patch) onPatch(res.patch);
-      setMessages([...history, { role: 'assistant', content: res.reply, applied: applied.length ? applied : undefined }]);
-      setDone(res.done);
+      onState((prev) => ({
+        ...prev,
+        messages: [
+          ...history,
+          { role: 'assistant' as const, content: res.reply, applied: applied.length ? applied : undefined },
+        ].slice(1),
+        done: res.done,
+      }));
     } catch (err) {
       // El turno del dueño se queda en pantalla: reintentar es un clic, no
       // volver a escribirlo.
@@ -104,8 +134,7 @@ export default function ConfigChat({
     const content = text.trim();
     if (!content || busy) return;
     const next: Msg[] = [...messages, { role: 'user', content }];
-    setMessages(next);
-    setText('');
+    onState((prev) => ({ ...prev, messages: next.slice(1), text: '' }));
     void send(next);
   }
 

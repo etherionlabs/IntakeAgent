@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { vi, beforeEach, test, expect } from 'vitest';
-import ConfigChat from './ConfigChat';
+import ConfigChat, { emptyChat, type ChatState } from './ConfigChat';
 import type { ConfigSnapshot } from '../api/client';
 
 vi.mock('../api/client', () => ({ api: { assistChat: vi.fn() } }));
@@ -20,19 +21,30 @@ const SNAPSHOT: ConfigSnapshot = {
 
 beforeEach(() => mockChat.mockReset());
 
+/**
+ * El hilo lo lleva la página, así que el test hace de página: guarda el estado
+ * y lo vuelve a pintar, igual que Settings.
+ */
 function setup(props: Partial<Parameters<typeof ConfigChat>[0]> = {}) {
   const onPatch = vi.fn();
   const onSaveAll = vi.fn();
-  render(
-    <ConfigChat
-      snapshot={SNAPSHOT}
-      onPatch={onPatch}
-      onSaveAll={onSaveAll}
-      saving={false}
-      dirty={false}
-      {...props}
-    />,
-  );
+
+  function Host() {
+    const [state, setState] = useState<ChatState>(emptyChat);
+    return (
+      <ConfigChat
+        snapshot={SNAPSHOT}
+        state={state}
+        onState={setState}
+        onPatch={onPatch}
+        onSaveAll={onSaveAll}
+        saving={false}
+        dirty={false}
+        {...props}
+      />
+    );
+  }
+  render(<Host />);
   return { onPatch, onSaveAll };
 }
 
@@ -118,4 +130,17 @@ test('con cambios sin guardar ofrece guardar todo', () => {
 test('sin cambios pendientes no hay botón de guardar', () => {
   setup();
   expect(screen.queryByRole('button', { name: 'Guardar todo' })).toBeNull();
+});
+
+test('tras enviar, el cuadro de texto queda vacío', async () => {
+  // La respuesta llega después: si el turno se escribe leyendo el estado de
+  // cuando se envió, el borrador ya enviado reaparece al recibir la respuesta.
+  mockChat.mockResolvedValue({ ok: true, reply: 'Anotado.', patch: null, done: false });
+  setup();
+
+  type('abrimos de 9 a 7');
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+  await waitFor(() => expect(screen.getByText('Anotado.')).toBeTruthy());
+
+  expect((screen.getByLabelText('Escríbele a tu asistente') as HTMLTextAreaElement).value).toBe('');
 });
