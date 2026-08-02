@@ -6,8 +6,15 @@ vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
   return {
     ...actual,
-    api: { getIndustries: vi.fn().mockResolvedValue({ industries: [{ value: 'generico', label: 'Otro / Servicios' }, { value: 'mecanica', label: 'Mecánica automotriz' }] }) },
     platformApi: {
+      // Catálogo del panel: incluye los giros internos, que el público omite.
+      getIndustries: vi.fn().mockResolvedValue({
+        industries: [
+          { value: 'generico', label: 'Otro / Servicios', internal: false },
+          { value: 'mecanica', label: 'Mecánica automotriz', internal: false },
+          { value: 'intake', label: 'Etherion Labs (interno)', internal: true },
+        ],
+      }),
       getTenants: vi.fn(),
       getTenantUsers: vi.fn(),
       createTenant: vi.fn(),
@@ -51,4 +58,14 @@ test('eliminar exige escribir el slug', async () => {
   fireEvent.change(input, { target: { value: 'demo' } });
   fireEvent.click(screen.getByRole('button', { name: /Confirmar/i }));
   await waitFor(() => expect(platformApi.deleteTenant).toHaveBeenCalledWith('t1', 'demo'));
+});
+
+test('el selector de giro ofrece los internos, marcados como tales', async () => {
+  // El panel del superadmin leía el catálogo PÚBLICO, que omite los internos a
+  // propósito: el giro con el que nos vendemos no aparecía en el único sitio
+  // desde el que se puede crear ese tenant.
+  render(<PlatformDashboard />);
+
+  const opcion = await screen.findByRole('option', { name: /Etherion Labs \(interno\) · uso interno/ });
+  expect((opcion as HTMLOptionElement).value).toBe('intake');
 });

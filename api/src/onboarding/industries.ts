@@ -38,10 +38,30 @@ export const INDUSTRY_DOMAIN: Record<Industry, string> = Object.fromEntries(
 
 export const INDUSTRIES: Industry[] = INDUSTRY_CATALOG.map((i) => i.value);
 
+function isInternal(i: IndustryDef): boolean {
+  return 'internal' in i && i.internal === true;
+}
+
 /** Forma pública para la SPA: sin el dominio interno y sin los giros internos. */
 export function industryOptions(): { value: string; label: string }[] {
-  return INDUSTRY_CATALOG.filter((i) => !('internal' in i && i.internal)).map(({ value, label }) => ({
+  return INDUSTRY_CATALOG.filter((i) => !isInternal(i)).map(({ value, label }) => ({
     value,
     label,
+  }));
+}
+
+/**
+ * Catálogo COMPLETO para el panel del superadmin, con los giros internos.
+ *
+ * El panel del superadmin se alimentaba del catálogo público, así que marcar un
+ * giro como interno lo escondía también de quien tiene que poder usarlo — que
+ * era justo lo contrario de la intención. `internal` viaja para poder señalarlo
+ * en el selector.
+ */
+export function allIndustryOptions(): { value: string; label: string; internal: boolean }[] {
+  return INDUSTRY_CATALOG.map((i) => ({
+    value: i.value,
+    label: i.label,
+    internal: isInternal(i),
   }));
 }

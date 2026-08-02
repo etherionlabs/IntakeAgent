@@ -33,3 +33,42 @@ describe('catálogo de giros', () => {
     }
   });
 });
+
+describe('catálogo del panel del superadmin', () => {
+  /** Token de plataforma para las rutas /platform/*. */
+  async function platformHeader(app: Awaited<ReturnType<typeof buildTestApp>>) {
+    const bcrypt = (await import('bcryptjs')).default;
+    const { testPrisma } = await import('./helpers/app');
+    await testPrisma.platformUser.create({
+      data: {
+        username: `sa-${Date.now()}@x.com`,
+        passwordHash: await bcrypt.hash('supersecret', 8),
+        role: 'superadmin',
+      },
+    });
+    const user = await testPrisma.platformUser.findFirst({ orderBy: { createdAt: 'desc' } });
+    return { authorization: `Bearer ${app.jwt.sign({ userId: user!.id, scope: 'platform', role: 'superadmin' })}` };
+  }
+
+  it('incluye los giros internos, que el alta pública omite', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({
+      method: 'GET', url: '/platform/industries', headers: await platformHeader(app),
+    });
+    expect(res.statusCode).toBe(200);
+    const values = res.json().industries.map((i: any) => i.value);
+    // El giro con el que nos vendemos solo se puede crear desde aquí: si no
+    // aparece, no hay forma de dar de alta ese tenant.
+    expect(values).toContain('intake');
+    expect(values).toHaveLength(INDUSTRY_CATALOG.length);
+    // Y viene marcado, para que el selector pueda distinguirlo.
+    expect(res.json().industries.find((i: any) => i.value === 'intake').internal).toBe(true);
+    expect(res.json().industries.find((i: any) => i.value === 'mecanica').internal).toBe(false);
+  });
+
+  it('sin token de plataforma no se sirve', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/platform/industries' });
+    expect(res.statusCode).toBe(401);
+  });
+});

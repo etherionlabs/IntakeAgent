@@ -336,10 +336,13 @@ la cabecera), y el sistema los mantiene separados:
 El giro `intake` es el asistente con el que **Etherion Labs** vende Intake y su
 Partner Program. La demo es que el prospecto lo esté usando mientras pregunta.
 
-Está marcado como `internal: true` en el catálogo de giros: el superadmin puede
-crear tenants con él, pero **no aparece en el alta pública** — un prospecto no
-debe poder registrarse como «Etherion Labs» y quedarse con el guion de venta del
-propio producto.
+Está marcado como `internal: true` en el catálogo de giros: **no aparece en el
+alta pública** (`GET /onboarding/industries`) — un prospecto no debe poder
+registrarse como «Etherion Labs» y quedarse con el guion de venta del propio
+producto — pero sí en el panel del superadmin, que se alimenta de
+`GET /platform/industries` (el catálogo completo, con los internos marcados).
+Son dos endpoints a propósito: si el panel usara el público, el giro no
+aparecería en el único sitio desde el que se puede crear ese tenant.
 
 Atiende **dos conversaciones distintas** y lo primero que hace es averiguar en
 cuál está: un negocio que quiere Intake para sus propios clientes, o alguien que

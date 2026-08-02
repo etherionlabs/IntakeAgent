@@ -152,6 +152,11 @@ export const platformApi = {
   login: (username: string, password: string) =>
     platformRequest<{ token: string; user: PlatformUser }>('POST', '/platform/auth/login', { username, password }, null),
   getTenants: () => platformRequest<{ tenants: PlatformTenant[] }>('GET', '/platform/tenants'),
+  // Catálogo completo, con los giros internos: el público los omite a propósito.
+  getIndustries: () =>
+    platformRequest<{ industries: { value: string; label: string; internal: boolean }[] }>(
+      'GET', '/platform/industries',
+    ),
   createTenant: (payload: CreateTenantPayload) =>
     platformRequest<{ tenant: PlatformTenant }>('POST', '/platform/tenants', payload),
   getTenantUsers: (tenantId: string) =>

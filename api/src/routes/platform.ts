@@ -9,6 +9,7 @@ import { getEmailSender, type EmailSender } from '../lib/email';
 import { freeMonthlyRunLimit } from '../env';
 import { hardDeleteTenant } from '../services/tenantDeletion';
 import { seedTenantSettingsFromTemplate, type Industry } from '../onboarding/templates';
+import { allIndustryOptions } from '../onboarding/industries';
 
 const PlatformLoginZ = z.object({
   username: z.string().min(1),
@@ -58,6 +59,16 @@ export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typ
 
   app.get('/platform/me', { preHandler: app.authenticatePlatform }, async (request) => ({
     user: request.platformUser,
+  }));
+
+  /**
+   * Catálogo COMPLETO de giros, incluidos los internos. El panel del superadmin
+   * no puede usar `/onboarding/industries`: ese es el del alta pública y omite
+   * los internos a propósito, así que el giro con el que nos vendemos a nosotros
+   * mismos no aparecía en el selector de quien tiene que poder crearlo.
+   */
+  app.get('/platform/industries', { preHandler: app.authenticatePlatform }, async () => ({
+    industries: allIndustryOptions(),
   }));
 
   app.get('/platform/tenants', { preHandler: app.authenticatePlatform }, async () => {

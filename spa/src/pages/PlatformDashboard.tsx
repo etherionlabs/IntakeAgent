@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   ApiError,
-  api,
   platformApi,
   type PlatformTenant,
   type PlatformTenantUser,
 } from '../api/client';
 
 // Fallback si el catálogo del backend no responde.
-const FALLBACK_TEMPLATES = [{ value: 'generico', label: 'Otro / Servicios' }];
+type Template = { value: string; label: string; internal?: boolean };
+const FALLBACK_TEMPLATES: Template[] = [{ value: 'generico', label: 'Otro / Servicios' }];
 
 export default function PlatformDashboard() {
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
@@ -23,7 +23,7 @@ export default function PlatformDashboard() {
     industry: 'generico',
     profileDir: './profiles/generico',
   });
-  const [templates, setTemplates] = useState(FALLBACK_TEMPLATES);
+  const [templates, setTemplates] = useState<Template[]>(FALLBACK_TEMPLATES);
   const [userForm, setUserForm] = useState({ username: 'dueno', email: '', password: '' });
   // Modal de borrado: exige escribir el slug del tenant.
   const [deleting, setDeleting] = useState<PlatformTenant | null>(null);
@@ -63,9 +63,11 @@ export default function PlatformDashboard() {
     void loadTenants();
   }, [loadTenants]);
 
-  // Catálogo de plantillas/giros (público). Alimenta el selector del form.
+  // Catálogo de plantillas/giros. Se pide al endpoint del panel, NO al público:
+  // ese omite los giros internos y dejaba fuera del selector justo el que solo
+  // el superadmin puede usar.
   useEffect(() => {
-    api.getIndustries()
+    platformApi.getIndustries()
       .then((r) => { if (r.industries?.length) setTemplates(r.industries); })
       .catch(() => {});
   }, []);
@@ -176,7 +178,11 @@ export default function PlatformDashboard() {
               value={tenantForm.industry}
               onChange={(e) => setTenantForm({ ...tenantForm, industry: e.target.value, profileDir: `./profiles/${e.target.value}` })}
             >
-              {templates.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {templates.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.internal ? `${t.label} · uso interno` : t.label}
+                </option>
+              ))}
             </select>
           </label>
           <button type="submit">Crear tenant</button>
