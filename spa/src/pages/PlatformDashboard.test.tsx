@@ -69,3 +69,29 @@ test('el selector de giro ofrece los internos, marcados como tales', async () =>
   const opcion = await screen.findByRole('option', { name: /Etherion Labs \(interno\) · uso interno/ });
   expect((opcion as HTMLOptionElement).value).toBe('intake');
 });
+
+test('el slug se deriva del nombre, sin mayúsculas ni espacios', async () => {
+  // «Palatine detail» se enviaba tal cual y el API lo rechazaba con un genérico
+  // «tenant invalido» que no decía cuál de los cuatro campos fallaba.
+  (platformApi.createTenant as any).mockResolvedValue({ tenant: TENANT });
+  render(<PlatformDashboard />);
+  await screen.findByRole('heading', { name: 'Demo' });
+
+  fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Palatine detail' } });
+  expect((screen.getByLabelText(/^Slug/) as HTMLInputElement).value).toBe('palatine-detail');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Crear tenant' }));
+  await waitFor(() => expect(platformApi.createTenant).toHaveBeenCalled());
+  expect((platformApi.createTenant as any).mock.calls[0][0].slug).toBe('palatine-detail');
+});
+
+test('un slug escrito a mano se normaliza y deja de seguir al nombre', async () => {
+  render(<PlatformDashboard />);
+  await screen.findByRole('heading', { name: 'Demo' });
+
+  fireEvent.change(screen.getByLabelText(/^Slug/), { target: { value: 'Etherion Labs' } });
+  expect((screen.getByLabelText(/^Slug/) as HTMLInputElement).value).toBe('etherion-labs');
+
+  fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Otra cosa' } });
+  expect((screen.getByLabelText(/^Slug/) as HTMLInputElement).value).toBe('etherion-labs');
+});

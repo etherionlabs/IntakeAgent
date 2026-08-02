@@ -6,6 +6,21 @@ import {
   type PlatformTenantUser,
 } from '../api/client';
 
+/**
+ * Slug con las reglas que exige el API (`^[a-z0-9-]+$`): minúsculas, sin
+ * acentos, guiones en vez de espacios. Se deriva del nombre para que nadie
+ * tenga que conocer el formato — escribir «Palatine detail» y que el alta
+ * fallara con «tenant invalido» era el camino corto a perder cinco minutos.
+ */
+function toSlug(input: string): string {
+  return input
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
 // Fallback si el catálogo del backend no responde.
 type Template = { value: string; label: string; internal?: boolean };
 const FALLBACK_TEMPLATES: Template[] = [{ value: 'generico', label: 'Otro / Servicios' }];
@@ -24,6 +39,8 @@ export default function PlatformDashboard() {
     profileDir: './profiles/generico',
   });
   const [templates, setTemplates] = useState<Template[]>(FALLBACK_TEMPLATES);
+  // Mientras no lo toque a mano, el slug sigue al nombre.
+  const [slugEditado, setSlugEditado] = useState(false);
   const [userForm, setUserForm] = useState({ username: 'dueno', email: '', password: '' });
   // Modal de borrado: exige escribir el slug del tenant.
   const [deleting, setDeleting] = useState<PlatformTenant | null>(null);
@@ -101,6 +118,7 @@ export default function PlatformDashboard() {
       const res = await platformApi.createTenant(tenantForm);
       setMessage(`Tenant creado: ${res.tenant.slug}`);
       setTenantForm({ slug: '', name: '', industry: 'generico', profileDir: './profiles/generico' });
+      setSlugEditado(false);
       await loadTenants();
       setSelectedTenantId(res.tenant.id);
     } catch (err) {
@@ -165,12 +183,31 @@ export default function PlatformDashboard() {
         <form className="settings-section" onSubmit={createTenant}>
           <h2>Crear tenant</h2>
           <label>
-            Slug
-            <input value={tenantForm.slug} onChange={(e) => setTenantForm({ ...tenantForm, slug: e.target.value })} />
+            Nombre
+            <input
+              value={tenantForm.name}
+              onChange={(e) => {
+                const name = e.target.value;
+                setTenantForm((f) => ({
+                  ...f,
+                  name,
+                  slug: slugEditado ? f.slug : toSlug(name),
+                }));
+              }}
+            />
           </label>
           <label>
-            Nombre
-            <input value={tenantForm.name} onChange={(e) => setTenantForm({ ...tenantForm, name: e.target.value })} />
+            Slug
+            <input
+              value={tenantForm.slug}
+              onChange={(e) => {
+                setSlugEditado(true);
+                setTenantForm((f) => ({ ...f, slug: toSlug(e.target.value) }));
+              }}
+            />
+            <span className="settings-hint">
+              Identificador interno: minúsculas, números y guiones. Se rellena solo con el nombre.
+            </span>
           </label>
           <label>
             Plantilla / Giro

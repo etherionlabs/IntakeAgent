@@ -37,6 +37,19 @@ describe('platform admin', () => {
     await cleanupDb();
   });
 
+  it('un slug inválido dice QUÉ está mal, no «tenant invalido»', async () => {
+    const app = await buildTestApp();
+    const platform = await platformHeader(app);
+    const res = await app.inject({
+      method: 'POST', url: '/platform/tenants', headers: platform,
+      payload: { slug: 'Palatine detail', name: 'Palatine detail', industry: 'mecanica', profileDir: './profiles/mecanica' },
+    });
+    expect(res.statusCode).toBe(400);
+    // Un genérico obliga a adivinar cuál de los cuatro campos falla.
+    expect(res.json().error).toMatch(/slug/i);
+    expect(res.json().error).toMatch(/minúsculas/i);
+  });
+
   it('crea el tenant aunque el navegador traiga una cookie de sesión de tenant', async () => {
     // El caso que fallaba con «csrf token inválido»: entrar antes al panel de un
     // negocio deja la cookie, y el panel de plataforma va con Bearer sin

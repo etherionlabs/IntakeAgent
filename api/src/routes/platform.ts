@@ -39,6 +39,19 @@ const UpdateTenantZ = z.object({
   industry: z.string().min(1).optional(),
 });
 
+
+/** Traduce el fallo de validación del alta a algo accionable en el panel. */
+function describeTenantError(error: z.ZodError): string {
+  const issue = error.issues[0];
+  const campo = String(issue?.path?.[0] ?? '');
+  if (campo === 'slug') {
+    return 'slug inválido: solo minúsculas, números y guiones (ej. «etherion-labs»), mínimo 2 caracteres';
+  }
+  if (campo === 'name') return 'falta el nombre del negocio';
+  if (campo === 'industry') return 'falta la plantilla / giro';
+  return `tenant invalido: ${issue?.message ?? 'revisa los campos'}`;
+}
+
 export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typeof fetch; emailSender?: EmailSender } = {}) {
   const doFetch = opts.fetcher ?? fetch;
   const emailSender = opts.emailSender ?? getEmailSender();
@@ -98,7 +111,10 @@ export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typ
 
   app.post('/platform/tenants', { preHandler: app.authenticatePlatform }, async (request, reply) => {
     const parse = CreateTenantZ.safeParse(request.body);
-    if (!parse.success) return reply.code(400).send({ error: 'tenant invalido' });
+    // Decir QUÉ está mal: un «tenant invalido» a secas obliga a adivinar cuál de
+    // los cuatro campos falla, y el que falla casi siempre es el slug (un nombre
+    // con mayúsculas o espacios no pasa el regex).
+    if (!parse.success) return reply.code(400).send({ error: describeTenantError(parse.error) });
 
     const prisma = getPrisma();
     let tenant;
