@@ -29,6 +29,35 @@ describe('csrf double-submit', () => {
     expect(res.statusCode).toBe(200);
   });
 
+  it('Bearer + cookie de sesión de otro panel también está exento', async () => {
+    // El caso real que rompía: el superadmin entra al panel de un negocio (deja
+    // cookie de sesión) y luego crea un tenant desde el panel de plataforma, que
+    // va con Bearer de localStorage y no manda double-submit. El hook veía la
+    // cookie y devolvía «csrf token inválido» en algo que no autentica por cookie.
+    const userId = await seedTenantAndUser();
+    const { headers } = await loginCookie(app);
+    const token = app.jwt.sign({ userId, tenantId: '00000000-0000-0000-0000-000000000001', role: 'admin' });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/__mutate',
+      headers: { ...headers, authorization: `Bearer ${token}` },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('un authorization que no es Bearer NO exime del CSRF', async () => {
+    // Si no, bastaría con mandar cualquier cosa en la cabecera para saltárselo.
+    const { headers } = await loginCookie(app);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/__mutate',
+      headers: { ...headers, authorization: 'Basic algo' },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   it('mutación con Bearer (sin cookie) está exenta de CSRF', async () => {
     // El navegador no adjunta Bearer automáticamente ⇒ no es vulnerable a CSRF.
     const userId = await seedTenantAndUser();

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildTestApp, cleanupDb, testPrisma, seedTenantAndUser, authHeader } from './helpers/app';
+import { buildTestApp, cleanupDb, testPrisma, seedTenantAndUser, authHeader, loginCookie } from './helpers/app';
 
 async function seedPlatformUser() {
   const passwordHash = await bcrypt.hash('supersecret', 8);
@@ -35,6 +35,30 @@ async function seedPendingTenant() {
 describe('platform admin', () => {
   beforeEach(async () => {
     await cleanupDb();
+  });
+
+  it('crea el tenant aunque el navegador traiga una cookie de sesión de tenant', async () => {
+    // El caso que fallaba con «csrf token inválido»: entrar antes al panel de un
+    // negocio deja la cookie, y el panel de plataforma va con Bearer sin
+    // double-submit. La petición no autentica por cookie, así que no hay CSRF.
+    const app = await buildTestApp();
+    await seedTenantAndUser();
+    const { headers: cookieHeaders } = await loginCookie(app);
+    const platform = await platformHeader(app);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/platform/tenants',
+      headers: { ...cookieHeaders, ...platform },
+      payload: {
+        slug: `etherion-${Date.now()}`,
+        name: 'Etherion Labs',
+        industry: 'intake',
+        profileDir: './profiles/intake',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().tenant.industry).toBe('intake');
   });
 
   it('login de superadmin devuelve token de plataforma', async () => {

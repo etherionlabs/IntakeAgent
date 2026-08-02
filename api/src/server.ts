@@ -121,6 +121,16 @@ export async function buildServer(opts: BuildOptions = {}): Promise<FastifyInsta
   app.addHook('onRequest', async (request, reply) => {
     if (!MUTATING.has(request.method)) return;
     if (CSRF_EXEMPT.has(request.routeOptions?.url ?? request.url.split('?')[0])) return;
+    // Bearer explícito ⇒ no autentica por cookie, así que no hay CSRF que valer.
+    // Y un atacante no puede ponerlo desde otro origen: `Authorization` obliga a
+    // preflight, que nuestro CORS no le aprueba.
+    //
+    // Sin esto, el panel del superadmin (que va con Bearer de localStorage)
+    // fallaba con 403 en cuanto el navegador tenía ADEMÁS una cookie de sesión
+    // de tenant: el hook la veía y exigía un double-submit que ese panel no
+    // manda. Bastaba con haber entrado antes al panel de un negocio.
+    const auth = request.headers.authorization;
+    if (auth && /^Bearer\s+\S/i.test(auth)) return;
     const hasSessionCookie = Boolean((request.cookies as any)?.[SESSION_COOKIE]);
     if (!hasSessionCookie) return; // auth por Bearer u origen no-navegador
     const cookieToken = (request.cookies as any)?.[CSRF_COOKIE];
