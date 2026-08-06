@@ -70,7 +70,7 @@ Sí. Puedes solicitar la exportación o el borrado de los datos de tu cuenta.
 Una suscripción mensual fija. Consulta la página de precios para el monto vigente.
 
 **¿Hay prueba gratis?**
-Sí, 30 días de prueba. Te lo indicamos al registrarte.
+Sí, 14 días de prueba. Te lo indicamos al registrarte.
 
 **¿Puedo cancelar cuando quiera?**
 Sí, desde tu portal de facturación. Mantienes el acceso hasta el fin del periodo

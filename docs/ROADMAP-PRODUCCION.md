@@ -118,7 +118,7 @@ documento maestro; los specs son el detalle previo a implementar. Convención:
 | **Legal** (borradores, requieren revisión profesional) | [ToS](legal/terms-of-service.md) · [Privacidad](legal/privacy-policy.md) · [DPA](legal/dpa.md) · [Aviso WhatsApp/Baileys](legal/whatsapp-baileys-disclaimer.md) |
 | **Runbooks** | [Backup/restore drill](runbooks/2026-06-18-backup-restore-drill.md) · [Respuesta a incidentes](runbooks/2026-06-18-incident-response.md) · [Go-live](runbooks/2026-06-18-go-live-runbook.md) |
 | **GTM / cliente** | [Landing copy](gtm/landing-copy.md) · [Precios](gtm/pricing.md) · [Guía de inicio](gtm/getting-started.md) · [FAQ](gtm/faq.md) |
-| **Negocio / comercial** | [Plan de negocio](gtm/plan-de-negocio.md) · [Estrategia de ventas 90 días](gtm/estrategia-ventas-90-dias.md) |
+| **Negocio / comercial** | [Plan de negocio](gtm/plan-de-negocio.md) · [Estrategia de ventas 90 días](gtm/estrategia-ventas-90-dias.md) · [Pendientes antes de vender](gtm/pendientes-antes-de-vender.md) |
 | **Decisiones** | [Registro de decisiones abiertas](DECISIONES-PENDIENTES.md) |
 
 ---

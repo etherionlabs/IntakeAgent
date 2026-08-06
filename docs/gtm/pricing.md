@@ -75,7 +75,7 @@ soporte.
 ## Preguntas frecuentes de cobro
 
 **¿Hay prueba gratis?**
-Sí — 30 días de prueba.
+Sí — 14 días de prueba.
 
 **¿Cómo se paga?**
 Con tarjeta, mediante un proceso de pago seguro (Stripe). La suscripción se

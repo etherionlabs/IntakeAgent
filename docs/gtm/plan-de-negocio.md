@@ -135,15 +135,17 @@ agente toma datos y no promete servicio.
 | México | US$69 | US$13.80 |
 | Colombia | US$59 | US$11.80 |
 
-Suscripción mensual fija, sin cobro por mensaje ni por cliente atendido. Prueba de 30 días.
-Sin permanencia. *(Fijados por `tests/profiles/intake.test.ts`; cambiarlos exige tocar ese
-archivo y `profiles/intake/business-facts.json`.)*
+Suscripción mensual fija, sin cobro por mensaje ni por cliente atendido. **Prueba de 14
+días.** Sin permanencia. *(Fijados por `tests/profiles/intake.test.ts`; cambiarlos exige
+tocar ese archivo y `profiles/intake/business-facts.json`.)*
 
 ### Recomendaciones sobre el pricing
 
-1. **Reducir la prueba de 30 a 14 días.** Cada prueba tiene costo marginal real y 30 días
-   es tiempo suficiente para que el prospecto se olvide del dolor que lo trajo. 14 días con
-   un onboarding acompañado convierte más. *(Requiere actualizar business-facts + test.)*
+1. ✅ **Prueba de 14 días** *(aplicado 2026-08-06, antes 30)*. Cada prueba tiene costo
+   marginal real y 30 días es tiempo suficiente para que el prospecto se olvide del dolor
+   que lo trajo. 14 días con un onboarding acompañado convierte más. **Pendiente de
+   propagar al cobro:** `Plan.trialDays` debe valer `14` cuando se active Stripe (hoy el
+   default del schema es `0`) — ver [pendientes](pendientes-antes-de-vender.md).
 2. **Añadir un plan anual con 2 meses gratis** (US$690 MX / US$590 CO / US$990 US). Es la
    forma más barata de comprar retención y flujo de caja sin tocar el precio de lista.
 3. **No introducir un plan "básico" barato.** Con un solo plan la conversación es sobre
@@ -334,10 +336,12 @@ signup como parte del nombre del negocio o registrado a mano al aprobar la cuent
 una tarea pequeña (una migración y una vista) comparada con el costo de pagarle mal a un
 socio.
 
-### 10.4 Prueba: 30 → 14 días — **Recomendación: 14 días**
+### 10.4 Prueba: 30 → 14 días — ✅ **Decidido y aplicado (2026-08-06)**
 
-Menos costo marginal, más urgencia, mejor conversión. Requiere actualizar
-`profiles/intake/business-facts.json` y `tests/profiles/intake.test.ts`.
+Menos costo marginal, más urgencia, mejor conversión. Aplicado en
+`profiles/intake/business-facts.json` y fijado por `tests/profiles/intake.test.ts`, que
+ahora también impide que otro fact prometa un plazo distinto. Propagado a README, FAQ y
+página de precios. **Falta cerrarlo en el cobro** (`Plan.trialDays = 14`) al activar Stripe.
 
 ### 10.5 Decisiones ya pendientes que este plan resuelve o mantiene
 

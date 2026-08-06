@@ -21,6 +21,14 @@ const PRECIOS = [
   { pais: 'Colombia', precio: 'US$59', comision: 'US$11.80' },
 ];
 
+/**
+ * Días de prueba oficiales. Es un compromiso comercial como el precio: el
+ * asistente lo dice de nuestra parte y el prospecto lo da por bueno. Si cambia,
+ * tiene que cambiar también donde se cobra de verdad — `Plan.trialDays` en la
+ * base de datos, que es lo que Stripe usa como `trial_period_days`.
+ */
+const PRUEBA_DIAS = 14;
+
 describe('perfil de venta de Etherion Labs', () => {
   it('carga y su intake es válido', async () => {
     const p = await loadProfile('./profiles/intake');
@@ -64,6 +72,19 @@ describe('perfil de venta de Etherion Labs', () => {
       expect(precios!.answer, `falta el precio de ${pais}`).toContain(precio);
     }
     expect(precios!.answer).toMatch(/mensual/i);
+  });
+
+  it('la prueba dura lo que decimos que dura, y no otra cifra', async () => {
+    const p = await loadProfile('./profiles/intake');
+    const prueba = p.businessFacts.facts.find((f) => f.topic === 'prueba');
+    expect(prueba, 'sin fact de la prueba').toBeTruthy();
+    expect(prueba!.answer).toContain(`${PRUEBA_DIAS} días`);
+    // Un plazo distinto suelto en cualquier otro fact es una promesa que el
+    // prospecto va a cobrarnos: el número solo puede salir de aquí.
+    const otrosPlazos = p.businessFacts.facts
+      .filter((f) => f.topic !== 'prueba')
+      .flatMap((f) => f.answer.match(/\d+\s*d[íi]as/gi) ?? []);
+    expect(otrosPlazos, 'otro fact promete un plazo de prueba distinto').toEqual([]);
   });
 
   it('la comisión del Partner es 20% y las cuentas cuadran', async () => {

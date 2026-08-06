@@ -352,7 +352,9 @@ quiere entrar al Partner Program y llevarlo a otros. El campo
 **El país es obligatorio antes de cotizar**, porque el precio cambia: US$99
 (Estados Unidos), US$69 (México), US$59 (Colombia). Fuera de esos tres mercados
 el asistente dice que todavía no hay lanzamiento y toma los datos, en vez de
-prometer servicio. La prueba es de 30 días.
+prometer servicio. La prueba es de 14 días — y como es un compromiso comercial
+igual que el precio, `tests/profiles/intake.test.ts` también lo fija; el mismo
+número tiene que estar en `Plan.trialDays`, que es lo que Stripe cobra.
 
 Como Estados Unidos es uno de los mercados, este perfil trae `welcome.en.txt`: si
 el primer mensaje llega en inglés, la bienvenida —y el aviso de IA— salen en
