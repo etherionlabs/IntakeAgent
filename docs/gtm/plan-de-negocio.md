@@ -27,16 +27,24 @@ al mes se paga solo. Ese es el encuadre de toda la venta.
 Intake vendiéndose a sí mismo por WhatsApp — el prospecto **está usando el producto
 mientras pregunta el precio**. Ningún competidor puede demostrar tan barato.
 
-**Objetivo 12 meses (escenario base):** 100 negocios pagando, ~US$6.8k MRR (~US$82k ARR
-run-rate), margen bruto >85%, con el Partner Program aportando ~40% de las altas.
+**Objetivo 12 meses (escenario base, una sola persona):** 100 negocios pagando, ~US$6.5k
+MRR neto (~US$84k ARR run-rate), margen bruto >85%.
 
-**Las tres decisiones que hay que tomar esta semana** (detalle en §10):
+**Las cuatro decisiones que hay que tomar esta semana** (detalle en §10):
 
-1. **Cobrar desde el día 1** con Stripe Payment Link manual, sin esperar a que Fase 3 esté
+1. **Bajar el límite del plan gratuito** de 300 a ~100 respuestas/mes. Con 300, el free
+   tier cubre entero a dos tercios del ICP: estaríamos vendiendo contra nosotros mismos.
+   Bloquea a las otras tres.
+2. **Cobrar desde el día 1** con Stripe Payment Link manual, sin esperar a que Fase 3 esté
    probada end-to-end. Cero código; desbloquea ingresos ~3 meses antes.
-2. **Un solo vertical de cabeza de playa** para los primeros 90 días, no nueve.
-3. **Arreglar la atribución de Partners** — hoy se vende un 20% recurrente que la base de
-   datos **no sabe a quién pagarle** (`Tenant` no tiene campo de partner referente).
+3. **Un solo vertical de cabeza de playa**, verificando antes que tenga volumen suficiente.
+4. **Arreglar la atribución de Partners** — hoy se vende un 20% recurrente que la base de
+   datos **no sabe a quién pagarle** (`Tenant` no tiene campo de partner referente). La
+   estructura de comisión, además, está en revisión.
+
+**La restricción que ordena el calendario:** hay una persona. La misma que cierra la
+verificación de infraestructura es la que vende y da soporte, así que la máquina comercial
+arranca en el mes 3 y no en la semana 2.
 
 ---
 
@@ -76,6 +84,32 @@ Esta es la tensión central del negocio hoy, y hay que verla con claridad:
 Y `docs/gtm/pricing.md` todavía tenía `[precio]` como placeholder mientras el agente ya
 cotizaba montos reales (corregido en este mismo cambio).
 
+### El conflicto que hay que resolver antes que ningún otro
+
+`FREE_MONTHLY_RUN_LIMIT` está propuesto en **300 respuestas al mes**. El ICP de este plan
+(§4) es un negocio con **20–300 conversaciones al mes**. Los dos números son el mismo
+número: **el plan gratuito cubre entero a dos tercios del cliente que queremos cobrar.**
+
+No es un detalle de pricing, es la premisa. Toda la estrategia de cobrar desde el día 1
+supone que hay algo que comprar; con 300 respuestas gratis, la decisión racional del
+cliente es quedarse donde está. Las dos salidas son excluyentes:
+
+- **Bajar el límite gratuito a ~100 respuestas/mes** *(recomendado)*. Cien alcanza para
+  que un dueño vea el bot funcionando con clientes reales y no para que le resuelva el
+  mes. El free tier vuelve a ser lo que la decisión #11 quería —una puerta sin fricción—
+  en vez de un competidor interno.
+- **Asumir que el free tier es el producto** y monetizar por otra vía (más adelante, con
+  otro plan de negocio). Coherente, pero incompatible con todo lo que sigue en este
+  documento.
+
+Es ajustable en caliente (`FREE_MONTHLY_RUN_LIMIT` + override por tenant desde `/admin`),
+así que la decisión es barata de tomar y de revertir. **Lo caro es no tomarla:** salir a
+vender contra tu propia versión gratuita es perder los tres primeros meses averiguándolo.
+
+> ⚠️ Al bajarlo en un deploy con el piloto en vivo, **primero** hay que fijar
+> `Tenant.monthlyRunLimit` en los tenants del piloto: el límite global no debe estrangular
+> a un negocio real que ya está operando con él.
+
 **Conclusión operativa:** el producto está más listo para *vender* que para *cobrar
 solo*. La estrategia de los primeros 90 días consiste en **cerrar esa brecha con
 operación manual, no con ingeniería**: cobro por Payment Link, alta aprobada a mano,
@@ -97,6 +131,30 @@ Un negocio de servicio donde **el WhatsApp lo contesta el dueño**, que:
 
 **Señal de descalificación (regla dura del agente):** si el negocio no recibe pedidos por
 WhatsApp, se le dice y se corta. Perder cinco minutos es mejor que un cliente que churnea.
+
+### A quién NO venderle todavía
+
+Mientras el canal sea Baileys y no la API oficial, hay un perfil al que **no conviene
+vender aunque pague**: el negocio cuyo WhatsApp *es* el negocio — una paquetería de alto
+volumen, un servicio de urgencias — donde 48 horas con el número caído no es una molestia
+sino una pérdida grave.
+
+Es contraintuitivo, porque es justo el que más valor sacaría del producto. Pero el riesgo
+de baneo es real y está declarado en la venta; el día que se materialice, ese cliente no
+escribe una queja, escribe la reseña que hunde el lanzamiento. **Ese segmento se reserva
+para cuando exista la API oficial de Meta** (4.2 en los pendientes), y mientras tanto se le
+dice por qué — que además es un argumento de honestidad que vende bien en los demás.
+
+### Verificar el tamaño del estanque antes de comprometerse
+
+La cabeza de playa de abajo está elegida por calidad de demo y ticket, **no por volumen
+verificado**. Antes de comprometer el trimestre, media hora de Google Maps: contar
+negocios con WhatsApp visible, por vertical, en las dos ciudades objetivo.
+
+El umbral: si tapicería + wrapping no suman al menos **300 negocios alcanzables**, el
+vertical de volumen (mecánica) tiene que entrar en el **mes 2**, no en el 4. Con 20 clientes
+se llena un vertical chico; con 100 no. Es el error que más caro sale corregir tarde,
+porque se descubre justo cuando la máquina comercial ya está engrasada.
 
 ### Cabeza de playa recomendada
 
@@ -186,6 +244,29 @@ soporte. El cliente es de Etherion Labs.
 `limits.monthlyCostUsd: 50` por tenant protege contra el caso patológico, pero con estos
 números **el margen no es el riesgo del negocio; la retención sí.**
 
+### El costo que no aparece en la tabla: las horas
+
+Ese 90% es correcto como contabilidad y engañoso como número de planeación, porque el
+costo real por cliente en los primeros meses no son los tokens: **es el tiempo del
+fundador.**
+
+| Concepto | Horas |
+| --- | --- |
+| Onboarding acompañado (vinculación del QR + configuración) | 0.5 h, una vez |
+| Soporte y ajustes | ~0.3 h/mes |
+| **Mes 1 de un cliente nuevo** | **≈ 0.8 h** |
+
+A cualquier valuación razonable de esa hora, el mes 1 de un cliente cuesta más que un año
+entero de sus tokens. La consecuencia para el plan:
+
+- **El límite para llegar a 50 clientes no es el dinero, son las horas.** A 0.3 h/mes de
+  soporte, 50 clientes son 15 horas mensuales solo de mantenimiento, más el onboarding de
+  las altas nuevas. Eso ya es media jornada semanal que no está vendiendo ni programando.
+- **Umbral de acción: ~30 clientes.** Antes de llegar ahí hay que haber automatizado el
+  onboarding (el wizard existe; lo que falta es confiar en él) o haber contratado apoyo.
+  Ese momento llega **antes** que el punto de equilibrio en dinero, que es el error de
+  lectura que induce mirar solo el margen bruto.
+
 ### ARPU, LTV y CAC
 
 Mezcla asumida: 50% México, 30% Colombia, 20% Estados Unidos → **ARPU ≈ US$70**.
@@ -215,51 +296,86 @@ email transaccional, y sin contar sueldo del fundador):
 
 ## 7. Proyección financiera a 12 meses
 
-Tres escenarios. La diferencia entre ellos **no es el producto: es la disciplina del
-seguimiento comercial y si el Partner Program arranca o no.**
+> **Supuesto que manda sobre todos los demás: hay UNA persona.** La misma que cierra la
+> Compuerta 1 de los [pendientes](pendientes-antes-de-vender.md) es la que vende y la que
+> da soporte. Por eso los dos primeros meses son de ingeniería con venta oportunista, y la
+> máquina comercial no arranca de verdad hasta el mes 3. Una proyección que ignore esto no
+> es optimista: es de otra empresa.
 
 ### Escenario base
 
-| Mes | Altas | Churn | Clientes | MRR (ARPU $70) | Comisión partners | MRR neto |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | 5 | 0 | 5 | $350 | $0 | $350 |
-| 2 | 7 | 0 | 12 | $840 | $28 | $812 |
-| 3 | 9 | 1 | 20 | $1,400 | $84 | $1,316 |
-| 4 | 10 | 1 | 29 | $2,030 | $142 | $1,888 |
-| 5 | 11 | 2 | 38 | $2,660 | $213 | $2,447 |
-| 6 | 12 | 2 | 48 | $3,360 | $269 | $3,091 |
-| 7 | 13 | 3 | 58 | $4,060 | $325 | $3,735 |
-| 8 | 14 | 3 | 69 | $4,830 | $386 | $4,444 |
-| 9 | 15 | 4 | 80 | $5,600 | $448 | $5,152 |
-| 10 | 16 | 5 | 91 | $6,370 | $510 | $5,860 |
-| 11 | 17 | 5 | 103 | $7,210 | $577 | $6,633 |
-| 12 | 18 | 6 | 115 | $8,050 | $644 | $7,406 |
+| Mes | Foco | Altas | Churn | Clientes | MRR (ARPU $70) | Comisión partners | MRR neto |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Ingeniería + red directa | 1 | 0 | 1 | $70 | $0 | $70 |
+| 2 | Ingeniería + red directa | 2 | 0 | 3 | $210 | $0 | $210 |
+| 3 | **Máquina comercial ON** | 4 | 0 | 7 | $490 | $27 | $463 |
+| 4 | Pauta validándose | 6 | 0 | 13 | $910 | $58 | $852 |
+| 5 | Escala de pauta | 8 | 1 | 20 | $1,400 | $90 | $1,310 |
+| 6 | Segundo vertical | 10 | 1 | 29 | $2,030 | $130 | $1,900 |
+| 7 | Partners produciendo | 12 | 2 | 39 | $2,730 | $175 | $2,555 |
+| 8 | | 14 | 2 | 51 | $3,570 | $228 | $3,342 |
+| 9 | | 15 | 3 | 63 | $4,410 | $282 | $4,128 |
+| 10 | | 16 | 4 | 75 | $5,250 | $336 | $4,914 |
+| 11 | | 17 | 5 | 87 | $6,090 | $390 | $5,700 |
+| 12 | | 18 | 5 | 100 | $7,000 | $448 | $6,552 |
 
-**Cierre M12:** 115 clientes · US$8,050 MRR bruto · **US$7,406 MRR neto** ·
-~US$97k ARR run-rate · margen de contribución ~92%.
-*(Comisión calculada sobre el 40% de la base originada por partners.)*
+**Cierre M12:** 100 clientes · US$7,000 MRR bruto · **US$6,552 MRR neto** · ~US$84k ARR
+run-rate. *(Comisión calculada sobre el 40% de la base originada por partners — sujeta a
+la revisión del programa, ver §5.)*
+
+Los 20 clientes que la versión anterior de este plan ponía en el día 90 caen ahora en el
+**mes 5**. No es un recorte de ambición: es lo que cabe en una agenda donde la misma
+persona tiene que verificar dos bots simultáneos en staging antes de venderle al tercer
+cliente.
+
+### El churn fija el techo, y es el número con menos evidencia de todo el documento
+
+El 6% mensual es un supuesto, no un dato. Y su efecto no se ve en el año 1 —donde cambia
+poco— sino en dónde se estanca el negocio. Con altas sostenidas de 18 al mes, el equilibrio
+es `altas ÷ churn`:
+
+| Churn mensual | Clientes M12 | **Techo (equilibrio)** |
+| --- | --- | --- |
+| 5% | 105 | **360** |
+| **6%** *(base)* | **100** | **300** |
+| 8% | 92 | **225** |
+| 10% | 85 | **180** |
+
+Dicho de otra forma: **el año 2 no lo decide cuánto vendes, lo decide cuánto retienes.**
+Duplicar el esfuerzo comercial mueve el techo en proporción; bajar el churn del 10% al 6%
+lo mueve un 67% sin vender ni un cliente más.
+
+> **Umbral de alarma:** si a los 6 meses el churn de la primera cohorte supera el **8%**,
+> se congela la inversión en pauta y todo el esfuerzo va a retención. Comprar clientes para
+> un balde agujereado es la forma más cara de aprender que el balde tiene un agujero.
 
 ### Escenarios comparados
 
 | | Conservador | **Base** | Agresivo |
 | --- | --- | --- | --- |
-| Supuesto clave | Solo venta directa del fundador; partners no arrancan | Partners aportan 40% de altas; pauta click-to-WhatsApp validada | Partners aportan 60%; 2 verticales escalando en paralelo |
+| Supuesto clave | Partners no arrancan; la ingeniería se come el mes 3 | Máquina comercial desde el mes 3; pauta validada; partners aportan ~40% de altas | Dos verticales en paralelo y partners produciendo desde el mes 4 |
 | Churn mensual | 8% | 6% | 5% |
-| Clientes M12 | **55** | **115** | **210** |
-| MRR neto M12 | **$3,600** | **$7,406** | **$13,100** |
+| Clientes M12 | **~55** | **100** | **~180** |
+| MRR neto M12 | **~$3,600** | **$6,552** | **~$11,600** |
 
 ### Inversión requerida (12 meses, escenario base)
 
 | Partida | Total 12 meses |
 | --- | --- |
 | Infraestructura y herramientas (Railway/VPS, Sentry, Resend, dominio, monitoreo) | ~$1,800 |
-| Pauta click-to-WhatsApp (arranca en $300/mes desde M2, escala a $1,200) | ~$8,000 |
+| Pauta click-to-WhatsApp (arranca en $300/mes desde el mes 3, escala a $1,200) | ~$7,000 |
 | Legal (revisión profesional de ToS/Privacidad/DPA — pendiente `[LEGAL-EXT]`) | ~$1,500 |
 | Materiales de venta (video de demo, landing, casos) | ~$1,000 |
-| **Total** | **≈ US$12,300** |
+| **Total** | **≈ US$11,300** |
 
-Con el MRR acumulado del escenario base (~US$42k en los 12 meses), **el negocio se
-autofinancia a partir del mes 4–5.** No requiere capital externo.
+Con el acumulado del escenario base (~US$31k netos en los 12 meses) **el negocio se
+autofinancia a partir del mes 6–7** y no requiere capital externo. Dos matices honestos:
+
+- **El modelo cobra desde el mes del alta**, pero con 14 días de prueba cada cohorte no
+  paga su primera media mensualidad. El acumulado real del año 1 es un **5–8% menor** que
+  el de la tabla.
+- Los costos fijos (~US$1,500/mes) **no incluyen sueldo del fundador**. El punto de
+  equilibrio de ~23 clientes es de caja, no de sostenibilidad personal.
 
 ---
 
@@ -300,6 +416,16 @@ marginal de atender un prospecto más es de centavos.
 
 ## 10. Decisiones que se necesitan del dueño
 
+### 10.0 Límite del plan gratuito — **la que bloquea a todas las demás**
+
+**Recomendación: bajarlo de 300 a ~100 respuestas/mes.** Con 300, el plan gratuito cubre
+entero a dos tercios del ICP y no hay nada que vender (§3). Es un cambio de una variable de
+entorno, reversible en caliente, y sin él las decisiones 10.1 a 10.3 se apoyan en una
+premisa falsa.
+
+⚠️ Antes de bajarlo con el piloto en vivo: fijar `Tenant.monthlyRunLimit` en los tenants
+que ya operan, para no estrangular a un negocio real.
+
 ### 10.1 ¿Cobramos en los primeros 90 días? — **Recomendación: SÍ**
 
 La v1 salió sin pagos para evitar fricción, pero eso también significa **cero validación
@@ -317,11 +443,25 @@ comercial**: un negocio que dice "sí, me gusta" gratis no ha validado nada.
 
 **Ganancia:** ingresos y validación real ~3 meses antes de que Fase 3 esté probada E2E.
 
-### 10.2 Cabeza de playa — **Recomendación: tapicería + wrapping**
+### 10.2 Cabeza de playa — **Recomendación: tapicería + wrapping, con verificación**
 
 Concentrar los primeros 90 días. Nueve verticales en paralelo es cero verticales.
 
-### 10.3 Atribución de Partners — **Bloqueante, hay que resolverlo**
+**Condicionada al conteo de §4:** si tapicería + wrapping no suman ~300 negocios
+alcanzables en las ciudades objetivo, mecánica entra en el mes 2. Están elegidos por
+calidad de demo y ticket alto — que es lo correcto para las primeras 10 ventas y no
+necesariamente para las siguientes 90.
+
+### 10.3 Partner Program — **en revisión: el programa y su atribución**
+
+> 🔄 **La estructura de comisión está siendo redefinida** (2026-08-07). El análisis del
+> plan encontró que 20% de US$69 son US$13.80/mes: un partner necesitaría ~72 clientes
+> activos para llegar a US$1,000 mensuales, lo que a dos altas al mes son tres años. El
+> pitch de "construyes un activo" es cierto y lento; los partners que hacen la cuenta se
+> van. Esta sección se reescribe cuando cierre esa definición. Lo de abajo —la atribución—
+> hace falta con cualquier estructura que se elija.
+
+**Atribución: bloqueante, hay que resolverlo.**
 
 Se está vendiendo un 20% recurrente y **`Tenant` no tiene campo de partner referente**
 (verificado en `prisma/schema.prisma`). Hoy no se puede responder "¿cuánto le toca a este
@@ -358,16 +498,18 @@ página de precios. **Falta cerrarlo en el cobro** (`Plan.trialDays = 14`) al ac
 
 | Hito | Cuándo | Criterio de éxito |
 | --- | --- | --- |
-| **H1 — Primer peso cobrado** | Semana 2 | 1 cliente pagando por Payment Link |
-| **H2 — Validación del ICP** | Mes 1 | 5 clientes de pago, todos del vertical de cabeza de playa |
-| **H3 — Canal pagado validado** | Mes 2 | CAC < $250 con $500 de pauta; ≥ 2 clientes atribuibles |
-| **H4 — Primer partner productivo** | Mes 3 | 1 partner con ≥ 2 clientes activos y comisión pagada correctamente |
-| **H5 — Punto de equilibrio** | Mes 4–5 | ~23 clientes; MRR > costos fijos |
-| **H6 — Cobro automático** | Mes 5 | `ACCESS_MODE=subscription` activo; altas sin operador |
-| **H7 — Retención probada** | Mes 6 | Churn mensual < 6% con cohortes de ≥ 3 meses |
-| **H8 — Segundo vertical** | Mes 6 | Mecánica/refrigeración con ≥ 10 clientes |
-| **H9 — Escala de partners** | Mes 9 | 5 partners activos aportando ≥ 40% de las altas |
-| **H10 — 100 clientes** | Mes 11–12 | MRR neto > US$7,000 |
+| **H0 — Free tier decidido** | Semana 1 | `FREE_MONTHLY_RUN_LIMIT` fijado con criterio comercial, no por defecto |
+| **H1 — Primer peso cobrado** | Semana 3 | 1 cliente pagando por Payment Link |
+| **H2 — Compuerta 1 cerrada** | Mes 2 | Infra verificada: 2 bots reales, restore drill, alertas, email |
+| **H3 — Validación del ICP** | Mes 3 | 7 clientes de pago, del vertical de cabeza de playa |
+| **H4 — Canal pagado validado** | Mes 4 | CAC < $250 con $500 de pauta; ≥ 2 clientes atribuibles |
+| **H5 — Punto de equilibrio** | Mes 5–6 | ~23 clientes; MRR > costos fijos |
+| **H6 — Retención probada** | Mes 6 | Churn mensual < 8% con cohortes de ≥ 3 meses (umbral de alarma) |
+| **H7 — Segundo vertical** | Mes 6 | Mecánica/refrigeración con ≥ 10 clientes |
+| **H8 — Onboarding automatizado** | Mes 6 | Antes de los 30 clientes: el alta deja de costar 0.8 h |
+| **H9 — Cobro automático** | Mes 7 | `ACCESS_MODE=subscription` activo; altas sin operador |
+| **H10 — Primer partner productivo** | Mes 7 | 1 partner con ≥ 2 clientes activos y comisión pagada correctamente |
+| **H11 — 100 clientes** | Mes 12 | MRR neto > US$6,500 |
 
 ---
 

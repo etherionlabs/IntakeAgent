@@ -1,6 +1,14 @@
 # Estrategia de ventas rápidas — 90 días (Intake)
 
-**Fecha:** 2026-08-06 · **Meta:** 20 clientes de pago y US$1,400 MRR al cierre del día 90.
+**Fecha:** 2026-08-07 · **Meta día 90:** 7 clientes de pago (~US$490 MRR) **y la máquina
+comercial encendida**. Los 20 clientes caen en el día 150.
+
+> ⚠️ **Revisión del 2026-08-07.** La primera versión de este documento ponía 20 clientes en
+> el día 90. No cabía: la misma persona que vende es la que tiene que cerrar la verificación
+> de infraestructura (Compuerta 1 de los [pendientes](pendientes-antes-de-vender.md)) antes
+> de tener veinte bots en producción. Los meses 1 y 2 son de ingeniería con venta
+> oportunista; el motor comercial arranca el mes 3. La meta no bajó de ambición, bajó de
+> fantasía.
 
 > Documento hermano: [`plan-de-negocio.md`](plan-de-negocio.md) (modelo de negocio,
 > economía unitaria, proyección y decisiones abiertas).
@@ -38,6 +46,12 @@ Sin esto, los primeros 30 días se desperdician. Es una semana, no más.
 | 5 | **Video de demo, 60–90 s** | Pantalla partida: el cliente escribe por WhatsApp / la ficha del trabajo apareciendo en el panel. **Cerrar con la previsualización de wrapping** — es el segundo que hace scroll-stop. | Marketing |
 | 6 | **Landing con precios reales** | `docs/gtm/pricing.md` ya tiene los montos; publicarla con CTA a WhatsApp (no a un formulario). | Marketing |
 | 7 | **Lista de 50 prospectos** | Tapicerías y estudios de wrapping con WhatsApp visible en Google Maps / Instagram, en 2–3 ciudades. Con nombre del dueño donde se pueda. | Ventas |
+| 8 | **Conteo del estanque** (30 min) | Mientras armas la lista, **cuenta el total** de negocios alcanzables por vertical en esas ciudades. Si tapicería + wrapping no llegan a ~300, mecánica entra en el mes 2 y no en el 4. Es el dato que decide si el vertical aguanta el año. | Ventas |
+| 9 | **Procedimiento del día 15** | Qué pasa cuando termina la prueba y no convirtió: qué mensaje sale, quién desvincula el WhatsApp, qué se conserva y cuánto. La primera cohorte llega a ese día toda junta; improvisarlo es el peor momento para hacerlo. | Operación |
+| 10 | **Decidir el límite del plan gratuito** | Con 300 respuestas/mes el free tier cubre entero al ICP y no hay nada que vender. Recomendación: ~100. Ver plan de negocio §3. | Dueño |
+
+> ⚠️ **El ítem 10 bloquea a los demás.** Sin resolverlo, la respuesta correcta de un
+> prospecto bien informado es quedarse en el plan gratuito — y tendrá razón.
 
 ---
 
@@ -49,12 +63,15 @@ El fundador contacta uno por uno a negocios con los que ya hay relación o refer
 pauta, sin escala, con acompañamiento total. **El objetivo no es el MRR: son los primeros
 casos con números reales.**
 
-- Meta: 30 conversaciones → 10 pruebas → **5 clientes de pago en 30 días**.
+- Meta de los **dos primeros meses** (no del primero): 30 conversaciones → 10 pruebas →
+  **3 clientes de pago**. Es una conversión de prueba a pago del 30%, que es exactamente la
+  métrica que manda (§6). La versión anterior prometía 50% en el mes con el producto menos
+  maduro y la agenda más ocupada: dos cosas que no pasan a la vez.
 - Cada uno recibe onboarding acompañado (30 min, en vivo, vinculando el QR juntos).
 - A los 14 días se le manda **su propio número**: trabajos levantados, extras aceptados,
   seguimientos recuperados. Ese mensaje es el que convierte prueba en pago.
 
-### Motor 2 — Click-to-WhatsApp (día 15) · objetivo: validar CAC
+### Motor 2 — Click-to-WhatsApp (mes 3, al cerrar la Compuerta 1) · objetivo: validar CAC
 
 Pauta en Meta Ads con destino WhatsApp, segmentada por vertical y ciudad.
 
@@ -70,10 +87,15 @@ Pauta en Meta Ads con destino WhatsApp, segmentada por vertical y ciudad.
 resuelve el consentimiento, evita el riesgo de baneo del número (Baileys) y hace que llegue
 ya interesado. El outbound frío por WhatsApp a volumen **no se hace** en estos 90 días.
 
-### Motor 3 — Partner Program (día 30) · objetivo: el primer partner productivo
+### Motor 3 — Partner Program (mes 4) · objetivo: el primer partner productivo
 
-El canal con mejor economía y el más lento en arrancar. Por eso se siembra en el mes 1
-aunque rinda en el mes 3.
+El canal con mejor economía y el más lento en arrancar. Por eso se siembra en cuanto haya
+un caso real que enseñar, aunque rinda dos meses después.
+
+> 🔄 **La estructura de comisión está en revisión** (2026-08-07): 20% de US$69 son US$13.80
+> al mes, y un partner necesita ~72 clientes activos para llegar a US$1,000 mensuales — tres
+> años a dos altas por mes. El pitch de abajo es el vigente hasta que se redefina; **no
+> reclutes partners a volumen mientras tanto.**
 
 **A quién reclutar:** agencias digitales, consultores de negocio, integradores, empresas de
 marketing y vendedores B2B que **ya atienden a varios negocios de servicio**. Cinco
@@ -99,38 +121,54 @@ comprar un problema de confianza.
 
 ## 3. Calendario de 90 días
 
-### Días 1–30 — Validar que alguien paga
+**La restricción que lo ordena:** una persona, dos trabajos. Cada semana tiene un foco
+dominante; lo comercial de los meses 1 y 2 es lo que cabe alrededor de la ingeniería, no un
+plan de ventas en paralelo.
 
-| Semana | Foco | Meta |
-| --- | --- | --- |
-| 1 | Semana 0 completa + primeras 10 conversaciones de la red directa | 3 pruebas activas |
-| 2 | Onboarding acompañado; **primer Payment Link enviado** | **H1: 1 cliente pagando** |
-| 3 | 20 conversaciones más; lanzar pauta con $300 | 6 pruebas activas |
-| 4 | Recuperar pruebas frías con su propio número; cerrar | **H2: 5 clientes de pago** |
+### Días 1–30 — Que exista algo que vender sin sustos
 
-**Salida del mes 1:** 5 clientes, US$350 MRR, 3 objeciones dominantes identificadas
-(medidas con `intake_objections_total`), y un caso con números reales para contar.
+| Semana | Foco dominante | Comercial | Meta |
+| --- | --- | --- | --- |
+| 1 | **Semana 0** completa (incluye decidir el free tier) | — | Número de Intake en vivo |
+| 2 | Compuerta 1: infra, migraciones, 2 bots reales | 10 conversaciones de la red directa | 3 pruebas activas |
+| 3 | Compuerta 1: restore drill, alertas, email real | Onboarding acompañado de las pruebas | **H1: 1 cliente pagando** |
+| 4 | Compuerta 1: cierre y verificación | 10 conversaciones más | 1 cliente · 5 pruebas activas |
 
-### Días 31–60 — Validar que se puede repetir
+**Salida del mes 1:** 1 cliente pagando, infraestructura casi verificada, y las primeras
+objeciones reales medidas con `intake_objections_total`.
 
-| Semana | Foco | Meta |
-| --- | --- | --- |
-| 5 | Escalar pauta a $500 si CAC < $250; primer caso de éxito publicado | **H3: CAC validado** |
-| 6 | Reclutar los primeros 3 partners con el caso ya en mano | 3 partners firmados |
-| 7 | Ajustar `business-facts.json` / `salesPlaybook` con las objeciones reales del mes 1 | Conversión de prueba a pago +5 pts |
-| 8 | Empujar el segundo vertical de la cabeza de playa | **11–13 clientes acumulados** |
+### Días 31–60 — Cerrar la infraestructura y el primer caso
 
-**Salida del mes 2:** ~12 clientes, ~US$840 MRR, canal pagado con CAC conocido, 3 partners
-sembrados.
+| Semana | Foco dominante | Comercial | Meta |
+| --- | --- | --- | --- |
+| 5 | Compuerta 1 cerrada (**H2**) | Recuperar pruebas frías con su propio número | 2 clientes |
+| 6 | Landing publicada + video de demo | 10 conversaciones | 3 clientes |
+| 7 | Ajustar `business-facts.json` / `salesPlaybook` con las objeciones del mes 1 | Primer caso de éxito documentado | Conversión prueba→pago medida |
+| 8 | Preparar la pauta (creativos, segmentación) | — | **3 clientes acumulados** |
 
-### Días 61–90 — Encender el canal que escala
+**Salida del mes 2:** 3 clientes, infraestructura verificada, un caso real con números y el
+mensaje comercial corregido con fricción medida, no supuesta.
 
-| Semana | Foco | Meta |
-| --- | --- | --- |
-| 9 | Acompañar a los partners en sus primeras demos (co-vender, no delegar) | 2 demos con partner |
-| 10 | Primera comisión calculada y **pagada correctamente** | **H4: partner productivo** |
-| 11 | Revisar cohorte del mes 1: ¿quién churneó y por qué? | Diagnóstico de retención |
-| 12 | Cierre de trimestre: consolidar y decidir si se activa `ACCESS_MODE=subscription` | **20 clientes / US$1,400 MRR** |
+### Días 61–90 — Encender la máquina
+
+| Semana | Foco dominante | Comercial | Meta |
+| --- | --- | --- | --- |
+| 9 | **Pauta click-to-WhatsApp ON** ($300) | El bot atiende a los prospectos que llegan | 15 conversaciones/semana |
+| 10 | Medir CAC por canal | Cerrar los calificados | 5 clientes |
+| 11 | Ajustar creativo o playbook según el CAC | Empujar el segundo vertical | 6 clientes |
+| 12 | Cierre de trimestre: revisar cohorte del mes 1 | Sembrar los primeros partners | **7 clientes · ~US$490 MRR** |
+
+**Salida del día 90:** 7 clientes, canal pagado con CAC conocido, churn de la primera
+cohorte medido y el segundo vertical abierto. **Eso es lo que hace que el día 150 tenga 20
+clientes** — que es donde la primera versión de este documento ponía el día 90.
+
+### Lo que viene después (para no perder el hilo)
+
+| Mes | Hito |
+| --- | --- |
+| 4 | Pauta escalada; primeros partners sembrados; 13 clientes |
+| 5 | **20 clientes** · segundo vertical produciendo |
+| 6 | Punto de equilibrio (~23 clientes) · onboarding automatizado antes de los 30 |
 
 ---
 
@@ -200,13 +238,17 @@ vendedor humano.
 
 ### Etapas
 
-| Etapa | Definición operativa | Meta semanal (mes 1) |
-| --- | --- | --- |
-| Conversación iniciada | Escribió al número de Intake | 15 |
-| Calificado | Recibe pedidos por WhatsApp + país en los 3 mercados | 10 |
-| Demo hecha | Probó el bot él mismo o vio el panel | 6 |
-| Prueba activa | Tenant aprobado y WhatsApp vinculado | 3 |
-| **Pagando** | Payment Link cobrado | **1–2** |
+| Etapa | Definición operativa | Meta semanal (meses 1–2) | Meta semanal (mes 3, con pauta) |
+| --- | --- | --- | --- |
+| Conversación iniciada | Escribió al número de Intake | 5 | 15 |
+| Calificado | Recibe pedidos por WhatsApp + país en los 3 mercados | 3 | 10 |
+| Demo hecha | Probó el bot él mismo o vio el panel | 2 | 6 |
+| Prueba activa | Tenant aprobado y WhatsApp vinculado | 1–2 | 3 |
+| **Pagando** | Payment Link cobrado | **~0.4** (3 en dos meses) | **1–2** |
+
+Las dos columnas son la misma máquina a distinta potencia. La de la izquierda es lo que
+cabe mientras se cierra la Compuerta 1; la de la derecha es a lo que se parece la semana
+cuando la pauta está encendida y el producto ya no necesita atención de ingeniería.
 
 ### Las cinco métricas que se revisan cada lunes
 
@@ -217,7 +259,11 @@ vendedor humano.
 4. **`intake_objections_total{type,state}`** — qué objeción domina y **si se está
    resolviendo**. Si "precio" aparece sin resolver semana tras semana, el encuadre de valor
    está roto; no hay que bajar el precio, hay que arreglar el descubrimiento.
-5. **Churn de la cohorte del mes 1** (objetivo < 6%/mes).
+5. **Churn de la cohorte del mes 1** (objetivo < 6%/mes; **umbral de alarma: 8%**). Es la
+   métrica que fija el techo del negocio: con altas de 18 al mes, 6% de churn se estanca en
+   300 clientes y 10% en 180. Si a los 6 meses pasa de 8%, **se congela la pauta** y todo el
+   esfuerzo va a retención — comprar clientes para un balde agujereado es la forma más cara
+   de descubrir el agujero.
 
 ### Ritual semanal — 45 minutos, lunes
 
@@ -247,6 +293,14 @@ vendedor humano.
    los primeros 30 clientes hoy.
 8. **Mirar solo el MRR.** Los primeros 90 días la métrica que decide el año es
    **prueba → pago** y el churn de la primera cohorte.
+9. **Venderle al negocio cuyo WhatsApp *es* el negocio.** Una paquetería de alto volumen o
+   un servicio de urgencias es el que más valor sacaría y el peor cliente posible hoy: con
+   Baileys, 48 horas de número caído no le cuestan una molestia sino dinero, y esa reseña
+   hunde el lanzamiento. Se reserva para cuando exista la API oficial — y decírselo vende
+   bien con todos los demás.
+10. **Vender mientras la Compuerta 1 sigue abierta.** Cada cliente nuevo antes de tener
+   alertas, backups probados y dos bots verificados es una apuesta con el nombre del
+   negocio de otro.
 
 ---
 
@@ -254,15 +308,18 @@ vendedor humano.
 
 | | |
 | --- | --- |
-| **Meta 90 días** | 20 clientes de pago · US$1,400 MRR |
+| **Meta 90 días** | 7 clientes de pago · ~US$490 MRR · máquina comercial encendida |
+| **Meta día 150** | 20 clientes · ~US$1,400 MRR |
+| **Restricción que manda** | Una persona: vende, programa y da soporte |
 | **Vertical** | Tapicería + wrapping/estética automotriz |
 | **Mercados** | México y Colombia primero; Estados Unidos vía dueños hispanohablantes |
 | **Precio** | US$99 (EE.UU.) · US$69 (México) · US$59 (Colombia) — mensual fijo |
 | **Cobro** | Stripe Payment Link + aprobación manual en `/admin` |
 | **Canal día 1** | Red directa del fundador |
-| **Canal día 15** | Click-to-WhatsApp ($300–500 de prueba) |
-| **Canal día 30** | Partner Program (máx. 5 partners) |
+| **Canal mes 3** | Click-to-WhatsApp ($300–500 de prueba) |
+| **Canal mes 4** | Partner Program (máx. 5 partners; estructura en revisión) |
 | **Activo principal** | El propio bot de Intake como demo |
 | **Métrica que manda** | Prueba → pago ≥ 30% |
 | **Riesgo #1** | Churn temprano por falta de valor demostrado en los primeros 14 días |
 | **Antídoto** | Mandarle al dueño **su propio número** al día 14: trabajos levantados, extras aceptados, seguimientos recuperados |
+| **Bloqueante #1** | El límite del plan gratuito (300/mes) cubre al ICP entero: hay que bajarlo o no hay nada que vender |

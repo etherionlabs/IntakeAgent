@@ -27,9 +27,19 @@ Lo mínimo para cobrarle a un cliente hoy, con operación manual y **sin escribi
 | 0.3 | **Procedimiento de alta escrito**: pago confirmado → aprobar en `/admin` → sesión de vinculación del QR. Cinco líneas, para no improvisar con el primer cliente. | ▪ | Operación |
 | 0.4 | **Hoja de atribución de partners** (código, partner, cliente, mercado, alta, estado, comisión del mes). Sustituye a `Tenant.partnerId` mientras no exista. | ▪ | Dueño |
 | 0.5 | **Decidir el trato del trial pagado**: hoy se anuncian 14 días de prueba y el cobro es un Payment Link manual → o se envía el link al día 14, o se cobra desde el día 1 con reembolso pactado. **Elegir una y escribirla.** | ▪ | Dueño |
+| 0.6 | **Bajar el límite del plan gratuito** de 300 a ~100 respuestas/mes (`FREE_MONTHLY_RUN_LIMIT`). Con 300 el free tier cubre entero al ICP y no hay nada que vender. Antes de aplicarlo con el piloto en vivo, fijar `Tenant.monthlyRunLimit` en los tenants que ya operan. | ▪ | Dueño |
+| 0.7 | **Escribir el procedimiento del día 15**: termina la prueba y no convirtió → qué mensaje sale, quién desvincula el WhatsApp, qué datos se conservan y cuánto. La primera cohorte llega a ese día toda junta. | ▪ | Operación |
+| 0.8 | **Contar el estanque** (30 min de Google Maps): negocios alcanzables por vertical en las ciudades objetivo. Si tapicería + wrapping no llegan a ~300, mecánica entra en el mes 2. | ▪ | Ventas |
 
-> ⚠️ **Sin 0.5 no se sale a vender.** Es la única de esta compuerta que, si se improvisa,
-> genera una disputa con el primer cliente.
+> ⚠️ **0.6 bloquea a toda la compuerta.** Vender un plan de pago mientras la versión
+> gratuita cubre al cliente objetivo entero no es una desventaja competitiva: es no tener
+> producto que vender. Y **sin 0.5 no se sale a vender** tampoco: si se improvisa, genera
+> una disputa con el primer cliente.
+
+> 📌 **Lo que esta compuerta NO puede hacer sola:** vender a volumen antes de cerrar la
+> Compuerta 1. Con una persona haciendo ingeniería y venta, el ritmo realista de los dos
+> primeros meses es de **1 a 3 clientes**, no de diez — ver el calendario en
+> [`estrategia-ventas-90-dias.md`](estrategia-ventas-90-dias.md) §3.
 
 ---
 

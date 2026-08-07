@@ -29,7 +29,7 @@ Las **pendientes** son de negocio y se irán cerrando; varias no bloquean códig
 | --- | --- | --- | --- | --- |
 | 4 | Precio del plan: monto + intervalo | — | ~~Fase 3~~ **Diferida** (re-alcance #11: v1 sin pagos) | Billing queda parametrizado por env; es un dato al configurar Stripe. |
 | 5 | Mercado/moneda/impuestos (Stripe Tax) | — | ~~Fases 3 y 6~~ **Diferida** (re-alcance #11) | Define configuración de Stripe y parte del marco legal. |
-| — | Límite mensual del plan gratuito (valor por defecto) | Propuesta: **300 respuestas del bot/mes** (`FREE_MONTHLY_RUN_LIMIT`) | Nada (parametrizado por env + override por tenant desde `/admin`) | Ajustable en caliente sin deploy. |
+| — | Límite mensual del plan gratuito (valor por defecto) | **~100 respuestas/mes** (`FREE_MONTHLY_RUN_LIMIT`). *Revisado el 2026-08-07: la propuesta anterior de 300 cubre entero al ICP (20–300 conversaciones/mes) y deja el plan de pago sin nada que vender.* | **Bloquea la estrategia comercial**, no el código | Ajustable en caliente sin deploy. Antes de bajarlo con el piloto en vivo, fijar `Tenant.monthlyRunLimit` en los tenants que ya operan. Ver `gtm/plan-de-negocio.md` §3. |
 | 6 | Jurisdicción legal + ¿asesoría externa? | — | Fase 6 | Los borradores legales ya tienen placeholders `[Jurisdicción]` listos para rellenar. |
 | 9 | Voz (Fase 8): ¿plan base o **add-on**? + país para grabación | Add-on de precio | Fase 8 (post-lanzamiento) | Puede esperar hasta acercarse a la Fase 8. |
 
