@@ -14,11 +14,15 @@ import { validateIntakeSchema } from '../../src/config/intake-schema';
  * los precios oficiales, este archivo es el que avisa de dónde hay que tocarlos.
  */
 
-/** Precios oficiales de lanzamiento y su comisión al 20%. */
+/**
+ * Precios oficiales de lanzamiento y lo que cobra cada nivel del Partner Program:
+ * el 20% recurrente del partner comercial, su bono de activación (2 mensualidades,
+ * al día 90) y el bono del referidor (1 mensualidad, una sola vez).
+ */
 const PRECIOS = [
-  { pais: 'Estados Unidos', precio: 'US$99', comision: 'US$19.80' },
-  { pais: 'México', precio: 'US$69', comision: 'US$13.80' },
-  { pais: 'Colombia', precio: 'US$59', comision: 'US$11.80' },
+  { pais: 'Estados Unidos', precio: 'US$99', comision: 'US$19.80', bonoPartner: 'US$198', bonoReferidor: 'US$99' },
+  { pais: 'México', precio: 'US$69', comision: 'US$13.80', bonoPartner: 'US$138', bonoReferidor: 'US$69' },
+  { pais: 'Colombia', precio: 'US$59', comision: 'US$11.80', bonoPartner: 'US$118', bonoReferidor: 'US$59' },
 ];
 
 /**
@@ -79,12 +83,18 @@ describe('perfil de venta de Etherion Labs', () => {
     const prueba = p.businessFacts.facts.find((f) => f.topic === 'prueba');
     expect(prueba, 'sin fact de la prueba').toBeTruthy();
     expect(prueba!.answer).toContain(`${PRUEBA_DIAS} días`);
-    // Un plazo distinto suelto en cualquier otro fact es una promesa que el
-    // prospecto va a cobrarnos: el número solo puede salir de aquí.
-    const otrosPlazos = p.businessFacts.facts
-      .filter((f) => f.topic !== 'prueba')
-      .flatMap((f) => f.answer.match(/\d+\s*d[íi]as/gi) ?? []);
-    expect(otrosPlazos, 'otro fact promete un plazo de prueba distinto').toEqual([]);
+    // Dos plazos de prueba distintos en el catálogo es una promesa que el
+    // prospecto va a cobrarnos. Se mira el plazo EN SU FRASE, no en todo el
+    // texto: el programa tiene otros plazos legítimos (los 60 días para el
+    // primer cliente de un partner) que no son la prueba del producto.
+    const plazosDePrueba = p.businessFacts.facts
+      .flatMap((f) => f.answer.split(/(?<=[.!?])\s+/))
+      .filter((frase) => /prueba|gratis|trial/i.test(frase))
+      .flatMap((frase) => frase.match(/\d+\s*d[íi]as/gi) ?? []);
+    expect(plazosDePrueba.length, 'ningún fact dice cuánto dura la prueba').toBeGreaterThan(0);
+    for (const plazo of plazosDePrueba) {
+      expect(plazo.replace(/\s+/g, ' '), 'hay un plazo de prueba distinto en otro fact').toBe(`${PRUEBA_DIAS} días`);
+    }
   });
 
   it('la comisión del Partner es 20% y las cuentas cuadran', async () => {
@@ -95,6 +105,49 @@ describe('perfil de venta de Etherion Labs', () => {
     for (const { pais, comision: monto } of PRECIOS) {
       expect(comision!.answer, `comisión mal calculada para ${pais}`).toContain(monto);
     }
+  });
+
+  it('los dos niveles del programa existen y se distinguen', async () => {
+    const p = await loadProfile('./profiles/intake');
+    const programa = p.businessFacts.facts.find((f) => f.topic === 'programa de partners');
+    expect(programa, 'sin fact del programa').toBeTruthy();
+    // Cobran distinto porque hacen trabajos distintos: confundirlos es prometer mal.
+    expect(programa!.answer).toMatch(/referidor/i);
+    expect(programa!.answer).toMatch(/partner comercial/i);
+    // Y el agente tiene que averiguar cuál es ANTES de dar números.
+    expect(p.promptVars.vars.salesPlaybook).toMatch(/cuál de los dos niveles|niveles.*encaja/i);
+  });
+
+  it('cada nivel cobra lo suyo, y las cuentas cuadran en los tres mercados', async () => {
+    const p = await loadProfile('./profiles/intake');
+    const comision = p.businessFacts.facts.find((f) => f.topic === 'comisión del partner');
+    expect(comision, 'sin fact de comisión').toBeTruthy();
+    expect(comision!.answer).toContain('20%');
+    for (const { pais, comision: recurrente, bonoPartner, bonoReferidor } of PRECIOS) {
+      expect(comision!.answer, `recurrente mal calculado para ${pais}`).toContain(recurrente);
+      expect(comision!.answer, `bono del partner mal calculado para ${pais}`).toContain(bonoPartner);
+      expect(comision!.answer, `bono del referidor mal calculado para ${pais}`).toContain(bonoReferidor);
+    }
+  });
+
+  it('el bono se paga al día 90 y eso se explica, no se esconde', async () => {
+    const p = await loadProfile('./profiles/intake');
+    const como = p.businessFacts.facts.find((f) => f.topic === 'cómo funciona ser partner');
+    expect(como!.answer).toMatch(/d[íi]a 90/i);
+    // Es la parte que un socio necesita oír completa: por qué espera y qué pasa después.
+    expect(como!.answer).toMatch(/aunque el cliente cancele/i);
+    // El recurrente NO se condiciona a seguir vendiendo: es el ancla de confianza.
+    expect(como!.answer).toMatch(/no depende de que sigas/i);
+  });
+
+  it('el programa pide algo a cambio, y el agente lo dice', async () => {
+    const p = await loadProfile('./profiles/intake');
+    const req = p.businessFacts.facts.find((f) => f.topic === 'requisitos del partner');
+    expect(req, 'sin fact de requisitos').toBeTruthy();
+    expect(req!.answer).toMatch(/certificaci[óo]n/i);
+    expect(req!.answer).toMatch(/60 d[íi]as/i);
+    // Un partner humano no tiene las reglas duras del agente: hay que dárselas.
+    expect(req!.answer).toMatch(/inventar|no puedes decir/i);
   });
 
   it('el Partner Program se presenta como cartera recurrente, no como afiliados', async () => {

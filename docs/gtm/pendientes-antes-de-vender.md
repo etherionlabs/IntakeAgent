@@ -25,7 +25,7 @@ Lo mínimo para cobrarle a un cliente hoy, con operación manual y **sin escribi
 | 0.1 | **Tenant `intake` en vivo**: perfil `profiles/intake/` aprobado, WhatsApp vinculado, 5 conversaciones probadas de punta a punta (una en inglés). Es el vendedor y la demo. | ▪▪ | Producto |
 | 0.2 | **Stripe Payment Link × 3** (US$99 / US$69 / US$59, recurrente mensual) creados desde el dashboard. **No requiere la integración de Fase 3.** | ▪ | Dueño |
 | 0.3 | **Procedimiento de alta escrito**: pago confirmado → aprobar en `/admin` → sesión de vinculación del QR. Cinco líneas, para no improvisar con el primer cliente. | ▪ | Operación |
-| 0.4 | **Hoja de atribución de partners** (código, partner, cliente, mercado, alta, estado, comisión del mes). Sustituye a `Tenant.partnerId` mientras no exista. | ▪ | Dueño |
+| 0.4 | **Hoja de atribución de partners**: código, partner, **nivel** (referidor / comercial), cliente, mercado, fecha de alta, **fecha de día 90 y si el bono ya se pagó**, estado y recurrente del mes. Sustituye a `Tenant.partnerId` mientras no exista. La columna del día 90 es la que no se puede improvisar: un bono olvidado es un socio perdido. | ▪ | Dueño |
 | 0.5 | **Decidir el trato del trial pagado**: hoy se anuncian 14 días de prueba y el cobro es un Payment Link manual → o se envía el link al día 14, o se cobra desde el día 1 con reembolso pactado. **Elegir una y escribirla.** | ▪ | Dueño |
 | 0.6 | **Bajar el límite del plan gratuito** de 300 a ~100 respuestas/mes (`FREE_MONTHLY_RUN_LIMIT`). Con 300 el free tier cubre entero al ICP y no hay nada que vender. Antes de aplicarlo con el piloto en vivo, fijar `Tenant.monthlyRunLimit` en los tenants que ya operan. | ▪ | Dueño |
 | 0.7 | **Escribir el procedimiento del día 15**: termina la prueba y no convirtió → qué mensaje sale, quién desvincula el WhatsApp, qué datos se conservan y cuánto. La primera cohorte llega a ese día toda junta. | ▪ | Operación |
@@ -138,7 +138,7 @@ pueden pasar por el Checkout — a propósito.
 
 | # | Pendiente | Detonante |
 | --- | --- | --- |
-| 4.1 | **Modelo de datos de partners**: `Partner` + `Tenant.partnerId` + `referralCode` en el signup + reporte mensual de comisiones sobre pagos cobrados. | Hoy se vende un 20% recurrente que la base de datos no sabe a quién atribuir. **Tope de 5 partners hasta cerrarlo.** |
+| 4.1 | **Modelo de datos de partners**: `Partner` (con `tier`: referidor / comercial) + `Tenant.partnerId` + `referralCode` en el signup + reporte mensual de comisiones sobre pagos cobrados + **cola de bonos de activación** (pendiente / pagado, con la fecha de día 90 de cada cliente). | Hoy se vende un programa de dos niveles con bono al día 90 que la base de datos no sabe a quién atribuir ni cuándo pagar. **Tope de 5 partners hasta cerrarlo.** Con más, el cálculo a mano de bonos con fecha se vuelve un error de pago, que es el peor error posible con un socio. |
 | 4.2 | **Evaluación de la API oficial de WhatsApp Business Cloud** (decisión #10, diferida). | Baileys es el cuello de botella real del self-service a escala: sesión con estado, riesgo de baneo, sockets por proceso. Detonante: ~50 tenants o el primer baneo de un cliente que paga. |
 | 4.3 | **Centralización de logs** (driver Docker → Loki/Better Stack). | Depurar 50 tenants con `docker logs` no es viable. |
 | 4.4 | **Plan anual** en Stripe (2 meses gratis). | Palanca de retención y caja; se monta sobre 3.4. |

@@ -38,9 +38,8 @@ MRR neto (~US$84k ARR run-rate), margen bruto >85%.
 2. **Cobrar desde el día 1** con Stripe Payment Link manual, sin esperar a que Fase 3 esté
    probada end-to-end. Cero código; desbloquea ingresos ~3 meses antes.
 3. **Un solo vertical de cabeza de playa**, verificando antes que tenga volumen suficiente.
-4. **Arreglar la atribución de Partners** — hoy se vende un 20% recurrente que la base de
-   datos **no sabe a quién pagarle** (`Tenant` no tiene campo de partner referente). La
-   estructura de comisión, además, está en revisión.
+4. **Arreglar la atribución de Partners** — el programa ya está redefinido (§5), pero la
+   base de datos **no sabe a quién pagarle** (`Tenant` no tiene campo de partner referente).
 
 **La restricción que ordena el calendario:** hay una persona. La misma que cierra la
 verificación de infraestructura es la que vende y da soporte, así que la máquina comercial
@@ -77,9 +76,9 @@ Esta es la tensión central del negocio hoy, y hay que verla con claridad:
 | Se vende (perfil `intake`, business-facts) | Se opera (decisiones #11/#12) |
 | --- | --- |
 | Suscripción US$99 / US$69 / US$59 al mes | v1 **sin pagos**: plan gratuito con límite mensual |
-| "30 días de prueba" | Aprobación manual del operador desde `/admin` |
+| 14 días de prueba | Aprobación manual del operador desde `/admin` |
 | Pago con tarjeta vía Stripe, renovación automática | Stripe construido pero **dormante** (`ACCESS_MODE=subscription` apagado) |
-| Partner Program: 20% recurrente por cliente | **No existe atribución de partner en el modelo de datos** |
+| Partner Program de dos niveles, con bono al día 90 | **No existe atribución de partner en el modelo de datos** |
 
 Y `docs/gtm/pricing.md` todavía tenía `[precio]` como placeholder mientras el agente ya
 cotizaba montos reales (corregido en este mismo cambio).
@@ -212,13 +211,69 @@ tocar ese archivo y `profiles/intake/business-facts.json`.)*
 4. **La voz (Fase 8) va como add-on**, no en el plan base: su costo por minuto no cabe en
    una cuota fija. Ya está recomendado así en `DECISIONES-PENDIENTES.md` #9.
 
-### Partner Program
+### Partner Program *(redefinido el 2026-08-07)*
 
-20% recurrente sobre cada suscripción cobrada, mientras el cliente siga activo. El partner
-prospecta, presenta, demuestra y acompaña; Etherion Labs desarrolla, opera, factura y da
-soporte. El cliente es de Etherion Labs.
+**El diagnóstico que obligó a rediseñarlo:** con solo 20% recurrente, una venta le cuesta al
+partner ~4 horas y le devuelve US$13.80 al mes. Si valora su hora en US$35, **recupera su
+propio tiempo en el mes 10**. Nadie con alternativas hace eso: la misma agencia cobra US$500
+por un sitio web y lo entrega en dos semanas. El programa atraía solo a quien tuviera costo
+de oportunidad casi nulo y horizonte de tres años.
 
-**Es el mejor canal del negocio y el que está peor instrumentado.** Ver §8 y §10.
+**La causa de fondo:** había dos trabajos distintos metidos en un solo programa — el que
+*vende* (invierte horas) y el que *presenta* (esfuerzo casi cero, valor enorme). Pagarles
+igual garantizaba perder a los dos.
+
+#### Dos niveles
+
+| | **Referidor** | **Partner comercial** |
+| --- | --- | --- |
+| Qué hace | Presenta el negocio. Nada más. | Prospecta, presenta, demuestra y acompaña el arranque. |
+| Quién es | Proveedores y distribuidores del gremio, cámaras, asociaciones, agencias que quieren sumarlo sin vender. | Consultores independientes, automatizadores, integradores, vendedores B2B. |
+| Qué cobra | **Una mensualidad, una sola vez**, al completar el cliente su primer mes pagado. | **Bono de dos mensualidades al día 90** + **20% recurrente** mientras el cliente siga activo. |
+| US / MX / CO | US$99 / US$69 / US$59 | Bono US$198 / US$138 / US$118 · recurrente US$19.80 / US$13.80 / US$11.80 |
+
+#### Por qué el bono no cuesta nada
+
+| Por cliente vía partner comercial | |
+| --- | --- |
+| Contribución mensual (ARPU $70 − 20% comisión − COGS $5) | **$51** |
+| Contribución cobrada al día 90 | $153 |
+| Bono que se paga ese día | −$140 |
+| **Caja al momento de pagarlo** | **+$13** |
+| LTV a 16.7 meses, neto del bono | **~$712** |
+| **LTV / CAC efectivo** | **6.1×** |
+
+El bono se paga **con dinero ya cobrado**, y solo por clientes que ya sobrevivieron la
+ventana de mayor churn. Nunca sales de caja. Y comparado con la pauta —CAC de US$250 para
+4.3×— **el canal de partners con bono sigue siendo más barato que comprar el cliente**, sin
+consumir tus horas.
+
+Para el partner, sus 4 horas se pagan en el mes 3 en vez del mes 10, y la renta queda
+encima. A dos clientes nuevos al mes en México, su sexto mes son ~US$430 entre bono y
+recurrente — contra ~US$152 con el esquema anterior.
+
+#### Lo que el programa exige
+
+Hoy no pedía nada, y el riesgo no era económico: **el agente tiene reglas duras que le
+impiden inventar precios o prometer SMS y la API oficial; un partner humano no tiene
+ninguna.** Un socio que promete el canal oficial para cerrar crea justo la responsabilidad
+que el producto evita por diseño.
+
+1. **Certificación de ~2 horas** antes de entregar el código: configurar un tenant de prueba
+   y hacer una demo con nosotros mirando.
+2. **Una hoja de "qué puedes y qué no puedes decir"**, calcada de las reglas duras del agente.
+3. **Primer cliente en 60 días** o el código queda en pausa.
+4. **Prohibido el outbound frío masivo por WhatsApp.**
+
+El **20% recurrente no se condiciona** a seguir vendiendo: es el ancla de confianza del
+programa, y el abandono ya está cubierto por la cláusula de reasignación de cartera.
+
+#### Lo que no se ofrece
+
+**Exclusividad territorial, no.** Con un tope de 5 partners y un mercado enorme, regalar
+territorio es ceder palanca a cambio de nada. Lo que sí se garantiza —y es lo que de verdad
+les preocupa— es que **el cliente que ellos trajeron no se le asigna a otro**, que es
+exactamente lo que resuelve la atribución (§10.3).
 
 ---
 
@@ -452,14 +507,12 @@ alcanzables en las ciudades objetivo, mecánica entra en el mes 2. Están elegid
 calidad de demo y ticket alto — que es lo correcto para las primeras 10 ventas y no
 necesariamente para las siguientes 90.
 
-### 10.3 Partner Program — **en revisión: el programa y su atribución**
+### 10.3 Partner Program — ✅ **redefinido (2026-08-07)**; la atribución sigue bloqueante
 
-> 🔄 **La estructura de comisión está siendo redefinida** (2026-08-07). El análisis del
-> plan encontró que 20% de US$69 son US$13.80/mes: un partner necesitaría ~72 clientes
-> activos para llegar a US$1,000 mensuales, lo que a dos altas al mes son tres años. El
-> pitch de "construyes un activo" es cierto y lento; los partners que hacen la cuenta se
-> van. Esta sección se reescribe cuando cierre esa definición. Lo de abajo —la atribución—
-> hace falta con cualquier estructura que se elija.
+La estructura quedó decidida y está en §5: **dos niveles** (referidor y partner comercial),
+**bono de activación de 2 mensualidades al día 90** más el **20% recurrente**, y cuatro
+requisitos de entrada. Aplicado ya en el perfil de venta (`business-facts.json`,
+`salesPlaybook`) y fijado por `tests/profiles/intake.test.ts`.
 
 **Atribución: bloqueante, hay que resolverlo.**
 

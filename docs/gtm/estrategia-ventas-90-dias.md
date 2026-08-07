@@ -89,33 +89,58 @@ ya interesado. El outbound frío por WhatsApp a volumen **no se hace** en estos 
 
 ### Motor 3 — Partner Program (mes 4) · objetivo: el primer partner productivo
 
-El canal con mejor economía y el más lento en arrancar. Por eso se siembra en cuanto haya
-un caso real que enseñar, aunque rinda dos meses después.
+El canal con mejor economía y el más lento en arrancar. Por eso se siembra en cuanto haya un
+caso real que enseñar, aunque rinda dos meses después.
 
-> 🔄 **La estructura de comisión está en revisión** (2026-08-07): 20% de US$69 son US$13.80
-> al mes, y un partner necesita ~72 clientes activos para llegar a US$1,000 mensuales — tres
-> años a dos altas por mes. El pitch de abajo es el vigente hasta que se redefina; **no
-> reclutes partners a volumen mientras tanto.**
+**Dos niveles, porque son dos trabajos distintos** (detalle y economía en el plan de negocio §5):
 
-**A quién reclutar:** agencias digitales, consultores de negocio, integradores, empresas de
-marketing y vendedores B2B que **ya atienden a varios negocios de servicio**. Cinco
-partners buenos valen más que cincuenta registrados.
+| | **Referidor** | **Partner comercial** |
+| --- | --- | --- |
+| Hace | Presenta y nos pasa el contacto | Prospecta, demuestra y acompaña el arranque |
+| A quién buscar | Proveedores y distribuidores del gremio, cámaras, asociaciones, agencias | Consultores independientes, automatizadores, integradores, vendedores B2B |
+| Cobra | Una mensualidad, una sola vez (US$99 / US$69 / US$59) | Bono de 2 mensualidades al día 90 (US$198 / US$138 / US$118) + 20% recurrente |
 
-**El pitch del partner (una frase):** *"No ganas dinero por una venta: construyes una
-cartera. 20% de cada suscripción, todos los meses, mientras el cliente siga activo. Diez
-clientes en México son US$138 al mes recurrentes — y tú no desarrollas, no operas, no
-facturas ni das soporte."*
+**Dónde buscarlos.** Al referidor no se le busca por LinkedIn: se le encuentra preguntándole
+a tus primeros clientes *"¿a quién le compras la tela / el vinil?"*. Ese proveedor le vende a
+decenas de negocios idénticos a tu ICP y no quiere vender software — quiere una razón más
+para que le sigan comprando. Al partner comercial sí se le busca donde vive: comunidades de
+automatización, gente que ya monta bots o CRMs para negocios chicos.
 
-**Lo que hay que dejar clarísimo desde el minuto uno** (es lo que sostiene la relación):
+**El pitch del partner comercial (una frase):** *"Tu trabajo se paga el mismo trimestre en
+que lo haces —dos mensualidades por cliente al día 90— y encima te queda el 20% todos los
+meses mientras siga activo. Tú vendes; nosotros desarrollamos, operamos, facturamos y damos
+soporte."*
+
+**El pitch del referidor (una frase):** *"Preséntanos y cobras una mensualidad completa del
+cliente. No haces demo, no das soporte, no cargas con nada."*
+
+**Por qué el bono es al día 90 y no al firmar** — hay que explicarlo antes de que lo
+pregunten, porque suena a truco y no lo es: es un bono por un cliente que de verdad se
+quedó, ya pasada la ventana en la que más gente cancela. Y **una vez pagado es suyo aunque
+el cliente cancele después**. Esa segunda mitad es la que convierte la explicación en
+confianza.
+
+**Lo que hay que dejar clarísimo desde el minuto uno:**
 
 - El cliente le paga a Etherion Labs; el partner nunca cobra suscripciones.
-- La comisión se genera **sobre pagos efectivamente cobrados**, mes con mes.
-- Si el cliente cancela, deja de generarse.
+- Todo se genera sobre pagos efectivamente cobrados.
+- El 20% recurrente **no** depende de que siga trayendo clientes nuevos.
 - Los clientes son de Etherion Labs; el partner construye su cartera y cobra por ella.
+- **No hay exclusividad territorial**, pero el cliente que él trajo no se le asigna a otro.
+
+**Lo que se le exige** (y es lo que protege la marca): certificación de ~2 horas antes de
+entregarle el código —configura un tenant de prueba y hace una demo con nosotros mirando—,
+la hoja de qué puede y qué no puede decir, primer cliente en 60 días, y nada de outbound
+frío masivo por WhatsApp.
+
+> ⚠️ **El agente tiene reglas duras contra inventar precios o prometer SMS y la API oficial.
+> Un partner humano no tiene ninguna.** La certificación y la hoja no son burocracia: son el
+> único mecanismo que impide que un socio prometa en tu nombre lo que el producto se cuidó
+> de no prometer.
 
 **Restricción hasta cerrar §10.3 del plan de negocio:** máximo **5 partners** mientras la
 atribución viva en una hoja de cálculo. Reclutar más antes de tener `Tenant.partnerId` es
-comprar un problema de confianza.
+comprar un problema de confianza — y ahora, además, un problema de bonos mal calculados.
 
 ---
 
