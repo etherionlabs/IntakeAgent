@@ -95,9 +95,11 @@ trial con tarjeta, Resend, Sentry, dirección API oficial de WhatsApp.
       `promptVars` no están modelados en `TenantSettings` aún (otra columna/JSON).
 
 ### 2.4 Fase 3 — Billing (Stripe real)
-- [ ] Cuenta Stripe (modo test) → crear `Product` + `Price` recurrente → setear
-      `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, y **sembrar un
-      registro `Plan`** con ese `price_…`.
+- [ ] Cuenta Stripe (modo test) → crear `Product` + **un `Price` recurrente por mercado**
+      (US/MX/CO) → setear `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET`, y sembrar los
+      `Plan` con `npm run billing:seed-plans -- US=price_… MX=price_… CO=price_…`.
+      Los `price_…` **no** van por env: el Checkout elige el plan por `Tenant.market`
+      (2026-08-06), y un índice único parcial impide dos planes activos por mercado.
 - [ ] E2E de webhooks: `stripe listen --forward-to localhost:3001/billing/webhook` +
       `stripe trigger checkout.session.completed | invoice.payment_failed`.
 - [ ] Pago real con tarjeta de prueba → `active`; Customer Portal → cambiar/cancelar;

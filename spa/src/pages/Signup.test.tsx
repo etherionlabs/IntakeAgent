@@ -28,5 +28,5 @@ test('submit válido muestra "revisa tu correo"', async () => {
   fireEvent.click(screen.getByLabelText(/riesgo del canal/i));
   fireEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
   expect(await screen.findByText(/revisa tu correo/i)).toBeInTheDocument();
-  expect(mockSignup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw1234567890', businessName: 'Mi Negocio', industry: 'generico', acceptedTerms: true, acceptedWhatsappRisk: true });
+  expect(mockSignup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw1234567890', businessName: 'Mi Negocio', industry: 'generico', market: 'MX', acceptedTerms: true, acceptedWhatsappRisk: true });
 });

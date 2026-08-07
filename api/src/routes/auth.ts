@@ -17,6 +17,7 @@ import { uniqueSlug } from '../lib/slug';
 import { randomToken, in24h } from '../lib/tokens';
 import { verificationEmail, welcomeEmail } from '../email/templates';
 import { accessMode, trialRequiresCard } from '../env';
+import { MARKETS } from '../billing/markets';
 import { LEGAL_DOCUMENTS, LEGAL_VERSIONS } from '../legal/versions';
 
 const LoginZ = z.object({ email: z.string().email(), password: z.string().min(1) });
@@ -28,6 +29,9 @@ const SignupZ = z.object({
   password: z.string().min(1),
   businessName: z.string().min(1).max(120),
   industry: z.enum(['tapiceria', 'paqueteria', 'generico']),
+  // Obligatorio: el precio cambia por país y es lo que decide qué plan se cobra.
+  // Preguntarlo al final, en el checkout, es preguntarlo cuando ya es tarde.
+  market: z.enum(MARKETS),
   // Aceptación legal obligatoria; el riesgo WhatsApp es una casilla SEPARADA.
   acceptedTerms: z.literal(true),
   acceptedWhatsappRisk: z.literal(true),
@@ -57,7 +61,7 @@ export async function authRoutes(
   }, async (request, reply) => {
     const parse = SignupZ.safeParse(request.body);
     if (!parse.success) return reply.code(400).send({ error: 'datos de registro inválidos' });
-    const { email, password, businessName, industry } = parse.data;
+    const { email, password, businessName, industry, market } = parse.data;
     const policy = checkPassword(password);
     if (!policy.ok) return reply.code(400).send({ error: policy.error });
 
@@ -74,7 +78,7 @@ export async function authRoutes(
         // conserva el comportamiento histórico (active por defecto).
         const t = await tx.tenant.create({
           data: {
-            slug, name: businessName, industry, profileDir: '', status: 'pending_verification',
+            slug, name: businessName, industry, market, profileDir: '', status: 'pending_verification',
             ...(accessMode() === 'approval' ? { active: false } : {}),
           },
         });

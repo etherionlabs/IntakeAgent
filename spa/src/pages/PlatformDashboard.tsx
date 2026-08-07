@@ -25,6 +25,14 @@ function toSlug(input: string): string {
 type Template = { value: string; label: string; internal?: boolean };
 const FALLBACK_TEMPLATES: Template[] = [{ value: 'generico', label: 'Otro / Servicios' }];
 
+// Mercados de cobro. Espejo de `api/src/billing/markets.ts` (fuente de verdad).
+const MARKETS = [
+  { value: 'MX', label: 'México' },
+  { value: 'CO', label: 'Colombia' },
+  { value: 'US', label: 'Estados Unidos' },
+];
+const MARKET_LABELS: Record<string, string> = Object.fromEntries(MARKETS.map((m) => [m.value, m.label]));
+
 export default function PlatformDashboard() {
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -36,6 +44,7 @@ export default function PlatformDashboard() {
     slug: '',
     name: '',
     industry: 'generico',
+    market: '',
     profileDir: './profiles/generico',
   });
   const [templates, setTemplates] = useState<Template[]>(FALLBACK_TEMPLATES);
@@ -115,9 +124,11 @@ export default function PlatformDashboard() {
     setError(null);
     setMessage(null);
     try {
-      const res = await platformApi.createTenant(tenantForm);
+      // Sin mercado se manda undefined, no '': el alta interna no se cobra y el
+      // backend solo acepta uno de los tres códigos.
+      const res = await platformApi.createTenant({ ...tenantForm, market: tenantForm.market || undefined });
       setMessage(`Tenant creado: ${res.tenant.slug}`);
-      setTenantForm({ slug: '', name: '', industry: 'generico', profileDir: './profiles/generico' });
+      setTenantForm({ slug: '', name: '', industry: 'generico', market: '', profileDir: './profiles/generico' });
       setSlugEditado(false);
       await loadTenants();
       setSelectedTenantId(res.tenant.id);
@@ -222,6 +233,21 @@ export default function PlatformDashboard() {
               ))}
             </select>
           </label>
+          <label>
+            País (cobro)
+            <select
+              value={tenantForm.market}
+              onChange={(e) => setTenantForm({ ...tenantForm, market: e.target.value })}
+            >
+              <option value="">Sin asignar · no se le puede cobrar</option>
+              {MARKETS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <span className="settings-hint">
+              Decide qué plan cobra el Checkout. Los tenants internos pueden quedarse sin asignar.
+            </span>
+          </label>
           <button type="submit">Crear tenant</button>
         </form>
 
@@ -289,7 +315,7 @@ export default function PlatformDashboard() {
         <section className="settings-section">
           <h2>{selectedTenant.name}</h2>
           <p className="platform-meta">
-            {selectedTenant.slug} - {selectedTenant.industry} - {selectedTenant.profileDir}
+            {selectedTenant.slug} - {selectedTenant.industry} - {MARKET_LABELS[selectedTenant.market ?? ''] ?? 'sin país'} - {selectedTenant.profileDir}
           </p>
 
           <form className="platform-user-form" onSubmit={createTenantUser}>

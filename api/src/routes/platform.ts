@@ -10,6 +10,7 @@ import { freeMonthlyRunLimit } from '../env';
 import { hardDeleteTenant } from '../services/tenantDeletion';
 import { seedTenantSettingsFromTemplate, type Industry } from '../onboarding/templates';
 import { allIndustryOptions } from '../onboarding/industries';
+import { MARKETS } from '../billing/markets';
 
 const PlatformLoginZ = z.object({
   username: z.string().min(1),
@@ -20,6 +21,10 @@ const CreateTenantZ = z.object({
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
   name: z.string().min(1),
   industry: z.string().min(1),
+  // Opcional aquí (a diferencia del signup): por esta vía se dan de alta también
+  // los tenants internos, que no se cobran. Sin mercado el checkout se niega a
+  // cobrar, así que dejarlo vacío no expone a nadie a un precio equivocado.
+  market: z.enum(MARKETS).optional(),
   profileDir: z.string().min(1).default('./profiles/tapiceria'),
 });
 
@@ -37,6 +42,8 @@ const UpdateTenantUserZ = z.object({
 const UpdateTenantZ = z.object({
   name: z.string().min(1).optional(),
   industry: z.string().min(1).optional(),
+  // Vía de reparación para los tenants sin mercado (los anteriores al campo).
+  market: z.enum(MARKETS).optional(),
 });
 
 
@@ -100,7 +107,7 @@ export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typ
     return {
       defaultMonthlyLimit: freeMonthlyRunLimit(),
       tenants: tenants.map((t) => ({
-        id: t.id, slug: t.slug, name: t.name, industry: t.industry, profileDir: t.profileDir,
+        id: t.id, slug: t.slug, name: t.name, industry: t.industry, market: t.market, profileDir: t.profileDir,
         status: t.status, createdAt: t.createdAt, approvalStatus: t.approvalStatus, approvedAt: t.approvedAt,
         monthlyRunLimit: t.monthlyRunLimit, monthUsed: used.get(t.id) ?? 0,
         subscription: t.subscription?.status ?? null, currentPeriodEnd: t.subscription?.currentPeriodEnd ?? null,
@@ -269,7 +276,7 @@ export async function platformRoutes(app: FastifyInstance, opts: { fetcher?: typ
     const tenant = await prisma.tenant.findUnique({ where: { id: request.params.id }, select: { id: true } });
     if (!tenant) return reply.code(404).send({ error: 'tenant no encontrado' });
     const updated = await prisma.tenant.update({ where: { id: request.params.id }, data: parse.data });
-    return { ok: true, tenant: { id: updated.id, slug: updated.slug, name: updated.name, industry: updated.industry } };
+    return { ok: true, tenant: { id: updated.id, slug: updated.slug, name: updated.name, industry: updated.industry, market: updated.market } };
   });
 
   app.delete('/platform/tenants/:id', { preHandler: app.authenticatePlatform }, async (request: any, reply) => {

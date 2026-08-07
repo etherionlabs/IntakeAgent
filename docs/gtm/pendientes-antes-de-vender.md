@@ -73,19 +73,24 @@ Lo que aguanta con 3 clientes y deja de aguantar con 10.
 
 El billing está **construido, testeado y dormante**: `Plan`, `Subscription`, `StripeEvent`,
 Checkout, Customer Portal, webhook firmado e idempotente, máquina de estados, enforcement
-402 con suspensión y reanudación del bot, y pantalla de facturación en la SPA. Lo que falta
-no es programarlo: es **conectarlo a una cuenta real y arreglar dos cosas que no cuadran con
-el pricing anunciado**.
+402 con suspensión y reanudación del bot, y pantalla de facturación en la SPA. Las dos cosas
+que no cuadraban con el pricing anunciado ya están corregidas (3.A); lo que falta no es
+programarlo, es **conectarlo a una cuenta real y verificarlo contra Stripe de verdad**.
 
-### 3.A Los dos bloqueantes de código *(hay que resolverlos antes de encender)*
+### 3.A Los dos bloqueantes de código — ✅ **resueltos (2026-08-06)**
 
-| # | Bloqueante | Detalle | Esfuerzo |
-| --- | --- | --- | --- |
-| **3.1** | **`/billing/checkout` solo soporta UN plan activo** | `api/src/routes/billing.ts:43` hace `prisma.plan.findFirst({ where: { active: true } })`. Con los tres precios de mercado (US$99 / US$69 / US$59) habrá **tres `Plan` activos** y el checkout cobrará uno arbitrario — probablemente el precio de otro país. Hay que **seleccionar el plan por el mercado del tenant** (país del onboarding), no por `findFirst`. | ▪▪ |
-| **3.2** | **`Plan.trialDays` por defecto es `0`** | `prisma/schema.prisma:51`. Se anuncian **14 días de prueba** y el Checkout solo los aplica si `trialDays > 0`. Al sembrar los `Plan` hay que poner `trialDays: 14` en los tres, o el cliente paga el día 1 después de que el asistente le prometió dos semanas. | ▪ |
+| # | Bloqueante | Cómo quedó |
+| --- | --- | --- |
+| **3.1** | **`/billing/checkout` solo soportaba UN plan activo** (`plan.findFirst({ active: true })`): con los tres precios de mercado habría cobrado uno arbitrario, probablemente el de otro país. | El plan se elige por el **mercado del tenant** (`Tenant.market`, capturado en el signup) y el intervalo. Sin mercado, o sin plan para ese mercado, responde **409 y no crea Customer**: preferimos no cobrar a cobrar mal. Un **índice único parcial** garantiza en la base de datos que solo haya un plan activo por mercado e intervalo. |
+| **3.2** | **`Plan.trialDays` por defecto era `0`** contra los 14 días que promete el asistente: el Checkout solo manda `trial_period_days` si es > 0. | El default del schema es **14**, y el fixture de tests ya no lo fija para que el default sea lo que se prueba. `npm run billing:seed-plans` lo pone explícito y avisa si alguien siembra con 0. |
 
-> Ambos son baratos ahora y caros después: el primero cobra de más o de menos, el segundo
-> incumple por escrito lo que el agente prometió. Los dos son reclamaciones, no bugs.
+> Quedaba para 3.5 sembrar los `Plan` a mano — que es donde se colaban ambos errores. Ahora
+> hay un comando: `npm run billing:seed-plans -- US=price_… MX=price_… CO=price_…`.
+> Es idempotente y, al cambiar el precio de un mercado, desactiva el plan anterior.
+
+**Lo que falta de estos dos:** asignar mercado a los **tenants anteriores al campo** (nacen
+con `market = null`). Se hace desde el panel de plataforma; hasta entonces esos tenants no
+pueden pasar por el Checkout — a propósito.
 
 ### 3.B Configuración de la cuenta
 
@@ -93,8 +98,8 @@ el pricing anunciado**.
 | --- | --- | --- |
 | 3.3 | **Cuenta Stripe en modo test** | Punto de partida de todo lo demás. |
 | 3.4 | **`Product` + 3 `Price` recurrentes** | Uno por mercado, en USD mensual. Opcional pero recomendado: 3 más anuales (2 meses gratis) — ver plan de negocio §5. |
-| 3.5 | **Sembrar los registros `Plan`** | Uno por `price_…`, con `amountCents`, `currency`, `interval` y **`trialDays: 14`**. |
-| 3.6 | **Variables de entorno** | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`. Ojo: `env.ts:47` exige las dos primeras en cuanto `ACCESS_MODE=subscription`. |
+| 3.5 | **Sembrar los registros `Plan`** | `npm run billing:seed-plans -- US=price_… MX=price_… CO=price_…` (añade `--interval=year` para los anuales). Ya no es SQL a mano. |
+| 3.6 | **Variables de entorno** | `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` — `env.ts:47` las exige en cuanto `ACCESS_MODE=subscription`. Los `price_…` **no** van por env: hay uno por mercado y viven en la tabla `Plan`. |
 | 3.7 | **Decisión #5: moneda e impuestos** | Propuesta del plan: cobrar en USD en los tres mercados y activar Stripe Tax. Sin decidir esto no se puede facturar bien. |
 
 ### 3.C Verificación end-to-end *(nada de esto se ha corrido contra Stripe real)*
@@ -106,15 +111,16 @@ el pricing anunciado**.
 | 3.10 | Trial completo | Alta con `trial_period_days: 14` → `trialing` → cobro automático al día 15. |
 | 3.11 | Customer Portal | Cambiar tarjeta y cancelar; el corte ocurre **al fin del periodo pagado**, no antes. |
 | 3.12 | Fallo de pago | `past_due` → periodo de gracia (`BILLING_GRACE_DAYS`) → suspensión del bot con aviso, y **reanudación** al regularizar. |
-| 3.13 | Selección de plan por mercado | Un tenant de Colombia llega al Checkout con US$59, no con US$99 (valida el arreglo 3.1). |
+| 3.13 | Selección de plan por mercado | Un tenant de Colombia llega al Checkout con US$59, no con US$99. Cubierto por tests contra la base real (`api/tests/billing.checkout.test.ts`); falta verlo contra Stripe de verdad. |
+| 3.14 | Tenants sin mercado | Los anteriores al campo `Tenant.market` tienen que recibir el suyo desde el panel de plataforma, o no podrán pagar. |
 
 ### 3.D El interruptor
 
 | # | Pendiente | Detalle |
 | --- | --- | --- |
-| 3.14 | **`ACCESS_MODE=subscription`** | Cambia el flujo: la cuenta se activa por pago en vez de por aprobación manual. Reactiva también la decisión #3 (trial con tarjeta, `TRIAL_REQUIRES_CARD`). |
-| 3.15 | **Migrar a los clientes cobrados a mano** | Los de Payment Link tienen que pasar a suscripción gestionada, sin cobrarles dos veces ni cortarles el servicio. **Escribir el procedimiento antes de encender.** |
-| 3.16 | **Primer pago real conciliado** | Criterio de Go/No-Go de Fase 7: un pago de verdad, cobrado y cuadrado. |
+| 3.15 | **`ACCESS_MODE=subscription`** | Cambia el flujo: la cuenta se activa por pago en vez de por aprobación manual. Reactiva también la decisión #3 (trial con tarjeta, `TRIAL_REQUIRES_CARD`). |
+| 3.16 | **Migrar a los clientes cobrados a mano** | Los de Payment Link tienen que pasar a suscripción gestionada, sin cobrarles dos veces ni cortarles el servicio. **Escribir el procedimiento antes de encender.** |
+| 3.17 | **Primer pago real conciliado** | Criterio de Go/No-Go de Fase 7: un pago de verdad, cobrado y cuadrado. |
 
 ---
 
@@ -137,7 +143,7 @@ el pricing anunciado**.
 | **Cobrarle al primer cliente** | Compuerta 0 (5 ítems, ninguno de código) |
 | **Tener clientes en producción sin sustos** | Compuerta 1 (verificación en infra real) |
 | **Llegar a 10 clientes** | Compuerta 2 (legal, CI, márgenes reales) |
-| **Dejar de cobrar a mano** | Compuerta 3 — y dentro de ella, **3.1 y 3.2 son bloqueantes de código** |
+| **Dejar de cobrar a mano** | Compuerta 3 (3.1 y 3.2, los bloqueantes de código, ya están resueltos) |
 | **Reclutar partners a volumen** | 4.1 (atribución en la base de datos) |
 | **Crecer más allá de ~50 bots** | 4.2 (API oficial de Meta) |
 

@@ -10,12 +10,22 @@ const FALLBACK_INDUSTRIES = [
   { value: 'paqueteria', label: 'Paquetería' },
 ];
 
+// Mercados de lanzamiento. El precio cambia por país, así que se pregunta en el
+// alta y no en el cobro. Espejo de `api/src/billing/markets.ts`, que es la fuente
+// de verdad: el backend rechaza cualquier valor que no esté en su enum.
+const MARKETS = [
+  { value: 'MX', label: 'México' },
+  { value: 'CO', label: 'Colombia' },
+  { value: 'US', label: 'Estados Unidos' },
+];
+
 export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [industries, setIndustries] = useState(FALLBACK_INDUSTRIES);
   const [industry, setIndustry] = useState('generico');
+  const [market, setMarket] = useState('MX');
 
   useEffect(() => {
     api.getIndustries()
@@ -33,7 +43,7 @@ export default function Signup() {
     setError(null);
     setPending(true);
     try {
-      await api.signup({ email, password, businessName, industry, acceptedTerms, acceptedWhatsappRisk });
+      await api.signup({ email, password, businessName, industry, market, acceptedTerms, acceptedWhatsappRisk });
       setDone(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'error inesperado');
@@ -73,6 +83,12 @@ export default function Signup() {
         <span className="field-hint">Configura al asistente con las preguntas y los servicios de tu oficio.</span>
         <select value={industry} onChange={(e) => setIndustry(e.target.value)}>
           {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
+        </select>
+      </label>
+      <label>País
+        <span className="field-hint">El precio de tu plan depende del país donde opera tu negocio.</span>
+        <select value={market} onChange={(e) => setMarket(e.target.value)}>
+          {MARKETS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
         </select>
       </label>
       <label className="checkbox">

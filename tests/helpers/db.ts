@@ -21,6 +21,9 @@ export async function seedTestTenant(overrides: Record<string, unknown> = {}): P
       slug: 'test-tenant',
       name: 'Test Tenant',
       industry: 'test',
+      // Mercado por defecto: sin él no se le puede cobrar (el checkout responde
+      // 409 a propósito). Los tests de ese caso lo pasan como `{ market: null }`.
+      market: 'MX',
       profileDir: './profiles/tapiceria',
       // Espejo del backfill de la migración free_tier_approval: los tenants de
       // test nacen aprobados (los de aprobación pendiente lo piden explícito).
@@ -54,7 +57,13 @@ export async function cleanupDb(): Promise<void> {
 
 export const TEST_PLAN_ID = '00000000-0000-0000-0000-0000000000a1';
 
-/** Siembra un Plan activo de prueba. El monto real lo manda Stripe; aquí es display. */
+/**
+ * Siembra un Plan activo de prueba. El monto real lo manda Stripe; aquí es display.
+ *
+ * No fija `trialDays` a propósito: hereda el default del schema, que es el plazo
+ * que prometemos en la venta. Un fixture que lo fijara en 0 escondería justo el
+ * caso que importa — sembrar un plan sin pensar en el trial.
+ */
 export async function seedTestPlan(overrides: Record<string, unknown> = {}): Promise<string> {
   const plan = await testPrisma.plan.upsert({
     where: { id: TEST_PLAN_ID },
@@ -62,11 +71,11 @@ export async function seedTestPlan(overrides: Record<string, unknown> = {}): Pro
     create: {
       id: TEST_PLAN_ID,
       stripePriceId: 'price_test',
+      market: 'MX',
       name: 'Plan Test',
-      amountCents: 4900,
+      amountCents: 6900,
       currency: 'usd',
       interval: 'month',
-      trialDays: 0,
       ...overrides,
     },
   });

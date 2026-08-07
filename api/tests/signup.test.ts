@@ -9,7 +9,7 @@ function fakeEmail() {
   return { sender, sent };
 }
 
-const VALID = { email: 'nuevo@negocio.com', password: 'pw1234567890', businessName: 'Tapicería Luz', industry: 'tapiceria', acceptedTerms: true, acceptedWhatsappRisk: true };
+const VALID = { email: 'nuevo@negocio.com', password: 'pw1234567890', businessName: 'Tapicería Luz', industry: 'tapiceria', market: 'MX', acceptedTerms: true, acceptedWhatsappRisk: true };
 
 describe('POST /auth/signup', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
@@ -28,6 +28,8 @@ describe('POST /auth/signup', () => {
     const tenantId = res.json().tenantId;
     const tenant = await testPrisma.tenant.findUnique({ where: { id: tenantId } });
     expect(tenant?.status).toBe('pending_verification');
+    // El mercado se captura en el alta: es lo que decide qué plan se le cobra.
+    expect(tenant?.market).toBe('MX');
     expect(await testPrisma.panelUser.findUnique({ where: { email: VALID.email } })).not.toBeNull();
     const ev = await testPrisma.emailVerification.findFirst({ where: { tenantId } });
     expect(ev).not.toBeNull();
@@ -47,6 +49,13 @@ describe('POST /auth/signup', () => {
     expect((await app.inject({ method: 'POST', url: '/auth/signup', payload: { email: 'x' } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'POST', url: '/auth/signup', payload: { ...VALID, industry: 'otra' } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'POST', url: '/auth/signup', payload: { ...VALID, password: 'corta' } })).statusCode).toBe(400);
+  });
+
+  it('sin mercado, o con uno que no operamos → 400 (no se crea un tenant que no se puede cobrar)', async () => {
+    const { market: _omitido, ...sinMercado } = VALID;
+    expect((await app.inject({ method: 'POST', url: '/auth/signup', payload: sinMercado })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'POST', url: '/auth/signup', payload: { ...VALID, market: 'AR' } })).statusCode).toBe(400);
+    expect(await testPrisma.tenant.count()).toBe(0);
   });
 
   it('rate-limit: 6.º signup desde la misma IP → 429', async () => {

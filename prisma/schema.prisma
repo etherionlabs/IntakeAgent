@@ -24,6 +24,12 @@ model Tenant {
   /// Override del límite mensual de respuestas del bot (plan gratuito).
   /// null → aplica FREE_MONTHLY_RUN_LIMIT global.
   monthlyRunLimit Int?
+  /// Mercado de lanzamiento del negocio: 'US' | 'MX' | 'CO'. El precio cambia por
+  /// mercado, así que es lo que decide QUÉ Plan se cobra en el Checkout.
+  /// Nullable por los tenants anteriores a este campo (y los internos, que no se
+  /// cobran): sin mercado el checkout falla explícito en vez de cobrar un precio
+  /// al azar. El operador lo asigna desde el panel de plataforma.
+  market      String?
   /// Flags del wizard reanudable: { step, businessDone, welcomeDone, schemaDone, whatsappLinked, testDone, completed }
   onboarding  Json?
   createdAt   DateTime @default(now())
@@ -44,17 +50,28 @@ model Tenant {
 model Plan {
   id            String   @id @default(uuid())
   stripePriceId String   @unique
+  /// Mercado que cobra este plan: 'US' | 'MX' | 'CO'. Hay un precio por mercado
+  /// (US$99 / US$69 / US$59), así que el par (market, interval) es lo que
+  /// identifica al plan; sin él, "el plan activo" es ambiguo con más de uno.
+  market        String
   name          String
   amountCents   Int
   currency      String   @default("usd")
   interval      String   @default("month") // 'month' | 'year'
-  trialDays     Int      @default(0)
+  /// Días de prueba que aplica el Checkout (`trial_period_days`). El default es
+  /// el plazo que el asistente promete en la venta (ver profiles/intake); un 0
+  /// aquí significa cobrarle el día 1 a quien le prometimos dos semanas.
+  trialDays     Int      @default(14)
   maxContacts   Int?
   maxJobsMonth  Int?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 
   subscriptions Subscription[]
+
+  /// Un índice único PARCIAL (solo activos) vive en la migración: como mucho un
+  /// plan activo por mercado e intervalo. Prisma no expresa índices parciales.
+  @@index([market, interval, active])
 }
 
 /// Espejo del estado de la suscripción del tenant. Stripe es la fuente de verdad;

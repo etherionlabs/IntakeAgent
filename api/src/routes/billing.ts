@@ -1,8 +1,13 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { getPrisma } from '../db';
 import { SPA_URL, BILLING_GRACE_DAYS, requireEnv } from '../env';
 import { getStripe, type StripeLike, type Stripe } from '../billing/stripe';
-import { applyStripeEvent } from '../billing/state-machine';
+import { applyStripeEvent, isOperative } from '../billing/state-machine';
+import { isMarket } from '../billing/markets';
+
+/** El intervalo es opcional: mensual es el plan de lanzamiento. */
+const CheckoutZ = z.object({ interval: z.enum(['month', 'year']).optional() });
 
 export interface BillingRouteOptions {
   /** Cliente Stripe inyectable (tests). Default: singleton real. */
@@ -40,8 +45,23 @@ export async function billingRoutes(app: FastifyInstance, opts: BillingRouteOpti
   // active aquí (eso lo hace el webhook).
   app.post('/billing/checkout', { preHandler: app.authenticate }, async (request: any, reply) => {
     const tenantId = request.tenantId as string;
-    const plan = await prisma.plan.findFirst({ where: { active: true } });
-    if (!plan) return reply.code(409).send({ error: 'no hay plan activo configurado' });
+    const parsed = CheckoutZ.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: 'intervalo inválido' });
+    const interval = parsed.data.interval ?? 'month';
+
+    // Qué plan se cobra lo decide el MERCADO del tenant, no el orden de la tabla:
+    // hay un precio por país y "el plan activo" es ambiguo con tres activos.
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { market: true } });
+    if (!tenant) return reply.code(404).send({ error: 'tenant no encontrado' });
+    if (!isMarket(tenant.market)) {
+      // Preferimos no cobrar a cobrar mal: un precio de otro país es una
+      // devolución y una discusión, no un bug que se arregla en silencio.
+      return reply.code(409).send({ error: 'el tenant no tiene un mercado asignado; asígnalo antes de cobrar' });
+    }
+    const plan = await prisma.plan.findFirst({ where: { active: true, market: tenant.market, interval } });
+    if (!plan) {
+      return reply.code(409).send({ error: `no hay plan activo para el mercado ${tenant.market} (${interval})` });
+    }
 
     let sub = await prisma.subscription.findUnique({ where: { tenantId } });
     let customerId = sub?.stripeCustomerId;
@@ -51,6 +71,11 @@ export async function billingRoutes(app: FastifyInstance, opts: BillingRouteOpti
       sub = await prisma.subscription.create({
         data: { tenantId, planId: plan.id, stripeCustomerId: customerId, status: 'incomplete' },
       });
+    } else if (sub && sub.planId !== plan.id && !isOperative(sub.status)) {
+      // El espejo apuntaba a otro plan (mercado corregido, o un intento previo
+      // con otro intervalo). Sin suscripción viva se puede alinear sin mentir;
+      // si YA está viva, el plan lo manda Stripe y el cambio va por el Portal.
+      sub = await prisma.subscription.update({ where: { tenantId }, data: { planId: plan.id } });
     }
 
     const session = await stripe().checkout.sessions.create({

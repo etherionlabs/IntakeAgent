@@ -4,7 +4,7 @@ import { cleanupDb, TEST_JWT_SECRET, testPrisma } from './helpers/app';
 import type { EmailSender } from '../src/lib/email';
 
 const sink: EmailSender = { async send() {} };
-const BASE = { email: 'legal@negocio.com', password: 'pw1234567890', businessName: 'Negocio Legal', industry: 'generico' };
+const BASE = { email: 'legal@negocio.com', password: 'pw1234567890', businessName: 'Negocio Legal', industry: 'generico', market: 'MX' };
 
 describe('aceptación legal en signup', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;

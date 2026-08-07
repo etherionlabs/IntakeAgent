@@ -113,7 +113,7 @@ export const api = {
   getWaStatus: () => request<{ connected: boolean; qr: string | null; phone: string; status?: string; lastConnectedAt?: string | null; lastError?: string | null }>('GET', '/wa-status'),
   waLogout: () => request<{ ok: boolean }>('POST', '/wa-status/logout'),
   waReconnect: () => request<{ ok: boolean }>('POST', '/wa-status/reconnect'),
-  signup: (payload: { email: string; password: string; businessName: string; industry: string; acceptedTerms: boolean; acceptedWhatsappRisk: boolean }) =>
+  signup: (payload: { email: string; password: string; businessName: string; industry: string; market: string; acceptedTerms: boolean; acceptedWhatsappRisk: boolean }) =>
     request<{ tenantId: string; status: string }>('POST', '/auth/signup', payload),
   verifyEmail: (token: string) => request<{ status: string }>('GET', `/auth/verify-email?token=${encodeURIComponent(token)}`),
   resendVerification: (email: string) => request<{ ok: boolean }>('POST', '/auth/resend-verification', { email }),
@@ -163,7 +163,7 @@ export const platformApi = {
     platformRequest<{ users: PlatformTenantUser[] }>('GET', `/platform/tenants/${tenantId}/users`),
   createTenantUser: (tenantId: string, payload: CreateTenantUserPayload) =>
     platformRequest<{ user: PlatformTenantUser }>('POST', `/platform/tenants/${tenantId}/users`, payload),
-  updateTenant: (id: string, payload: { name?: string; industry?: string }) =>
+  updateTenant: (id: string, payload: { name?: string; industry?: string; market?: string }) =>
     platformRequest<{ ok: boolean; tenant: PlatformTenant }>('PATCH', `/platform/tenants/${id}`, payload),
   deleteTenant: (id: string, confirmSlug: string) =>
     platformRequest<{ ok: boolean }>('DELETE', `/platform/tenants/${id}`, { confirmSlug }),
@@ -191,6 +191,8 @@ export interface PlatformTenant {
   slug: string;
   name: string;
   industry: string;
+  /** Mercado de cobro ('US'|'MX'|'CO'). null = sin asignar: no se le puede cobrar. */
+  market: string | null;
   profileDir: string;
   createdAt: string;
   status: string;
@@ -215,6 +217,7 @@ export interface CreateTenantPayload {
   slug: string;
   name: string;
   industry: string;
+  market?: string;
   profileDir: string;
 }
 
