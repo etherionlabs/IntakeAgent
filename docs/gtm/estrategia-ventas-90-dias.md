@@ -10,6 +10,12 @@ comercial encendida**. Los 20 clientes caen en el día 150.
 > oportunista; el motor comercial arranca el mes 3. La meta no bajó de ambición, bajó de
 > fantasía.
 
+> ⚡ **Para los primeros 21 días, el detalle operativo está en
+> [`sprint-primeros-clientes.md`](sprint-primeros-clientes.md)**: el camino de alta manual
+> (verificado en el código) que salta el signup, el email, Stripe y la landing, y permite
+> tener el bot de un cliente real atendiendo el día 7. Este documento es el marco; ese es la
+> ejecución de las primeras tres semanas.
+
 > Documento hermano: [`plan-de-negocio.md`](plan-de-negocio.md) (modelo de negocio,
 > economía unitaria, proyección y decisiones abiertas).
 > Precios y condiciones oficiales: `profiles/intake/business-facts.json` (autoritativo,
@@ -154,13 +160,14 @@ plan de ventas en paralelo.
 
 | Semana | Foco dominante | Comercial | Meta |
 | --- | --- | --- | --- |
-| 1 | **Semana 0** completa (incluye decidir el free tier) | — | Número de Intake en vivo |
-| 2 | Compuerta 1: infra, migraciones, 2 bots reales | 10 conversaciones de la red directa | 3 pruebas activas |
-| 3 | Compuerta 1: restore drill, alertas, email real | Onboarding acompañado de las pruebas | **H1: 1 cliente pagando** |
-| 4 | Compuerta 1: cierre y verificación | 10 conversaciones más | 1 cliente · 5 pruebas activas |
+| 1 | **Sprint días 1–5**: ensayo del alta manual, respaldo, alerta, free tier | Primeras 10 conversaciones de la red directa | Poder dar de alta a mano |
+| 2 | Altas concierge el mismo día | Onboarding acompañado, config desde su historial | **Primer bot de cliente real vivo (día 7)** |
+| 3 | Más altas + 10 conversaciones nuevas | Reporte del día 14 a los primeros | 3 bots vivos |
+| 4 | **Compuerta 1** arranca en serio | Convertir pruebas con el Payment Link | **H1: 1–2 clientes pagando (día 21)** |
 
-**Salida del mes 1:** 1 cliente pagando, infraestructura casi verificada, y las primeras
-objeciones reales medidas con `intake_objections_total`.
+**Salida del mes 1:** 1–2 clientes pagando, 3 bots vivos, y las primeras objeciones reales
+medidas con `intake_objections_total`. El alta manual adelanta el primer bot al día 7 sin
+esperar a la Compuerta 1 — ver [`sprint-primeros-clientes.md`](sprint-primeros-clientes.md).
 
 ### Días 31–60 — Cerrar la infraestructura y el primer caso
 
