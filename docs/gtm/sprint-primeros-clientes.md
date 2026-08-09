@@ -167,9 +167,9 @@ entra en este sprint.
    precios y prometer SMS o la API oficial; tú no las tienes. La honestidad sobre Baileys
    —"puede desconectarse, te aviso y lo reconecto"— cierra mejor de lo que parece, y evita
    la conversación fea del mes 2.
-3. **Cinco clientes sin haber cerrado la Compuerta 1.** Tres bots a mano se sostienen; diez,
-   no. Al tercer cliente vivo, la prioridad vuelve a la infraestructura — el sprint termina
-   ahí a propósito.
+3. **Un cuarto cliente con la Compuerta 1 abierta.** Tres bots a mano se sostienen; el
+   cuarto ya no, y diez menos. Al tercer bot vivo la prioridad vuelve a la infraestructura
+   — el sprint termina ahí a propósito.
 
 ---
 

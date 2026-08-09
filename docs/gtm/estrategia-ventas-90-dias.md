@@ -6,9 +6,9 @@ comercial encendida**. Los 20 clientes caen en el día 150.
 > ⚠️ **Revisión del 2026-08-07.** La primera versión de este documento ponía 20 clientes en
 > el día 90. No cabía: la misma persona que vende es la que tiene que cerrar la verificación
 > de infraestructura (Compuerta 1 de los [pendientes](pendientes-antes-de-vender.md)) antes
-> de tener veinte bots en producción. Los meses 1 y 2 son de ingeniería con venta
-> oportunista; el motor comercial arranca el mes 3. La meta no bajó de ambición, bajó de
-> fantasía.
+> de tener veinte bots en producción. El reparto real: **mes 1 el sprint de primeros
+> clientes** (alta a mano, hasta 3 bots vivos), **mes 2 cerrar la Compuerta 1**, **mes 3 el
+> motor comercial**. La meta no bajó de ambición, bajó de fantasía.
 
 > ⚡ **Para los primeros 21 días, el detalle operativo está en
 > [`sprint-primeros-clientes.md`](sprint-primeros-clientes.md)**: el camino de alta manual
@@ -39,24 +39,35 @@ Si el bot no cierra, no se arregla el guion humano: se arregla `business-facts.j
 
 ---
 
-## 1. Semana 0 — Preparación (no se vende nada todavía)
+## 1. Semana 0 — Preparación
 
-Sin esto, los primeros 30 días se desperdician. Es una semana, no más.
+**El detalle día por día está en [`sprint-primeros-clientes.md`](sprint-primeros-clientes.md)
+§3.** Aquí queda solo lo que hay que tener listo y quién lo debe, para que se vea de un
+vistazo qué bloquea a qué.
+
+### Lo que bloquea al primer cliente
 
 | # | Entregable | Detalle | Responsable |
 | --- | --- | --- | --- |
-| 1 | **Número de Intake en vivo** | Tenant `intake` operando con `profiles/intake/`, aprobado y vinculado. Probar 5 conversaciones reales de punta a punta (una en inglés, para validar `welcome.en.txt` y el aviso de IA). | Producto |
-| 2 | **Stripe Payment Link × 3** | Uno por mercado (US$99 / US$69 / US$59), recurrente mensual. Se crea desde el dashboard; **no requiere la Fase 3 integrada**. | Dueño |
-| 3 | **Procedimiento de alta** | Pago confirmado → aprobar en `/admin` → agendar la sesión de vinculación del QR. Escrito, de 5 líneas, para no improvisar. | Operación |
-| 4 | **Hoja de partners** | Código de referido, partner, cliente, mercado, fecha de alta, estado, comisión del mes. Fuente de verdad hasta que exista `Tenant.partnerId`. | Dueño |
-| 5 | **Video de demo, 60–90 s** | Pantalla partida: el cliente escribe por WhatsApp / la ficha del trabajo apareciendo en el panel. **Cerrar con la previsualización de wrapping** — es el segundo que hace scroll-stop. | Marketing |
-| 6 | **Landing con precios reales** | `docs/gtm/pricing.md` ya tiene los montos; publicarla con CTA a WhatsApp (no a un formulario). | Marketing |
-| 7 | **Lista de 50 prospectos** | Tapicerías y estudios de wrapping con WhatsApp visible en Google Maps / Instagram, en 2–3 ciudades. Con nombre del dueño donde se pueda. | Ventas |
-| 8 | **Conteo del estanque** (30 min) | Mientras armas la lista, **cuenta el total** de negocios alcanzables por vertical en esas ciudades. Si tapicería + wrapping no llegan a ~300, mecánica entra en el mes 2 y no en el 4. Es el dato que decide si el vertical aguanta el año. | Ventas |
-| 9 | **Procedimiento del día 15** | Qué pasa cuando termina la prueba y no convirtió: qué mensaje sale, quién desvincula el WhatsApp, qué se conserva y cuánto. La primera cohorte llega a ese día toda junta; improvisarlo es el peor momento para hacerlo. | Operación |
-| 10 | **Decidir el límite del plan gratuito** | Con 300 respuestas/mes el free tier cubre entero al ICP y no hay nada que vender. Recomendación: ~100. Ver plan de negocio §3. | Dueño |
+| 1 | **Decidir el límite del plan gratuito** | Con 300 respuestas/mes el free tier cubre entero al ICP y no hay nada que vender. Recomendación: ~100, con override fijado antes en los tenants del piloto. Ver plan de negocio §3. | Dueño |
+| 2 | **Ensayo del alta concierge** | Crear un tenant de mentira en `/platform`, su dueño, aprobarlo y vincular **tu segundo número**. Es donde descubres qué se rompe antes de que lo vea un cliente. | Producto |
+| 3 | **Respaldo diario + alerta de bot caído** | `pg_dump` en cron y el sink de `src/lib/alerts.ts` cableado a tu teléfono. Lo único de la Compuerta 1 que no se aplaza. | Producto |
+| 4 | **Stripe Payment Link × 3** | Uno por mercado (US$99 / US$69 / US$59), recurrente mensual. Desde el dashboard; **no requiere la Fase 3 integrada**. | Dueño |
+| 5 | **Procedimiento de alta escrito** | Los 7 pasos del alta concierge (sprint §4), en una nota, para no improvisar con el primero delante. | Operación |
+| 6 | **Lista de 20 negocios que ya te conocen** | Donde eres cliente, donde conoces al dueño, o donde alguien te presenta. Los fríos no entran en las primeras tres semanas. | Ventas |
 
-> ⚠️ **El ítem 10 bloquea a los demás.** Sin resolverlo, la respuesta correcta de un
+### Lo que hace falta pronto, pero no bloquea
+
+| # | Entregable | Cuándo | Responsable |
+| --- | --- | --- | --- |
+| 7 | **Número de Intake en vivo** (el bot que nos vende) | Antes de la pauta, mes 3 | Producto |
+| 8 | **Video de demo, 60–90 s** | Días 3–5; ayuda a vender pero no bloquea el alta | Marketing |
+| 9 | **Procedimiento del día 15** | Antes del día 14 del primer cliente | Operación |
+| 10 | **Conteo del estanque** (30 min) | Antes de comprometer el trimestre a un vertical | Ventas |
+| 11 | **Landing con precios reales** | Mes 3, cuando haya pauta que mandar a algún sitio | Marketing |
+| 12 | **Hoja de partners** | Mes 4, con el Partner Program | Dueño |
+
+> ⚠️ **El ítem 1 bloquea a todos los demás.** Sin resolverlo, la respuesta correcta de un
 > prospecto bien informado es quedarse en el plan gratuito — y tendrá razón.
 
 ---
@@ -330,9 +341,11 @@ cuando la pauta está encendida y el producto ya no necesita atención de ingeni
    Baileys, 48 horas de número caído no le cuestan una molestia sino dinero, y esa reseña
    hunde el lanzamiento. Se reserva para cuando exista la API oficial — y decírselo vende
    bien con todos los demás.
-10. **Vender mientras la Compuerta 1 sigue abierta.** Cada cliente nuevo antes de tener
-   alertas, backups probados y dos bots verificados es una apuesta con el nombre del
-   negocio de otro.
+10. **Pasar del tercer cliente con la Compuerta 1 abierta.** Los tres primeros se sostienen
+   a mano y con lo mínimo —respaldo diario, alerta de bot caído, cutover ordenado—; el
+   cuarto ya no. Seguir vendiendo ahí es apostar con el nombre del negocio de otro.
+   *(Lo contrario también es un error, y es el que se estaba cometiendo: esperar a la
+   Compuerta 1 entera para dar de alta al primero.)*
 
 ---
 

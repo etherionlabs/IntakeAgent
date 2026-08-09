@@ -22,32 +22,50 @@ Lo mínimo para cobrarle a un cliente hoy, con operación manual y **sin escribi
 
 | # | Pendiente | Esfuerzo | Responsable |
 | --- | --- | --- | --- |
-| 0.1 | **Tenant `intake` en vivo**: perfil `profiles/intake/` aprobado, WhatsApp vinculado, 5 conversaciones probadas de punta a punta (una en inglés). Es el vendedor y la demo. | ▪▪ | Producto |
-| 0.2 | **Stripe Payment Link × 3** (US$99 / US$69 / US$59, recurrente mensual) creados desde el dashboard. **No requiere la integración de Fase 3.** | ▪ | Dueño |
-| 0.3 | **Procedimiento de alta escrito**: pago confirmado → aprobar en `/admin` → sesión de vinculación del QR. Cinco líneas, para no improvisar con el primer cliente. | ▪ | Operación |
-| 0.4 | **Hoja de atribución de partners**: código, partner, **nivel** (referidor / comercial), cliente, mercado, fecha de alta, **fecha de día 90 y si el bono ya se pagó**, estado y recurrente del mes. Sustituye a `Tenant.partnerId` mientras no exista. La columna del día 90 es la que no se puede improvisar: un bono olvidado es un socio perdido. | ▪ | Dueño |
-| 0.5 | **Decidir el trato del trial pagado**: hoy se anuncian 14 días de prueba y el cobro es un Payment Link manual → o se envía el link al día 14, o se cobra desde el día 1 con reembolso pactado. **Elegir una y escribirla.** | ▪ | Dueño |
-| 0.6 | **Bajar el límite del plan gratuito** de 300 a ~100 respuestas/mes (`FREE_MONTHLY_RUN_LIMIT`). Con 300 el free tier cubre entero al ICP y no hay nada que vender. Antes de aplicarlo con el piloto en vivo, fijar `Tenant.monthlyRunLimit` en los tenants que ya operan. | ▪ | Dueño |
+| 0.1 | **Bajar el límite del plan gratuito** de 300 a ~100 respuestas/mes (`FREE_MONTHLY_RUN_LIMIT`). Con 300 el free tier cubre entero al ICP y no hay nada que vender. Antes de aplicarlo con el piloto en vivo, fijar `Tenant.monthlyRunLimit` en los tenants que ya operan. | ▪ | Dueño |
+| 0.2 | **Ensayo del alta concierge** de punta a punta en `/platform` con un tenant de mentira y tu segundo número de WhatsApp. Es donde se descubre qué se rompe **antes** de que lo vea un cliente. | ▪▪ | Producto |
+| 0.3 | **Respaldo diario** (`pg_dump` en cron) **y alerta de bot caído** en tu teléfono. Lo único de la Compuerta 1 que no se aplaza: son las conversaciones de los clientes de otro negocio, y enterarte de una caída por él es perderlo. | ▪▪ | Producto |
+| 0.4 | **Stripe Payment Link × 3** (US$99 / US$69 / US$59, recurrente mensual) creados desde el dashboard. **No requiere la integración de Fase 3.** | ▪ | Dueño |
+| 0.5 | **Procedimiento de alta escrito**: los 7 pasos del alta concierge (crear tenant → crear dueño → aprobar → QR → configurar con él → prueba en vivo → anotar su día 14). Ver [sprint](sprint-primeros-clientes.md) §4. | ▪ | Operación |
+| 0.6 | **Decidir el trato del trial pagado**: se anuncian 14 días de prueba y el cobro es un Payment Link manual → o se envía el link al día 14, o se cobra desde el día 1 con reembolso pactado. **Elegir una y escribirla.** | ▪ | Dueño |
 | 0.7 | **Escribir el procedimiento del día 15**: termina la prueba y no convirtió → qué mensaje sale, quién desvincula el WhatsApp, qué datos se conservan y cuánto. La primera cohorte llega a ese día toda junta. | ▪ | Operación |
-| 0.8 | **Contar el estanque** (30 min de Google Maps): negocios alcanzables por vertical en las ciudades objetivo. Si tapicería + wrapping no llegan a ~300, mecánica entra en el mes 2. | ▪ | Ventas |
+| 0.8 | **Lista de 20 negocios que ya te conocen** + **conteo del estanque** (30 min de Google Maps). Si tapicería + wrapping no llegan a ~300 alcanzables, mecánica entra en el mes 2. | ▪ | Ventas |
 
-> ⚠️ **0.6 bloquea a toda la compuerta.** Vender un plan de pago mientras la versión
+> ⚠️ **0.1 bloquea a toda la compuerta.** Vender un plan de pago mientras la versión
 > gratuita cubre al cliente objetivo entero no es una desventaja competitiva: es no tener
-> producto que vender. Y **sin 0.5 no se sale a vender** tampoco: si se improvisa, genera
+> producto que vender. Y **sin 0.6 no se sale a vender** tampoco: si se improvisa, genera
 > una disputa con el primer cliente.
 
-> 📌 **Lo que esta compuerta NO puede hacer sola:** vender a volumen antes de cerrar la
-> Compuerta 1. Con una persona haciendo ingeniería y venta, el ritmo realista de los dos
-> primeros meses es de **1 a 3 clientes**, no de diez — ver el calendario en
-> [`estrategia-ventas-90-dias.md`](estrategia-ventas-90-dias.md) §3.
+> 📌 **Lo que ya NO bloquea al primer cliente** (y antes estaba aquí): el tenant `intake` en
+> vivo —nuestro propio bot vendedor— hace falta antes de la **pauta del mes 3**, no antes del
+> primer cliente, que se cierra hablando tú. La hoja de partners se mueve al **mes 4** con el
+> programa. Y la landing, al mes 3, cuando haya tráfico que mandar a algún sitio.
+
+> 📌 **Techo de esta compuerta:** con una persona haciendo ingeniería y venta, y el alta a
+> mano, el ritmo sostenible es de **3 clientes**. Al cuarto manda la Compuerta 1 — ver
+> [`sprint-primeros-clientes.md`](sprint-primeros-clientes.md).
 
 ---
 
-## Compuerta 1 — Antes del cliente #1 en producción
+## Compuerta 1 — Antes del cliente #4
+
+> 🔁 **Re-alcance del 2026-08-07.** Esta compuerta se llamaba "antes del cliente #1" y estaba
+> frenando la venta sin necesidad: sus nueve ítems son lo que hace falta para sostener
+> **diez** clientes, no uno. Los primeros tres entran por el **alta manual** verificada en
+> [`sprint-primeros-clientes.md`](sprint-primeros-clientes.md), que salta el signup, el
+> email, Stripe y la landing enteros.
+>
+> **Del bloque de abajo, solo tres cosas se adelantan al cliente #1** — están en la Compuerta
+> 0 y en el sprint: el **respaldo diario** (1.4, en su versión mínima: `pg_dump` en cron, sin
+> el drill documentado), la **alerta de bot caído** (1.6) y el **cutover ordenado del piloto**
+> (1.2) si despliegas sobre esa infraestructura. El resto espera.
+>
+> **El sprint termina al tercer bot vivo**, que es donde tres atendidos a mano dejan de
+> sostenerse. A partir de ahí, esta compuerta es la prioridad y va antes que el cuarto cliente.
 
 Todo esto está implementado y probado en sandbox; lo que falta es **verificarlo contra
-infraestructura real**. Un bot que se cae con el primer cliente cuesta más que los 90 días
-de venta que lo consiguieron.
+infraestructura real**. Un bot que se cae cuesta más que los 90 días de venta que lo
+consiguieron.
 
 | # | Pendiente | Origen | Esfuerzo |
 | --- | --- | --- | --- |
@@ -151,7 +169,8 @@ pueden pasar por el Checkout — a propósito.
 | Quiero… | Tengo que cerrar |
 | --- | --- |
 | **Cobrarle al primer cliente** | Compuerta 0 (5 ítems, ninguno de código) |
-| **Tener clientes en producción sin sustos** | Compuerta 1 (verificación en infra real) |
+| **Los primeros 3 clientes** | Compuerta 0 + respaldo, alerta y cutover (sprint de primeros clientes) |
+| **Pasar del cliente #4 sin sustos** | Compuerta 1 completa (verificación en infra real) |
 | **Llegar a 10 clientes** | Compuerta 2 (legal, CI, márgenes reales) |
 | **Dejar de cobrar a mano** | Compuerta 3 (3.1 y 3.2, los bloqueantes de código, ya están resueltos) |
 | **Reclutar partners a volumen** | 4.1 (atribución en la base de datos) |
