@@ -27,6 +27,11 @@ al mes se paga solo. Ese es el encuadre de toda la venta.
 Intake vendiéndose a sí mismo por WhatsApp — el prospecto **está usando el producto
 mientras pregunta el precio**. Ningún competidor puede demostrar tan barato.
 
+**Objetivo declarado por el dueño (2026-08-07):** que el negocio **le pague un sueldo**, a
+tiempo completo y con un runway de 3 a 6 meses. Eso son **25–32 clientes**, no 100 — y cae
+entre el mes 6 y el 7 del escenario base, justo en el borde del runway. Cómo se compra
+holgura para ese borde está en [`plan-maestro.md`](plan-maestro.md).
+
 **Objetivo 12 meses (escenario base, una sola persona):** 100 negocios pagando, ~US$6.5k
 MRR neto (~US$84k ARR run-rate), margen bruto >85%.
 
@@ -341,11 +346,18 @@ entre 3 y 4 meses. Es el umbral que decide si se puede escalar con pauta pagada.
 
 ### Punto de equilibrio
 
-Con costos fijos de operación estimados en **US$1,500/mes** (infra, herramientas, dominio,
-email transaccional, y sin contar sueldo del fundador):
+> ⚠️ **Corregido el 2026-08-07.** Antes decía US$1,500/mes de costos fijos y ~23 clientes de
+> equilibrio. No era real para un SaaS de una persona a esta escala: con Railway/VPS, dominio
+> y los planes gratuitos de Sentry, Resend y monitoreo son **~US$100–150/mes**, subiendo a
+> ~US$300 con cincuenta clientes. El error hacía parecer el negocio mucho menos alcanzable de
+> lo que es.
 
-- **~23 clientes** cubren los costos fijos.
-- **~60 clientes** sostienen un primer sueldo de soporte/ventas.
+Con costos fijos reales de **~US$150/mes** y una contribución de US$67 por cliente
+(ARPU US$70 − US$3 de costo variable):
+
+- **3 clientes** cubren los costos fijos de la plataforma.
+- **25 clientes** pagan un sueldo de US$1,500/mes; **32**, uno de US$2,000; **48**, uno de
+  US$3,000. Ver [`plan-maestro.md`](plan-maestro.md) §1.
 
 ---
 
@@ -417,9 +429,9 @@ lo mueve un 67% sin vender ni un cliente más.
 
 | Partida | Total 12 meses |
 | --- | --- |
-| Infraestructura y herramientas (Railway/VPS, Sentry, Resend, dominio, monitoreo) | ~$1,800 |
+| Infraestructura y herramientas (Railway/VPS, Sentry, Resend, dominio, monitoreo) | ~$2,000 |
 | Pauta click-to-WhatsApp (arranca en $300/mes desde el mes 3, escala a $1,200) | ~$7,000 |
-| Legal (revisión profesional de ToS/Privacidad/DPA — pendiente `[LEGAL-EXT]`) | ~$1,500 |
+| Legal (revisión profesional de ToS/Privacidad/DPA — pendiente `[LEGAL-EXT]`) | ~$1,500 (una vez) |
 | Materiales de venta (video de demo, landing, casos) | ~$1,000 |
 | **Total** | **≈ US$11,300** |
 
@@ -429,8 +441,8 @@ autofinancia a partir del mes 6–7** y no requiere capital externo. Dos matices
 - **El modelo cobra desde el mes del alta**, pero con 14 días de prueba cada cohorte no
   paga su primera media mensualidad. El acumulado real del año 1 es un **5–8% menor** que
   el de la tabla.
-- Los costos fijos (~US$1,500/mes) **no incluyen sueldo del fundador**. El punto de
-  equilibrio de ~23 clientes es de caja, no de sostenibilidad personal.
+- Los costos fijos (~US$150/mes) **no incluyen sueldo del fundador**. Cubrirlos con 3
+  clientes es equilibrio de caja, no sostenibilidad personal: el sueldo empieza en ~25.
 
 ---
 
@@ -556,7 +568,7 @@ página de precios. **Falta cerrarlo en el cobro** (`Plan.trialDays = 14`) al ac
 | **H2 — Compuerta 1 cerrada** | Mes 2 | Infra verificada: 2 bots reales, restore drill, alertas, email |
 | **H3 — Validación del ICP** | Mes 3 | 7 clientes de pago, del vertical de cabeza de playa |
 | **H4 — Canal pagado validado** | Mes 4 | CAC < $250 con $500 de pauta; ≥ 2 clientes atribuibles |
-| **H5 — Punto de equilibrio** | Mes 5–6 | ~23 clientes; MRR > costos fijos |
+| **H5 — Sueldo del fundador** | Mes 6–7 | 25–32 clientes; MRR neto > sueldo objetivo (el equilibrio de caja, 3 clientes, cae en el mes 2) |
 | **H6 — Retención probada** | Mes 6 | Churn mensual < 8% con cohortes de ≥ 3 meses (umbral de alarma) |
 | **H7 — Segundo vertical** | Mes 6 | Mecánica/refrigeración con ≥ 10 clientes |
 | **H8 — Onboarding automatizado** | Mes 6 | Antes de los 30 clientes: el alta deja de costar 0.8 h |

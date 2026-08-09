@@ -47,25 +47,28 @@ vistazo qué bloquea a qué.
 
 ### Lo que bloquea al primer cliente
 
-| # | Entregable | Detalle | Responsable |
+> Las columnas de "responsable" desaparecieron a propósito: **hay una persona**. Lo que
+> escasea no son los roles, son las horas, así que eso es lo que se presupuesta.
+
+| # | Entregable | Detalle | Horas |
 | --- | --- | --- | --- |
-| 1 | **Decidir el límite del plan gratuito** | Con 300 respuestas/mes el free tier cubre entero al ICP y no hay nada que vender. Recomendación: ~100, con override fijado antes en los tenants del piloto. Ver plan de negocio §3. | Dueño |
-| 2 | **Ensayo del alta concierge** | Crear un tenant de mentira en `/platform`, su dueño, aprobarlo y vincular **tu segundo número**. Es donde descubres qué se rompe antes de que lo vea un cliente. | Producto |
-| 3 | **Respaldo diario + alerta de bot caído** | `pg_dump` en cron y el sink de `src/lib/alerts.ts` cableado a tu teléfono. Lo único de la Compuerta 1 que no se aplaza. | Producto |
-| 4 | **Stripe Payment Link × 3** | Uno por mercado (US$99 / US$69 / US$59), recurrente mensual. Desde el dashboard; **no requiere la Fase 3 integrada**. | Dueño |
-| 5 | **Procedimiento de alta escrito** | Los 7 pasos del alta concierge (sprint §4), en una nota, para no improvisar con el primero delante. | Operación |
-| 6 | **Lista de 20 negocios que ya te conocen** | Donde eres cliente, donde conoces al dueño, o donde alguien te presenta. Los fríos no entran en las primeras tres semanas. | Ventas |
+| 1 | **Decidir el límite del plan gratuito** | Con 300 respuestas/mes el free tier cubre entero al ICP y no hay nada que vender. Recomendación: ~100, con override fijado antes en los tenants del piloto. Ver plan de negocio §3. | 0.5 |
+| 2 | **Ensayo del alta concierge** | Crear un tenant de mentira en `/platform`, su dueño, aprobarlo y vincular **tu segundo número**. Es donde descubres qué se rompe antes de que lo vea un cliente. | 2 |
+| 3 | **Respaldo diario + alerta de bot caído** | `pg_dump` en cron y el sink de `src/lib/alerts.ts` cableado a tu teléfono. Lo único de la Compuerta 1 que no se aplaza. | 3 |
+| 4 | **Stripe Payment Links** | Mensuales **y anuales** por mercado (US$99/69/59 y US$990/690/590). El anual es la palanca de caja del plan maestro §2. | 0.5 |
+| 5 | **Procedimiento de alta escrito** | Los 7 pasos del alta concierge (sprint §4), en una nota, para no improvisar con el primero delante. | 0.5 |
+| 6 | **Lista de 20 negocios que ya te conocen** | Donde eres cliente, donde conoces al dueño, o donde alguien te presenta. Los fríos no entran en las primeras tres semanas. | 1 |
 
 ### Lo que hace falta pronto, pero no bloquea
 
-| # | Entregable | Cuándo | Responsable |
-| --- | --- | --- | --- |
-| 7 | **Número de Intake en vivo** (el bot que nos vende) | Antes de la pauta, mes 3 | Producto |
-| 8 | **Video de demo, 60–90 s** | Días 3–5; ayuda a vender pero no bloquea el alta | Marketing |
-| 9 | **Procedimiento del día 15** | Antes del día 14 del primer cliente | Operación |
-| 10 | **Conteo del estanque** (30 min) | Antes de comprometer el trimestre a un vertical | Ventas |
-| 11 | **Landing con precios reales** | Mes 3, cuando haya pauta que mandar a algún sitio | Marketing |
-| 12 | **Hoja de partners** | Mes 4, con el Partner Program | Dueño |
+| # | Entregable | Cuándo |
+| --- | --- | --- |
+| 7 | **Número de Intake en vivo** (el bot que nos vende) | Antes de la pauta, mes 3 |
+| 8 | **Video de demo, 60–90 s** | Días 3–5; ayuda a vender pero no bloquea el alta |
+| 9 | **Procedimiento del día 15** | Antes del día 14 del primer cliente |
+| 10 | **Conteo del estanque** (30 min) | Antes de comprometer el trimestre a un vertical |
+| 11 | **Landing con precios reales** | Mes 3, cuando haya pauta que mandar a algún sitio |
+| 12 | **Hoja de partners** | Mes 4, con el Partner Program |
 
 > ⚠️ **El ítem 1 bloquea a todos los demás.** Sin resolverlo, la respuesta correcta de un
 > prospecto bien informado es quedarse en el plan gratuito — y tendrá razón.
@@ -211,7 +214,7 @@ clientes** — que es donde la primera versión de este documento ponía el día
 | --- | --- |
 | 4 | Pauta escalada; primeros partners sembrados; 13 clientes |
 | 5 | **20 clientes** · segundo vertical produciendo |
-| 6 | Punto de equilibrio (~23 clientes) · onboarding automatizado antes de los 30 |
+| 6 | **Sueldo del fundador** (25–32 clientes) · onboarding automatizado antes de los 30 |
 
 ---
 
