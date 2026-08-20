@@ -13,6 +13,8 @@ import {
 } from './schema';
 import { validateIntakeSchema } from './intake-schema';
 import { readProfileOverride, readConfigOverride } from './overrides';
+import { resolveModules, skillsFor } from '../domain/modules';
+import { MODULE_REGISTRY } from '../domain/registry';
 import type { ProfileSettings, ConfigSettings } from './settings';
 
 export class ConfigLoadError extends Error {
@@ -142,7 +144,12 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
     throw new ConfigLoadError(`business-facts.json inválido: ${businessFacts.error.message}`);
   }
 
-  const skills = await loadSkills(promptVars.data.skills, skillsDir);
+  // Las skills efectivas son las que declara el perfil MÁS las que aporta cada
+  // módulo compuesto: una vertical que compone `ventas` obtiene sus técnicas sin
+  // tener que copiarlas, y una que no lo compone no las arrastra.
+  const modules = resolveModules(promptVars.data.modules, MODULE_REGISTRY);
+  const skillNames = [...new Set([...promptVars.data.skills, ...skillsFor(modules)])];
+  const skills = await loadSkills(skillNames, skillsDir);
 
   // Bienvenidas traducidas: `welcome.en.txt` junto a `welcome.txt`. Son
   // opcionales — un giro que solo atiende en español no tiene ninguna y sigue
@@ -167,6 +174,7 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
     // Guía para editar imágenes / previsualizaciones (vars.imageEditGuidance).
     imageEditGuidance: promptVars.data.vars.imageEditGuidance ?? '',
     skills,
+    modules: promptVars.data.modules,
     hash,
   };
 }
@@ -211,6 +219,9 @@ export function applyProfileOverride(base: Profile, ov: ProfileSettings): Profil
     imageEditGuidance: ov.vars.imageEditGuidance ?? base.imageEditGuidance,
     // Las skills se conservan del perfil base (la edición del panel no las toca).
     skills: base.skills,
+    // La composición de módulos no se edita desde el panel: es una decisión de
+    // la vertical, no del dueño de un negocio.
+    modules: base.modules,
     hash,
   };
 }

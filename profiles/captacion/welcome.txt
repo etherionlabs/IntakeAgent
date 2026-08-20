@@ -1,0 +1,1 @@
+¡Hola! Soy el asistente de {{businessName}}. Para pasarle tu solicitud al equipo, cuéntame tu nombre y qué necesitas.

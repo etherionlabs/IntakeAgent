@@ -185,10 +185,12 @@ export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
     profile.intakeSchema.$businessName,
   );
   const history = buildHistoryBlock(recentHistory ?? []);
-  const intakeBlock = renderIntakeForModel(profile.intakeSchema, intake, {
-    jobId,
-    status: jobStatus,
-  });
+  const intakeBlock = renderIntakeForModel(
+    profile.intakeSchema,
+    intake,
+    { jobId, status: jobStatus },
+    profile.modules,
+  );
   const openJobs = buildOpenJobsBlock(otherOpenJobs);
   const hours = buildHoursBlock(config, now);
 

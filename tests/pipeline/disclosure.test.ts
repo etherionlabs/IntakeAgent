@@ -17,12 +17,13 @@ const NOTICE = 'Te atiende un asistente automatizado. Si prefieres hablar con un
 function makeProfile(over: Partial<Profile> = {}): Profile {
   return {
     intakeSchema: schema,
-    promptVars: { promptTemplate: 'X', vars: {}, skills: [] },
+    promptVars: { promptTemplate: 'X', vars: {}, skills: [], modules: ['intake', 'ventas'] },
     businessFacts: { facts: [], freeContext: '' },
     welcome: '¡Hola! Soy el asistente de {{businessName}}. ¿En qué te ayudo?',
     imageFocus: '',
     imageEditGuidance: '',
     skills: [],
+    modules: ['intake', 'ventas'],
     aiDisclosure: true,
     hash: 'h',
     ...over,

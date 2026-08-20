@@ -1,0 +1,43 @@
+{
+  "$businessName": "Tu Negocio",
+  "$businessDomain": "servicios",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "key": "client",
+      "label": "Cliente",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Nombre",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "label": "Teléfono de contacto",
+          "type": "phone",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "request",
+      "label": "Solicitud",
+      "fields": [
+        {
+          "key": "description",
+          "label": "Qué necesita",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "location",
+          "label": "Dónde",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

@@ -18,7 +18,8 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
 import { imageMimeFromPath } from '../media/describer';
-import { salesToolProviders } from '../domain/sales/tools';
+import { resolveModules, toolProvidersFor } from '../domain/modules';
+import { INTAKE_MODULES, MODULE_REGISTRY } from '../domain/registry';
 
 export type { AgentTool, ToolProvider } from './toolRegistry';
 
@@ -488,22 +489,14 @@ export function buildGeneratePreviewTool(ctx: TurnContext, deps: GeneratePreview
 /**
  * CAPACIDADES DEL RUNTIME.
  *
- * Estas tools NO son conocimiento de ventas: son capacidades que cualquier
- * agente conversacional gobernado por un artefacto necesita —escribir en el
- * artefacto, darlo por completo y escalar a un humano, cerrar el caso, cortar
- * con quien no es un caso real, pedir y re-analizar material, elegir a qué caso
- * pertenece un mensaje—. Hablan en los sustantivos de Intake ("intake", "job")
- * porque ese es su vocabulario público con el modelo, no porque dependan de él.
+ * NO son módulos de dominio: van siempre, compongas lo que compongas. Cortar con
+ * quien no es un caso real, pedir material, re-analizar una foto o decidir a qué
+ * caso pertenece un mensaje son necesidades del canal y del loop, no del negocio.
  *
- * `mark_ready_for_review` y `close_job` son las que más dominio arrastran: dan
- * por hecho el ciclo de vida OPEN_INTAKE → READY_FOR_REVIEW → CLOSED y el aviso
- * al dueño. Se dejan aquí a propósito y documentado: generalizar un ciclo de
- * vida con UNA sola vertical en producción sería inventar, no abstraer.
+ * Las tools que SÍ son de dominio (escribir el artefacto, darlo por completo,
+ * registrar una venta) las aporta cada módulo desde `src/domain/`.
  */
 export const runtimeToolProviders: readonly ToolProvider[] = [
-  { name: 'update_intake', build: buildUpdateIntakeTool },
-  { name: 'mark_ready_for_review', build: buildMarkReadyTool },
-  { name: 'close_job', build: buildCloseJobTool },
   { name: 'flag_non_intake', build: buildFlagNonIntakeTool },
   { name: 'request_photo', build: (ctx) => buildRequestPhotoTool(ctx) },
 ];
@@ -549,19 +542,15 @@ export const conditionalToolProviders: readonly ToolProvider[] = [
 ];
 
 /**
- * El catálogo de tools de INTAKE: capacidades del runtime + tools del dominio de
- * venta + capacidades condicionales, en ese orden (el mismo que veía el modelo
- * antes de existir el registro; moverlo cambia su comportamiento en silencio).
- *
- * Aquí está la frontera: otra vertical arma SU pack sustituyendo
- * `salesToolProviders` por el suyo, sin tocar ni el runner ni este registro.
+ * Catálogo del turno: tools de los módulos compuestos, luego las capacidades del
+ * runtime, luego las condicionales. El orden es el que ve el modelo; moverlo
+ * cambia su comportamiento sin que ningún test lo note.
  */
-export const intakeToolProviders: readonly ToolProvider[] = [
-  ...runtimeToolProviders,
-  ...salesToolProviders,
-  ...conditionalToolProviders,
-];
+export function providersFor(modules: readonly string[]): ToolProvider[] {
+  const composed = resolveModules(modules, MODULE_REGISTRY);
+  return [...toolProvidersFor(composed), ...runtimeToolProviders, ...conditionalToolProviders];
+}
 
 export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
-  return buildToolsFrom(intakeToolProviders, ctx, deps);
+  return buildToolsFrom(providersFor(deps.profile.modules ?? INTAKE_MODULES), ctx, deps);
 }

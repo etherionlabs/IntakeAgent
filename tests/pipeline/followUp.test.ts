@@ -27,12 +27,13 @@ const schema: IntakeSchema = {
 
 const profile: Profile = {
   intakeSchema: schema,
-  promptVars: { promptTemplate: 'X', vars: {}, skills: [] },
+  promptVars: { promptTemplate: 'X', vars: {}, skills: [], modules: ['intake', 'ventas'] },
   businessFacts: { facts: [], freeContext: '' },
   welcome: '¡Hola!',
   imageFocus: '',
   imageEditGuidance: '',
   skills: [],
+  modules: ['intake', 'ventas'],
   aiDisclosure: false,
   hash: 'h',
 };

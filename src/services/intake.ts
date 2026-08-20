@@ -25,8 +25,9 @@ import {
   type BulkUpdateResult,
 } from '../artifact/state';
 import { renderArtifactForModel, type RenderCtx } from '../artifact/render';
-import { emptySalesExtensions, type SalesArtifactExtensions } from '../domain/sales/state';
-import { salesRenderSections } from '../domain/sales/render';
+import type { SalesArtifactExtensions } from '../domain/sales/state';
+import { emptyStateFor, renderSectionsFor, resolveModules } from '../domain/modules';
+import { INTAKE_MODULES, MODULE_REGISTRY } from '../domain/registry';
 
 // --- Contratos genéricos del artefacto (re-exportados sin cambios) ---
 export type {
@@ -65,8 +66,17 @@ export type IntakeState = ArtifactState & SalesArtifactExtensions;
 /** Alias histórico del update genérico. */
 export type IntakeUpdate = ArtifactUpdate;
 
-export function createEmptyIntakeFromSchema(schema: IntakeSchema): IntakeState {
-  return { ...createEmptyArtifact(schema), ...emptySalesExtensions() };
+/**
+ * Estado inicial: el artefacto que dicta el esquema MÁS los bloques que aporta
+ * cada módulo compuesto. Sin `modules` se usa la composición de Intake, para que
+ * todo lo escrito antes de existir los módulos siga funcionando igual.
+ */
+export function createEmptyIntakeFromSchema(
+  schema: IntakeSchema,
+  modules: readonly string[] = INTAKE_MODULES,
+): IntakeState {
+  const composed = resolveModules(modules, MODULE_REGISTRY);
+  return { ...createEmptyArtifact(schema), ...emptyStateFor(composed) };
 }
 
 export function bulkUpdate(
@@ -91,11 +101,13 @@ export function isIntakeComplete(schema: IntakeSchema, intake: IntakeState): boo
   return isArtifactComplete(schema, intake);
 }
 
-/** Estado del artefacto para el modelo, con los bloques de venta de Intake. */
+/** Estado del artefacto para el modelo, con los bloques de los módulos compuestos. */
 export function renderIntakeForModel(
   schema: IntakeSchema,
   intake: IntakeState,
   ctx: RenderCtx,
+  modules: readonly string[] = INTAKE_MODULES,
 ): string {
-  return renderArtifactForModel(schema, intake, ctx, salesRenderSections);
+  const composed = resolveModules(modules, MODULE_REGISTRY);
+  return renderArtifactForModel(schema, intake, ctx, renderSectionsFor(composed));
 }

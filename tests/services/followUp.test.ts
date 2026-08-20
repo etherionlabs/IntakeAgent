@@ -108,7 +108,7 @@ describe('evaluateJob — a quién le damos seguimiento', () => {
   it('persigue una oferta que el cliente dejó en el aire', () => {
     const v = evaluate(jobWithPendingOffer());
     expect(v?.reason).toBe('pending_offer');
-    expect(v?.pendingServices).toEqual(['polarizado 20%']);
+    expect(v?.body.join(' ')).toContain('polarizado 20%');
     expect(Math.round(v!.silentHours)).toBe(30);
   });
 
@@ -116,7 +116,8 @@ describe('evaluateJob — a quién le damos seguimiento', () => {
     const v = evaluate(makeJob());
     expect(v?.reason).toBe('incomplete_intake');
     // Usa la etiqueta del schema, no el path.
-    expect(v?.missingLabels).toEqual(['Nombre']);
+    expect(v?.body.join(' ')).toContain('Nombre');
+    expect(v?.body.join(' ')).not.toContain('client.name');
   });
 
   it('prioriza la oferta pendiente sobre el intake incompleto', () => {
@@ -202,69 +203,44 @@ describe('policyFromConfig', () => {
   });
 });
 
-describe('buildFollowUpDirective', () => {
-  const base = {
-    job: makeJob(),
-    contact: makeContact(),
-    silentHours: 30,
-    missingLabels: [],
-    pendingServices: [],
-    openObjections: [],
-  };
+describe('buildFollowUpDirective — ensamblado genérico', () => {
+  const base = { silentHours: 30, previousFollowUps: 0, context: [], body: [] };
 
   it('deja claro que el turno no lo disparó el cliente', () => {
-    const d = buildFollowUpDirective({ ...base, reason: 'incomplete_intake', missingLabels: ['Nombre'] });
+    const d = buildFollowUpDirective({ ...base, body: ['Falta capturar: Nombre.'] });
     expect(d).toContain('SEGUIMIENTO PROACTIVO');
     expect(d).toContain('NO lo disparó el cliente');
-  });
-
-  it('para una oferta pendiente nombra el servicio', () => {
-    const d = buildFollowUpDirective({
-      ...base,
-      reason: 'pending_offer',
-      pendingServices: ['polarizado 20%', 'PPF'],
-    });
-    expect(d).toContain('polarizado 20%, PPF');
     expect(d).toContain('30 h sin responder');
   });
 
-  it('para un intake incompleto pide un solo dato, no la lista', () => {
+  it('coloca el cuerpo que aporta el módulo', () => {
+    const d = buildFollowUpDirective({ ...base, body: ['Quedó en el aire: polarizado 20%.'] });
+    expect(d).toContain('polarizado 20%');
+  });
+
+  it('coloca el contexto de los módulos antes del cuerpo', () => {
     const d = buildFollowUpDirective({
       ...base,
-      reason: 'incomplete_intake',
-      missingLabels: ['Nombre', 'Ciudad'],
+      context: ['Lo que te contó que necesita: se le calienta muchísimo el auto'],
+      body: ['Quedó en el aire: PPF.'],
     });
-    expect(d).toContain('Nombre, Ciudad');
-    expect(d).toMatch(/SOLO el dato más importante/i);
+    expect(d.indexOf('se le calienta')).toBeLessThan(d.indexOf('PPF'));
   });
 
   it('acota el mensaje: uno solo, sin reclamo y sin inventar urgencias', () => {
-    const d = buildFollowUpDirective({ ...base, reason: 'incomplete_intake', missingLabels: ['Nombre'] });
+    const d = buildFollowUpDirective({ ...base, body: ['Falta capturar: Nombre.'] });
     expect(d).toMatch(/UN solo mensaje/);
     expect(d).toMatch(/sin reclamo/i);
     expect(d).toMatch(/NO inventes/);
-    // Le dice en qué intento va, para que module la insistencia.
     expect(d).toContain('seguimiento número 1');
   });
 
-  it('lleva el dolor descubierto: retomar con contexto vale más que "¿seguimos?"', () => {
-    const d = buildFollowUpDirective({
-      ...base,
-      reason: 'pending_offer',
-      pendingServices: ['polarizado 20%'],
-      pain: 'se le calienta muchísimo el auto y el interior ya se está agrietando',
-    });
-    expect(d).toContain('se le calienta muchísimo');
-  });
-
-  it('una objeción sin resolver se señala como el motivo probable del silencio', () => {
-    const d = buildFollowUpDirective({
-      ...base,
-      reason: 'pending_offer',
-      pendingServices: ['PPF'],
-      openObjections: ['precio: lo ve caro comparado con otra cotización'],
-    });
-    expect(d).toContain('otra cotización');
-    expect(d).toMatch(/motivo real del silencio/);
+  /**
+   * El ensamblado no menciona ventas: si lo hiciera, una vertical de captación
+   * pura arrastraría copy comercial en cada seguimiento.
+   */
+  it('es neutral: sin módulos que aporten, no habla de vender', () => {
+    const d = buildFollowUpDirective({ ...base, body: ['Falta capturar: Nombre.'] });
+    expect(d.toLowerCase()).not.toMatch(/ofrec|servicio|objeci/);
   });
 });

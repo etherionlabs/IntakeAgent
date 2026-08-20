@@ -318,3 +318,84 @@ mercado nuevo. Los resultados están en §8.
 Lo que ni esa prueba ni la vertical B pueden esquivar es la pregunta de §4: si el
 **ciclo de vida del caso** es compartido o propio de cada vertical. Es lo único
 que el código de hoy no puede responder.
+
+---
+
+## 8. Resultado del experimento: Intake sin `ventas`
+
+Se compuso una vertical de **captación pura** (`profiles/captacion`, `modules:
+["intake"]`) para ver qué se derrama al quitar un módulo. Esto es lo que salió.
+
+### 8.1 Lo que se rompió (y que era invisible de otro modo)
+
+**1. `incomplete_intake` estaba en el módulo equivocado.** El motivo de
+seguimiento "faltan campos requeridos" vivía en `domain/sales/`. Al componer sin
+ventas, la vertical de captación se quedaba **sin ningún motivo de seguimiento**:
+muda ante el silencio del cliente, que es justo el problema que el seguimiento
+existe para resolver. Ahora vive en el módulo `intake`, donde siempre debió estar.
+
+**2. El acoplamiento más fuerte no estaba en `src/`, estaba en los tests.**
+`tests/profiles/sales.test.ts` exigía a **todo** perfil del directorio traer
+`salesPlaybook`, referenciarlo en su plantilla y adoptar la skill `ventas`. Es
+decir: la suite codificaba *"toda vertical vende"* como invariante del sistema.
+Ninguna revisión del código fuente lo habría encontrado. El invariante correcto
+—"vende quien compone `ventas`, y quien no lo compone no arrastra copy de
+venta"— ahora está expresado en ambas direcciones.
+
+**3. El orden del catálogo de tools cambió.** Agrupar las tools por módulo mueve
+`flag_non_intake` y `request_photo` detrás de las de venta. Es inherente al
+modelo de composición: o se agrupan por módulo o se conserva un orden plano
+escrito a mano. Se eligió agrupar (las tools relacionadas quedan adyacentes),
+y queda anotado porque el orden es parte de lo que ve el modelo.
+
+### 8.2 Lo que NO se rompió
+
+Cero cambios en `runner.ts`, `artifact/`, `channels/`, `media/` y el pipeline de
+ingesta. **La tesis se sostiene para el runtime**: el loop agéntico no se enteró
+de que le quitaron medio dominio.
+
+Y un regalo inesperado: los consumidores de estado de venta (aviso al dueño,
+panel, overview) **degradan a vacío en lugar de reventar**, porque ya toleraban
+`undefined` para los jobs anteriores a esa función. La retro-compatibilidad
+resultó ser, gratis, compatibilidad de composición.
+
+### 8.3 El hallazgo de fondo: vertical ≠ giro
+
+Es el más importante y el que no se arregla con un refactor.
+
+Hoy `Tenant.industry` mapea directo a `profiles/<industry>`: **un solo eje**. Una
+tapicería que quiera captación pura no tiene cómo expresarlo — o elige
+`tapiceria` (que compone `ventas`) o elige `captacion` (que pierde todo el
+conocimiento de tapicería: catálogo, foco de imágenes, vocabulario).
+
+Son dos ejes independientes que el modelo de datos fusionó en uno:
+
+```
+GIRO         (qué sabe el negocio)      tapicería, plomería, mecánica…
+COMPOSICIÓN  (qué hace el agente)       [intake] · [intake, ventas] · …
+```
+
+Mientras sigan fusionados, cada combinación exige un directorio de perfil propio
+—`tapiceria`, `tapiceria-captacion`, `plomeria`, `plomeria-captacion`…—, que es
+exactamente la repetición de código que la plataforma quiere eliminar. **Separar
+estos dos ejes es el siguiente trabajo estructural**, por delante de cualquier
+vertical nueva.
+
+### 8.4 Hueco conocido: skills y módulos no se validan entre sí
+
+`TenantSettings.skills` (el selector del panel) sustituye las skills del perfil
+sin consultar los módulos compuestos. Se le puede inyectar la técnica `ventas` a
+una vertical que no compone el módulo: el modelo recibe instrucciones para
+ofrecer y registrar oportunidades, pero `register_opportunity` no existe en su
+catálogo. Está pintado por un test, no aprobado. La corrección natural llega con
+§8.3, cuando la composición sea un eje de primera clase.
+
+### 8.5 Qué costó
+
+Dos módulos declarados, un registro, la composición enhebrada por cuatro puntos
+(estado inicial, render, tools, seguimiento) y los fixtures de test actualizados.
+Ni el runner ni el artefacto ni los canales se tocaron.
+
+Ése es el número honesto de "cuán componible era ya": **caro en los bordes,
+gratis en el núcleo** — que es la forma que debe tener si la separación de §3
+estaba bien hecha.

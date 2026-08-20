@@ -124,7 +124,12 @@ export class FollowUpCoordinator {
         intake: parseJobIntake(job),
         // Sin mensajes del cliente: este turno lo dispara la directiva.
         batchMessages: [],
-        systemDirective: buildFollowUpDirective(candidate),
+        systemDirective: buildFollowUpDirective({
+          silentHours: candidate.silentHours,
+          previousFollowUps: job.followUpCount,
+          context: candidate.context,
+          body: candidate.body,
+        }),
         otherOpenJobs: [],
         now: now.toISOString(),
         recentHistory,

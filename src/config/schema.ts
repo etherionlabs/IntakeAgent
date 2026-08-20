@@ -9,6 +9,12 @@ export const PromptVarsZ = z.object({
    * en el system prompt. Opcional; por defecto ninguna.
    */
   skills: z.array(z.string()).default([]),
+  /**
+   * Módulos de dominio que compone esta vertical (`src/domain/registry.ts`).
+   * El defecto es la composición histórica de Intake: captar y además asesorar.
+   * Una vertical de captación pura declara `["intake"]`.
+   */
+  modules: z.array(z.string()).min(1).default(['intake', 'ventas']),
 });
 export type PromptVars = z.infer<typeof PromptVarsZ>;
 
@@ -182,6 +188,8 @@ export interface Profile {
   imageEditGuidance: string;
   /** Skills (técnicas reutilizables) ya resueltas desde la biblioteca `skills/`. */
   skills: LoadedSkill[];
+  /** Módulos de dominio compuestos por esta vertical, por nombre. */
+  modules: string[];
   /** ¿Se avisa al cliente que le atiende una IA? Decisión por tenant. */
   aiDisclosure: boolean;
   hash: string;

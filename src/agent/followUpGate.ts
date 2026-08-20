@@ -71,3 +71,47 @@ export function passesFollowUpGate(args: GateArgs): { silentHours: number } | nu
 
   return { silentHours };
 }
+
+/** Lo que un módulo aporta para armar la directiva del turno de seguimiento. */
+export interface DirectiveParts {
+  /** Horas de silencio del cliente. */
+  silentHours: number;
+  /** Seguimientos ya enviados en este caso. */
+  previousFollowUps: number;
+  /** Contexto que los módulos aportan al preámbulo. */
+  context: string[];
+  /** Qué perseguir: lo aporta el módulo que reclamó el turno. */
+  body: string[];
+}
+
+/**
+ * Instrucción que se le da al agente para el turno de seguimiento.
+ *
+ * Va como mensaje de usuario (el turno no tiene mensaje del cliente) y deja
+ * claro que NO lo escribió el cliente, para que el modelo no le conteste a un
+ * fantasma. El preámbulo y las reglas son genéricos —protegen al cliente de un
+ * mensaje pesado, no dependen del dominio—; el contexto y el cuerpo los ponen
+ * los módulos compuestos.
+ */
+export function buildFollowUpDirective(parts: DirectiveParts): string {
+  const lines: string[] = [];
+  lines.push('[SEGUIMIENTO PROACTIVO — este turno NO lo disparó el cliente]');
+  lines.push(
+    `El cliente lleva ~${Math.round(parts.silentHours)} h sin responder a tu último mensaje. ` +
+      'Escríbele TÚ para retomar la conversación.',
+  );
+  lines.push(...parts.context);
+  lines.push('');
+  lines.push(...parts.body);
+  lines.push('');
+  lines.push('Reglas de este mensaje:');
+  lines.push('- UN solo mensaje, corto (1-2 frases), cálido y sin reclamo por no haber contestado.');
+  lines.push('- NO repitas el saludo de presentación ni vuelvas a explicar lo ya explicado.');
+  lines.push('- NO inventes novedades, promociones ni urgencias que no existan.');
+  lines.push(
+    `- Es tu seguimiento número ${parts.previousFollowUps + 1}. Si el cliente sigue sin ` +
+      'contestar no habrá muchos más: deja la puerta abierta, no presiones.',
+  );
+  lines.push('- No uses tools salvo que de verdad haya algo que registrar.');
+  return lines.join('\n');
+}
