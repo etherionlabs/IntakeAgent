@@ -1,13 +1,13 @@
 /**
- * TOOLS DEL DOMINIO DE VENTA (específico de Intake — NO extraer).
+ * MÓDULO `ventas`: sus tools.
  *
  * Estas dos tools son lo que convierte al agente en un ASESOR DE VENTAS y no en
  * un recepcionista: registran lo que se ofreció y lo que se descubrió. No tienen
  * nada de genérico y vivían mezcladas con las capacidades del runtime en
  * `src/agent/tools.ts`.
  *
- * Otra vertical no las adapta: las sustituye por las suyas y las declara en su
- * propio pack de tools.
+ * Van juntas con el resto del módulo: una vertical que componga `ventas` las
+ * obtiene; una que no lo componga no las ve. No se copian ni se adaptan.
  */
 import { z } from 'zod';
 import type { AgentDeps, TurnContext } from '../../agent/types';

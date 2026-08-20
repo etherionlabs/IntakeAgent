@@ -1,12 +1,14 @@
 /**
- * ESTADO DE DOMINIO: VENTA CONSULTIVA (específico de Intake — NO extraer).
+ * MÓDULO `ventas`: estado de la venta consultiva.
  *
- * Todo lo de aquí es conocimiento del negocio de Intake: qué es una oportunidad
- * de venta, qué es una objeción, qué hace falta descubrir antes de proponer. El
- * runtime del artefacto (`src/artifact/`) NO conoce nada de esto; se conecta por
- * los contratos de extensión (bloques de render, tools de dominio).
+ * Qué es una oportunidad, qué es una objeción, qué hace falta descubrir antes de
+ * proponer. El runtime del artefacto (`src/artifact/`) NO conoce nada de esto: se
+ * conecta por los contratos de extensión (bloques de render, tools de dominio).
  *
- * Es el bloque que hay que REEMPLAZAR —no adaptar— al construir otra vertical.
+ * NO es específico de Intake. Es un módulo REUTILIZABLE y COMPONIBLE: cualquier
+ * vertical que además de captar información quiera vender lo referencia, igual
+ * que hoy se referencian las skills por nombre. Lo específico de Intake es la
+ * COMBINACIÓN (`intake` + `ventas`) y los giros de `profiles/`, no este módulo.
  */
 import type { ArtifactState } from '../../artifact/state';
 

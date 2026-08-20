@@ -1,5 +1,5 @@
 /**
- * BLOQUES DE RENDER DEL DOMINIO DE VENTA (específico de Intake — NO extraer).
+ * MÓDULO `ventas`: sus bloques en el prompt.
  *
  * Antes vivían dentro del renderer del artefacto, que por tanto sabía qué es una
  * objeción y hasta nombraba las tools de venta en su salida. Aquí son secciones

@@ -76,19 +76,83 @@ candidatos reales a extracción.
 | `src/tenant/*` | Supervisión multi-tenant: arrancar, reconectar, estado | Genérico. |
 | `src/lib/*` | Logger, observabilidad, alertas, rutas | Genérico. |
 
-### 2.2 Capa de dominio — específica de Intake, se sustituye, no se adapta
+### 2.2 Módulos de dominio — componibles, no exclusivos de Intake
 
-| Módulo | Qué contiene |
+> **Corrección (revisión posterior).** Una versión anterior de este documento
+> clasificó `src/domain/sales/` como *"específico de Intake — NO extraer"*. Es
+> falso, y la etiqueta era activamente dañina: le decía al siguiente que tirara
+> el módulo de ventas al construir otra vertical.
+>
+> **Ventas no es una vertical: es un módulo.** Cualquier vertical que además de
+> captar información quiera vender lo compone. Lo específico de Intake es la
+> COMBINACIÓN (`intake` + `ventas`) y los giros de `profiles/`.
+
+El modelo correcto es el de la biblioteca de skills, que ya funciona en este
+repositorio: capacidades en una biblioteca, verticales que las referencian **por
+nombre**, sin repetir código.
+
+```
+VERTICAL = [módulos componibles] + perfil (giro, copy, hechos) + canal
+
+Intake (talleres)        = [intake, ventas] + profiles/tapiceria  + WhatsApp
+Captación pura           = [intake]         + profiles/<x>        + WhatsApp
+Otra vertical            = [intake?, <su módulo>] + …
+```
+
+| Módulo | Qué aporta | Reutilizable |
+|---|---|---|
+| `intake` | Artefacto declarativo, captura validada, completitud, escalado a humano | **Sí** |
+| `ventas` | Oportunidades, diagnóstico, objeciones, sus tools, sus bloques, sus skills | **Sí** |
+
+**Específico de Intake** (esto sí se sustituye por vertical):
+
+| Pieza | Qué contiene |
 |---|---|
-| `src/domain/sales/state.ts` | `Opportunity`, `SalesDiagnosis`, `Objection`, `Urgency` y sus operaciones |
-| `src/domain/sales/render.ts` | Los bloques "Diagnóstico de venta" y "Servicios adicionales" del prompt |
-| `src/domain/sales/tools.ts` | `register_opportunity`, `register_discovery` |
-| `src/domain/sales/followUp.ts` | Motivos de seguimiento (`pending_offer`, `incomplete_intake`) y su copy |
-| `src/services/intake.ts` | **Punto de composición:** core genérico + extensiones de venta |
+| `src/services/intake.ts` | La composición concreta: qué módulos y en qué orden |
 | `profiles/<giro>/` | Artefacto, plantilla de prompt, hechos del negocio, bienvenida |
-| `skills/<técnica>/` | Técnicas de venta consultiva, descubrimiento y objeciones |
-| `spa/src/components/{Opportunities,Diagnosis,SalesSummary,IntakeForm}.tsx` | UI del dominio |
+| `spa/src/**` | UI del panel |
 | `api/src/onboarding/industries.ts` | Catálogo de giros: el **mercado** de Intake |
+
+#### Qué necesita declarar un módulo
+
+Derivado de los dos que existen, no diseñado por anticipación:
+
+| Slot | `intake` | `ventas` | Contrato |
+|---|---|---|---|
+| Estado que añade al artefacto | secciones del esquema | `opportunities`, `diagnosis` | parcial |
+| Tools | 5 | 2 | `ToolProvider` |
+| Bloques de prompt | render del core | 2 secciones | `ArtifactRenderSection` |
+| Compuerta de cierre | `isIntakeComplete` | **ninguna** (ver §5) | no existe |
+| Motivo de seguimiento | `incomplete_intake` | `pending_offer` | medio |
+| Skills que aporta | — | `descubrimiento`, `ventas`, `objeciones` | por nombre |
+
+Dos de seis slots ya tienen contrato. Esto no es reescribir: es recoger lo que ya
+existe en una declaración.
+
+#### Lo genuinamente difícil de componer
+
+No es la lista de módulos; son sus interacciones:
+
+1. **Cierre compuesto.** El cierre debe consultar a todos los módulos que
+   declaren compuerta. Pero `ventas` quiere *avisar fuerte*, no *bloquear*:
+   impedir cerrar un trabajo porque falta registrar `urgency` sería peor que el
+   hueco actual. Las compuertas necesitan severidad, no un booleano.
+2. **Prioridad entre módulos.** Hoy `pending_offer` gana a `incomplete_intake`.
+   Esa decisión no pertenece a ningún módulo: es de la composición.
+3. **Presupuesto de pasos y de prompt.** `maxSteps: 6` y hasta 10 tools
+   expuestas. Cada módulo suma bloque y tools. La composabilidad tiene un techo
+   empírico que no aparece en ningún diagrama.
+
+#### Advertencia sobre la analogía con skills
+
+Las skills son **inertes**: texto inyectado en el prompt, sin estado, sin
+escrituras, sin modos de fallo. Los módulos son **activos**: son dueños de
+estado, escriben en `job.intake` y controlan transiciones. La biblioteca de
+skills prueba la **ergonomía** (referenciar por nombre, seleccionar por tenant,
+degradar sin brickear), no la **semántica** de componer cosas activas.
+
+Y un dato sobrio: los 10 perfiles declaran exactamente las mismas 3 skills. El
+mecanismo está probado; la *variación* nunca se ha ejercido.
 
 ### 2.3 Servicios con potencial de plataforma — hoy correctamente acoplados
 
@@ -221,24 +285,36 @@ que impondría trabajo de esquema es el ciclo de vida del trabajo.
 
 ---
 
-## 7. Cómo se construiría la vertical B (sin construirla)
+## 7. Cómo se construiría otra vertical (sin construirla)
 
-El mapa, para que la afirmación de §1 sea verificable:
+Una vertical **compone**, no reescribe. Solo aporta lo que ningún módulo cubre:
 
 ```
-REUTILIZABLE (no se toca)          DOMINIO B (se escribe)
-─────────────────────────          ──────────────────────
-src/agent/runner.ts                src/domain/b/state.ts      ← su modelo de proceso
-src/agent/toolRegistry.ts          src/domain/b/render.ts     ← sus bloques de prompt
-src/agent/followUpGate.ts          src/domain/b/tools.ts      ← su pack de tools
-src/artifact/state.ts              src/domain/b/followUp.ts   ← sus motivos
-src/artifact/render.ts             src/services/<b>.ts        ← composición
-src/channels/*                     profiles/<b>/              ← su artefacto + prompt
-src/media/*                        skills/<...>/              ← sus técnicas
+NÚCLEO                      MÓDULOS (biblioteca)      VERTICAL (aporta)
+──────                      ────────────────────      ─────────────────
+src/agent/runner.ts         intake  ← reutiliza       lista de módulos + prioridad
+src/agent/toolRegistry.ts   ventas  ← reutiliza       profiles/<giro>/
+src/agent/followUpGate.ts   <nuevo> ← escribe SOLO    canal
+src/artifact/*                        si ningún        UI del panel
+src/channels/*, src/media/*           módulo lo cubre
 src/pipeline/{debouncer,…}
 ```
 
-Lo que esa prueba mediría de verdad **no** es si el runtime sirve —eso ya se
-sabe—, sino si el **ciclo de vida del caso** (§4) es compartido o propio de cada
-vertical. Esa es la pregunta abierta que el código de hoy no puede responder, y
-la que debería guiar la elección de la segunda vertical.
+Una vertical de captación pura es `[intake]`. Una de venta es `[intake, ventas]`.
+Una de contabilidad sería `[intake?, conciliación]` — y solo `conciliación` es
+código nuevo.
+
+### La prueba barata, antes de cualquier vertical nueva
+
+La validación no exige inventar un dominio. Basta con **quitar** uno:
+
+> ¿Funciona Intake con `[intake]` a secas, sin `ventas`?
+
+Es un producto real (negocios que solo quieren captación, sin upselling), ejerce
+la composición con **variación auténtica** —que es justo lo que la biblioteca de
+skills nunca ha ejercido— y saca a la luz cada acoplamiento oculto sin socio ni
+mercado nuevo. Los resultados están en §8.
+
+Lo que ni esa prueba ni la vertical B pueden esquivar es la pregunta de §4: si el
+**ciclo de vida del caso** es compartido o propio de cada vertical. Es lo único
+que el código de hoy no puede responder.

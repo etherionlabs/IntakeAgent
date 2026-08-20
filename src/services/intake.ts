@@ -11,8 +11,8 @@
  *
  * Se conserva la superficie pública de siempre (mismos nombres, mismas firmas,
  * misma salida) para que el resto del sistema no se entere del corte. Otra
- * vertical NO reutiliza este archivo: escribe el suyo componiendo el mismo core
- * con SUS extensiones.
+ * vertical escribe SU composición: el mismo core con la lista de módulos que
+ * necesite — puede incluir `ventas`, que es reutilizable, o prescindir de él.
  */
 import type { IntakeSchema } from '../config/intake-schema';
 import {

@@ -1,13 +1,13 @@
 /**
- * MOTIVOS Y COPY DEL SEGUIMIENTO (específico de Intake — NO extraer).
+ * MÓDULO `ventas`: su motivo de seguimiento y su copy.
  *
  * La compuerta genérica (`src/agent/followUpGate.ts`) ya decidió que SE PUEDE
  * escribir. Aquí se decide si HAY ALGO QUE PERSEGUIR y con qué palabras, que es
  * puro juicio comercial: una oferta en el aire vale más que un dato faltante,
  * porque el cliente ya mostró interés y nadie cerró el tema.
  *
- * Otra vertical tendrá otros motivos (un documento que no llegó, una
- * conciliación sin aprobar) y otro tono: sustituye este archivo, no lo adapta.
+ * Cada módulo aporta los suyos. La PRIORIDAD entre motivos de módulos distintos
+ * no la decide ningún módulo: es una decisión de la composición (la vertical).
  */
 import type { Job } from '@prisma/client';
 import type { IntakeSchema } from '../../config/intake-schema';
