@@ -14,9 +14,12 @@ import {
 import {
   buildUpdateIntakeTool,
   buildMarkReadyTool,
+} from '../../src/agent/tools';
+// Las tools de venta viven en la capa de dominio, no en el runtime del agente.
+import {
   buildRegisterOpportunityTool,
   buildRegisterDiscoveryTool,
-} from '../../src/agent/tools';
+} from '../../src/domain/sales/tools';
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
 

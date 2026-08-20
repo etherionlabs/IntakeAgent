@@ -2,16 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import type { TurnContext, AgentDeps, OutboundAttachment } from './types';
+import type { AgentTool, ToolProvider } from './toolRegistry';
+import { buildToolsFrom } from './toolRegistry';
 import {
   bulkUpdate,
   addFreeNote,
   isIntakeComplete,
-  upsertOpportunities,
   acceptedOpportunities,
-  updateDiagnosis,
-  getDiagnosis,
   createEmptyIntakeFromSchema,
-  openObjections,
   type IntakeState,
 } from '../services/intake';
 import { updateJobIntake, markReadyForReview, JOB_STATUS, closeJob, openJob, parseJobIntake } from '../services/job';
@@ -20,15 +18,9 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
 import { imageMimeFromPath } from '../media/describer';
-import { incOpportunity, incObjection } from '../lib/metrics';
+import { salesToolProviders } from '../domain/sales/tools';
 
-/** Forma común a todas las tools del agent. Compatible con @openrouter/sdk `tool()`. */
-export interface AgentTool {
-  name: string;
-  description: string;
-  inputSchema: z.ZodTypeAny;
-  execute: (args: any) => Promise<{ ok: true; [k: string]: unknown } | { ok: false; error: string }>;
-}
+export type { AgentTool, ToolProvider } from './toolRegistry';
 
 const UpdateIntakeArgsZ = z.object({
   fields: z
@@ -93,136 +85,6 @@ export function buildUpdateIntakeTool(
       // adelante en este mismo turno: entonces hay que reaplicarla allí.
       ctx.turnIntakeOps = [...(ctx.turnIntakeOps ?? []), args];
       return { ok: true, updated_fields: args.fields.length };
-    },
-  };
-}
-
-const RegisterOpportunityArgsZ = z.object({
-  items: z
-    .array(
-      z.object({
-        service: z
-          .string()
-          .min(2, 'service es el nombre del servicio extra')
-          .max(80),
-        status: z.enum(['offered', 'accepted', 'declined']),
-        note: z.string().max(300).optional(),
-      }),
-    )
-    .min(1)
-    .max(5),
-});
-
-export type RegisterOpportunityArgs = z.infer<typeof RegisterOpportunityArgsZ>;
-
-/**
- * Deja rastro estructurado de la VENTA (no solo del intake): qué servicio extra
- * se ofreció y cómo respondió el cliente. Es lo que permite que el agente no
- * repita una oferta rechazada y que el dueño reciba la lista de extras a cotizar.
- */
-export function buildRegisterOpportunityTool(
-  ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
-): AgentTool {
-  return {
-    name: 'register_opportunity',
-    description:
-      'Registra los servicios ADICIONALES (extras/complementos) que ofreciste y cómo respondió el cliente. ' +
-      'status=offered cuando lo acabas de proponer y aún no contesta; accepted cuando lo quiere o se entusiasma; ' +
-      'declined cuando lo rechaza. Llama a esta tool EN EL MISMO TURNO en que ofreces o en que el cliente responde, ' +
-      'agrupando todos los cambios en una sola llamada. Usa el mismo nombre de servicio para actualizar su estado. ' +
-      'NO la uses para el servicio principal que el cliente vino a pedir, ese va en el intake.',
-    inputSchema: RegisterOpportunityArgsZ,
-    execute: async (rawArgs) => {
-      const parse = RegisterOpportunityArgsZ.safeParse(rawArgs);
-      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
-
-      const sourceMessageId = ctx.batchMessages[ctx.batchMessages.length - 1]?.id ?? null;
-      const nextIntake = upsertOpportunities(
-        ctx.intake,
-        parse.data.items,
-        ctx.now,
-        sourceMessageId,
-      );
-
-      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
-      ctx.intake = nextIntake;
-      for (const item of parse.data.items) incOpportunity(item.status);
-
-      return {
-        ok: true,
-        registered: parse.data.items.length,
-        accepted: acceptedOpportunities(nextIntake).map((o) => o.service),
-      };
-    },
-  };
-}
-
-const RegisterDiscoveryArgsZ = z
-  .object({
-    pain: z.string().min(3).max(300).optional(),
-    implication: z.string().min(3).max(300).optional(),
-    urgency: z.enum(['alta', 'media', 'baja']).optional(),
-    objection: z
-      .object({
-        type: z.enum(['precio', 'tiempo', 'confianza', 'competencia', 'lo_piensa', 'otro']),
-        note: z.string().min(3).max(300),
-        resolved: z.boolean().optional(),
-      })
-      .optional(),
-  })
-  .refine(
-    (d) => d.pain || d.implication || d.urgency || d.objection,
-    { message: 'manda al menos uno: pain, implication, urgency u objection' },
-  );
-
-export type RegisterDiscoveryArgs = z.infer<typeof RegisterDiscoveryArgsZ>;
-
-/**
- * Guarda lo que el agente DESCUBRIÓ, no lo que el cliente pidió.
- *
- * El intake captura el pedido ("retapizar un sillón"); esto captura por qué le
- * importa y qué le cuesta no hacerlo. Sin ese registro el agente vuelve a empezar
- * en cada turno y termina proponiendo antes de entender, que es el error que más
- * cuesta en una venta consultiva.
- */
-export function buildRegisterDiscoveryTool(
-  ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
-): AgentTool {
-  return {
-    name: 'register_discovery',
-    description:
-      'Guarda lo que vas descubriendo de la NECESIDAD del cliente, en cuanto lo sepas y sin esperar al final: ' +
-      'pain = el problema en SUS palabras; implication = qué le cuesta si no lo resuelve (tiempo, dinero, ' +
-      'riesgo, incomodidad); urgency = alta/media/baja. Manda solo lo que hayas descubierto en este turno. ' +
-      'objection = una fricción que el cliente planteó (precio, tiempo, confianza, competencia, lo_piensa), ' +
-      'con resolved=true SOLO cuando de verdad quedó resuelta. No lo inventes: si no lo dijo, no lo guardes.',
-    inputSchema: RegisterDiscoveryArgsZ,
-    execute: async (rawArgs) => {
-      const parse = RegisterDiscoveryArgsZ.safeParse(rawArgs);
-      if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
-
-      const nextIntake = updateDiagnosis(ctx.intake, parse.data, ctx.now);
-      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
-      ctx.intake = nextIntake;
-
-      if (parse.data.objection) {
-        incObjection(parse.data.objection.type, parse.data.objection.resolved ?? false);
-      }
-
-      const diag = getDiagnosis(nextIntake);
-      return {
-        ok: true,
-        // Se le devuelve qué sigue faltando: es el recordatorio más barato de que
-        // todavía no toca proponer.
-        missing: [
-          !diag.pain ? 'pain' : null,
-          !diag.implication ? 'implication' : null,
-          !diag.urgency ? 'urgency' : null,
-        ].filter(Boolean),
-        open_objections: openObjections(nextIntake).length,
-      };
     },
   };
 }
@@ -623,42 +485,83 @@ export function buildGeneratePreviewTool(ctx: TurnContext, deps: GeneratePreview
   };
 }
 
-export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
-  const tools: AgentTool[] = [
-    buildUpdateIntakeTool(ctx, deps),
-    buildMarkReadyTool(ctx, deps),
-    buildCloseJobTool(ctx, deps),
-    buildFlagNonIntakeTool(ctx, deps),
-    buildRequestPhotoTool(ctx),
-    buildRegisterOpportunityTool(ctx, deps),
-    buildRegisterDiscoveryTool(ctx, deps),
-  ];
-  // Con UN solo otro trabajo abierto el mensaje ya puede ser ambiguo: el contacto
-  // tiene dos y hay que poder decir a cuál va.
-  if (ctx.otherOpenJobs.length >= 1) {
-    tools.push(buildSelectOrOpenJobTool(ctx, deps));
-  }
-  if ((ctx.availablePhotos?.length ?? 0) > 0 && deps.mediaStore && deps.describer) {
-    tools.push(
+/**
+ * CAPACIDADES DEL RUNTIME.
+ *
+ * Estas tools NO son conocimiento de ventas: son capacidades que cualquier
+ * agente conversacional gobernado por un artefacto necesita —escribir en el
+ * artefacto, darlo por completo y escalar a un humano, cerrar el caso, cortar
+ * con quien no es un caso real, pedir y re-analizar material, elegir a qué caso
+ * pertenece un mensaje—. Hablan en los sustantivos de Intake ("intake", "job")
+ * porque ese es su vocabulario público con el modelo, no porque dependan de él.
+ *
+ * `mark_ready_for_review` y `close_job` son las que más dominio arrastran: dan
+ * por hecho el ciclo de vida OPEN_INTAKE → READY_FOR_REVIEW → CLOSED y el aviso
+ * al dueño. Se dejan aquí a propósito y documentado: generalizar un ciclo de
+ * vida con UNA sola vertical en producción sería inventar, no abstraer.
+ */
+export const runtimeToolProviders: readonly ToolProvider[] = [
+  { name: 'update_intake', build: buildUpdateIntakeTool },
+  { name: 'mark_ready_for_review', build: buildMarkReadyTool },
+  { name: 'close_job', build: buildCloseJobTool },
+  { name: 'flag_non_intake', build: buildFlagNonIntakeTool },
+  { name: 'request_photo', build: (ctx) => buildRequestPhotoTool(ctx) },
+];
+
+/**
+ * Capacidades condicionadas al contexto del turno. Una tool que el modelo no
+ * puede usar no se le muestra: si aparece, la llama y gasta pasos del turno.
+ */
+export const conditionalToolProviders: readonly ToolProvider[] = [
+  {
+    name: 'select_or_open_job',
+    // Con UN solo otro trabajo abierto el mensaje ya puede ser ambiguo: el contacto
+    // tiene dos y hay que poder decir a cuál va.
+    isAvailable: (ctx) => ctx.otherOpenJobs.length >= 1,
+    build: buildSelectOrOpenJobTool,
+  },
+  {
+    name: 'reanalyze_image',
+    isAvailable: (ctx, deps) =>
+      (ctx.availablePhotos?.length ?? 0) > 0 && !!deps.mediaStore && !!deps.describer,
+    build: (ctx, deps) =>
       buildReanalyzeImageTool(ctx, {
         prisma: deps.prisma,
         tenantId: deps.tenantId,
         profile: deps.profile,
-        mediaStore: deps.mediaStore,
-        describer: deps.describer,
+        mediaStore: deps.mediaStore!,
+        describer: deps.describer!,
       }),
-    );
-  }
-  if ((ctx.availablePhotos?.length ?? 0) > 0 && deps.mediaStore && deps.imageEditor) {
-    tools.push(
+  },
+  {
+    name: 'generate_preview',
+    isAvailable: (ctx, deps) =>
+      (ctx.availablePhotos?.length ?? 0) > 0 && !!deps.mediaStore && !!deps.imageEditor,
+    build: (ctx, deps) =>
       buildGeneratePreviewTool(ctx, {
         prisma: deps.prisma,
         tenantId: deps.tenantId,
         profile: deps.profile,
-        mediaStore: deps.mediaStore,
-        imageEditor: deps.imageEditor,
+        mediaStore: deps.mediaStore!,
+        imageEditor: deps.imageEditor!,
       }),
-    );
-  }
-  return tools;
+  },
+];
+
+/**
+ * El catálogo de tools de INTAKE: capacidades del runtime + tools del dominio de
+ * venta + capacidades condicionales, en ese orden (el mismo que veía el modelo
+ * antes de existir el registro; moverlo cambia su comportamiento en silencio).
+ *
+ * Aquí está la frontera: otra vertical arma SU pack sustituyendo
+ * `salesToolProviders` por el suyo, sin tocar ni el runner ni este registro.
+ */
+export const intakeToolProviders: readonly ToolProvider[] = [
+  ...runtimeToolProviders,
+  ...salesToolProviders,
+  ...conditionalToolProviders,
+];
+
+export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
+  return buildToolsFrom(intakeToolProviders, ctx, deps);
 }
