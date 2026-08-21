@@ -4,31 +4,56 @@
   "$language": "es-MX",
   "sections": [
     {
-      "key": "client",
-      "label": "Cliente",
-      "fields": [
-        { "key": "name", "label": "Nombre", "type": "string", "required": true },
-        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": true },
-        { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
-      ]
+      "use": "customer.identity"
     },
     {
       "key": "work",
       "label": "Servicio",
       "fields": [
-        { "key": "problem_type", "label": "Tipo de problema", "type": "enum", "required": true, "options": ["instalación eléctrica", "cortocircuito", "apagón parcial", "tablero o centro de carga", "otro"] },
-        { "key": "property_type", "label": "Tipo de inmueble", "type": "enum", "required": false, "options": ["casa habitación", "departamento", "local comercial", "oficina", "otro"] },
-        { "key": "symptom", "label": "Descripción del problema", "type": "text", "required": false, "hint": "Ej. se fue la luz en un cuarto, apaga el switch y salta el breaker, necesito instalar un contacto" },
-        { "key": "photos", "label": "Fotos del tablero o zona afectada", "type": "boolean", "required": false, "hint": "¿puede enviar fotos? si no puede o no quiere, declina con update_intake declined=true" }
+        {
+          "key": "problem_type",
+          "label": "Tipo de problema",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "instalación eléctrica",
+            "cortocircuito",
+            "apagón parcial",
+            "tablero o centro de carga",
+            "otro"
+          ]
+        },
+        {
+          "key": "property_type",
+          "label": "Tipo de inmueble",
+          "type": "enum",
+          "required": false,
+          "options": [
+            "casa habitación",
+            "departamento",
+            "local comercial",
+            "oficina",
+            "otro"
+          ]
+        },
+        {
+          "key": "symptom",
+          "label": "Descripción del problema",
+          "type": "text",
+          "required": false,
+          "hint": "Ej. se fue la luz en un cuarto, apaga el switch y salta el breaker, necesito instalar un contacto"
+        },
+        {
+          "key": "photos",
+          "label": "Fotos del tablero o zona afectada",
+          "type": "boolean",
+          "required": false,
+          "hint": "¿puede enviar fotos? si no puede o no quiere, declina con update_intake declined=true"
+        }
       ]
     },
     {
-      "key": "logistics",
-      "label": "Logística",
-      "fields": [
-        { "key": "address", "label": "Dirección", "type": "text", "required": false },
-        { "key": "desired_time", "label": "Horario preferido", "type": "string", "required": false }
-      ]
+      "use": "service.logistics"
     }
   ]
 }

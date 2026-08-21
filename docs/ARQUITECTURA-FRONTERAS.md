@@ -399,3 +399,113 @@ Ni el runner ni el artefacto ni los canales se tocaron.
 Ése es el número honesto de "cuán componible era ya": **caro en los bordes,
 gratis en el núcleo** — que es la forma que debe tener si la separación de §3
 estaba bien hecha.
+
+---
+
+## 9. Fragmentos: reutilización por debajo de la vertical
+
+El objetivo declarado es que el repositorio quede partido en dos mitades:
+
+```
+NÚCLEO    → sustituible por cualquier otro arnés agéntico
+VERTICAL  → creable de cero, o por REFERENCIA a lo que ya existe
+```
+
+Los módulos (§8) resolvieron la mitad de la segunda: una vertical compone
+capacidades. Faltaba la otra mitad — que **no tenga que repetir lo que ya está
+escrito en otra**.
+
+### 9.1 La duplicación era real, no hipotética
+
+```
+sección client     → IDÉNTICA en 7 giros (campos, tipos, required y etiquetas)
+sección logistics  → IDÉNTICA en 3 giros, con una variante deliberada en cerrajería
+```
+
+Once copias entre las dos, con **una sola vertical en producción**. La necesidad
+de reutilizar por debajo del módulo no había que anticiparla: ya se estaba
+pagando.
+
+Y fíjese qué son esas piezas. `client` es *"cómo se identifica a un cliente"*;
+`logistics` es *"dónde y cuándo"*. No son verticales ni módulos: son **fragmentos
+de conocimiento operativo**, una granularidad por debajo.
+
+### 9.2 Se referencia por contrato, nunca por el vecino
+
+Ésta es la decisión que evita reproducir el acoplamiento que se está quitando:
+
+```
+✗  "dame el `client` de cerrajería"   → tapicería queda atada a cerrajería
+✓  "necesito `customer.identity`"     → ambas atadas al mismo contrato
+```
+
+Tapicería no depende de cerrajería: las dos dependen de un concepto compartido.
+Con referencias por nombre, cualquier vertical se convierte en la base frágil de
+sus hermanas. Con `provides`/`use`, un fragmento se puede sustituir por otro que
+prometa lo mismo sin que ninguna vertical se entere.
+
+```json
+"sections": [
+  { "use": "customer.identity" },
+  { "key": "work", "label": "Servicio", "fields": [ … ] },
+  { "use": "service.logistics" }
+]
+```
+
+La expansión es **posicional**: el orden de las secciones es el orden en que el
+modelo las lee, así que la vertical decide dónde va el fragmento.
+
+### 9.3 La estructura es del contrato; las palabras, de la vertical
+
+Cerrajería pide *"Dirección exacta"* donde las demás dicen *"Dirección"* — un
+cerrajero necesita el número. Sin una válvula para eso, la primera vertical que
+necesite cambiar una palabra abandona el fragmento y vuelve a copiar la sección
+entera.
+
+La válvula existe, y está acotada a propósito:
+
+| | Dueño |
+|---|---|
+| claves, tipos, `required`, opciones | **el contrato** |
+| etiquetas visibles | **la vertical** (`labels`) |
+
+Cambiar una etiqueta no rompe el contrato; cambiar un tipo sí. Renombrar un campo
+que no existe falla al cargar — casi siempre es un typo, y en silencio dejaría a
+la vertical creyendo que renombró algo.
+
+### 9.4 Lo que falla al cargar, y por qué
+
+Un fragmento ausente, dos fragmentos prometiendo el mismo contrato, una sección
+declarada dos veces o un renombrado a un campo inexistente **revientan al cargar
+el perfil**, no en el turno de un cliente. Un fragmento no es una skill: una skill
+que falta se pierde como texto, un fragmento que falta cambia qué campos existen
+y qué se persiste.
+
+### 9.5 Trazabilidad
+
+El `configHash` incorpora la huella de los fragmentos referenciados. Sin eso,
+editar `customer.identity` cambiaría el esquema efectivo de 7 giros sin mover su
+hash, y los `AgentRun` quedarían atribuidos a una configuración que no corrió. Es
+el mismo problema que ya se había resuelto para las skills.
+
+### 9.6 Estado
+
+Los 11 perfiles resuelven a un esquema **idéntico** al anterior, campo por campo
+y etiqueta por etiqueta. El aprovisionamiento de tenants no cambió: copia
+`profile.intakeSchema`, que ya llega plano, así que `TenantSettings` sigue
+guardando un esquema completo y el panel no se entera de que los fragmentos
+existen.
+
+### 9.7 Lo que deliberadamente NO se fragmentó
+
+`generico`, `captacion` y `paqueteria` tienen secciones `client` **parecidas pero
+distintas** (2 campos en vez de 3, `phone` en vez de `phone_alt`). Se dejan como
+están.
+
+Forzarlas al fragmento exigiría un mecanismo de subconjuntos o de campos
+opcionales, y la evidencia sostiene **dos** fragmentos, no un sistema de
+composición de esquemas. Si crear una vertical acabara siendo ensamblar treinta
+referencias, se habría cambiado duplicación por indirección sin ganar nada.
+
+Que existan tres variantes cercanas sí es señal de que el override acabará
+necesitando más que etiquetas. Se hará cuando haya casos, no antes.

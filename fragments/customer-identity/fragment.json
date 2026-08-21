@@ -1,0 +1,15 @@
+{
+  "id": "customer-identity",
+  "provides": "customer.identity",
+  "version": "1.0.0",
+  "description": "Quién es el cliente y cómo se le ubica. Lo necesita cualquier vertical que atienda a una persona, con independencia del giro.",
+  "section": {
+    "key": "client",
+    "label": "Cliente",
+    "fields": [
+      { "key": "name", "label": "Nombre", "type": "string", "required": true },
+      { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": true },
+      { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
+    ]
+  }
+}

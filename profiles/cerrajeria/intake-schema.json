@@ -4,31 +4,53 @@
   "$language": "es-MX",
   "sections": [
     {
-      "key": "client",
-      "label": "Cliente",
-      "fields": [
-        { "key": "name", "label": "Nombre", "type": "string", "required": true },
-        { "key": "city_or_zone", "label": "Ciudad / Zona", "type": "string", "required": true },
-        { "key": "phone_alt", "label": "Teléfono alterno", "type": "phone", "required": false }
-      ]
+      "use": "customer.identity"
     },
     {
       "key": "work",
       "label": "Servicio",
       "fields": [
-        { "key": "service_type", "label": "Tipo de servicio", "type": "enum", "required": true, "options": ["apertura de emergencia", "cambio de cerradura", "copia de llave", "chapa de auto", "otro"] },
-        { "key": "door_lock_type", "label": "Tipo de puerta / cerradura", "type": "string", "required": false, "hint": "Ej. puerta principal madera, cerradura de pomo, puerta de metal, caja fuerte" },
-        { "key": "urgency", "label": "¿Es urgente?", "type": "boolean", "required": false, "hint": "Indícalo si el cliente está bloqueado o en situación de emergencia" },
-        { "key": "photos", "label": "Fotos de la cerradura o puerta", "type": "boolean", "required": false, "hint": "¿puede enviar foto? si no quiere o no puede, declina con update_intake declined=true" }
+        {
+          "key": "service_type",
+          "label": "Tipo de servicio",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "apertura de emergencia",
+            "cambio de cerradura",
+            "copia de llave",
+            "chapa de auto",
+            "otro"
+          ]
+        },
+        {
+          "key": "door_lock_type",
+          "label": "Tipo de puerta / cerradura",
+          "type": "string",
+          "required": false,
+          "hint": "Ej. puerta principal madera, cerradura de pomo, puerta de metal, caja fuerte"
+        },
+        {
+          "key": "urgency",
+          "label": "¿Es urgente?",
+          "type": "boolean",
+          "required": false,
+          "hint": "Indícalo si el cliente está bloqueado o en situación de emergencia"
+        },
+        {
+          "key": "photos",
+          "label": "Fotos de la cerradura o puerta",
+          "type": "boolean",
+          "required": false,
+          "hint": "¿puede enviar foto? si no quiere o no puede, declina con update_intake declined=true"
+        }
       ]
     },
     {
-      "key": "logistics",
-      "label": "Logística",
-      "fields": [
-        { "key": "address", "label": "Dirección exacta", "type": "text", "required": false },
-        { "key": "desired_time", "label": "Horario preferido", "type": "string", "required": false }
-      ]
+      "use": "service.logistics",
+      "labels": {
+        "address": "Dirección exacta"
+      }
     }
   ]
 }

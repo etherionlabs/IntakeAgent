@@ -22,6 +22,7 @@ const ROOT = resolve(__dirname, '../..');
 /** Módulos que declaramos neutrales al dominio. */
 const CORE_PATHS = [
   'src/artifact',
+  // fragments.ts entra explícito: resuelve contratos sin saber qué es un cliente.
   'src/channels',
   'src/agent/runner.ts',
   'src/agent/toolRegistry.ts',

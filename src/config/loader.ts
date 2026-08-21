@@ -14,6 +14,7 @@ import {
 import { validateIntakeSchema } from './intake-schema';
 import { readProfileOverride, readConfigOverride } from './overrides';
 import { resolveModules, skillsFor } from '../domain/modules';
+import { fragmentsFingerprint, loadFragments, resolveSectionRefs } from '../artifact/fragments';
 import { MODULE_REGISTRY } from '../domain/registry';
 import type { ProfileSettings, ConfigSettings } from './settings';
 
@@ -119,7 +120,11 @@ async function loadWelcomeTranslations(dir: string): Promise<Record<string, stri
   return out;
 }
 
-export async function loadProfile(profileDir: string, skillsDir = './skills'): Promise<Profile> {
+export async function loadProfile(
+  profileDir: string,
+  skillsDir = './skills',
+  fragmentsDir = './fragments',
+): Promise<Profile> {
   const dir = resolve(profileDir);
   const [schemaRaw, promptRaw, factsRaw, welcomeRaw] = await Promise.all([
     readFile(join(dir, 'intake-schema.json'), 'utf-8'),
@@ -128,7 +133,13 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
     readFile(join(dir, 'welcome.txt'), 'utf-8'),
   ]);
 
-  const schemaJson = JSON.parse(schemaRaw);
+  // Las referencias a fragmentos se expanden ANTES de validar: a partir de aquí
+  // el esquema es plano y nadie más necesita saber que los fragmentos existen.
+  // Por eso el aprovisionamiento de tenants (que copia `profile.intakeSchema` a
+  // TenantSettings) sigue guardando un esquema completo, sin referencias.
+  const fragments = await loadFragments(fragmentsDir);
+  const rawSchemaJson = JSON.parse(schemaRaw);
+  const schemaJson = resolveSectionRefs(rawSchemaJson, fragments);
   const schemaResult = validateIntakeSchema(schemaJson);
   if (!schemaResult.ok) {
     throw new ConfigLoadError(`intake-schema.json inválido: ${schemaResult.error}`);
@@ -159,7 +170,11 @@ export async function loadProfile(profileDir: string, skillsDir = './skills'): P
   // El hash incluye el contenido de las skills resueltas, para que editar una
   // skill (o la lista referenciada) se refleje en configHash.
   const skillsFingerprint = skills.map((s) => `${s.name}:${s.instructions}`).join('\n');
-  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${JSON.stringify(welcomeTranslations)}\n${skillsFingerprint}`;
+  // Sin esto, editar un fragmento cambiaría el esquema de 7 giros sin mover su
+  // configHash: los AgentRun quedarían atribuidos a una configuración que ya no
+  // es la que corrió.
+  const fragFingerprint = fragmentsFingerprint(rawSchemaJson, fragments);
+  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${JSON.stringify(welcomeTranslations)}\n${skillsFingerprint}\n${fragFingerprint}`;
   const hash = createHash('sha256').update(combined).digest('hex').slice(0, 12);
 
   return {

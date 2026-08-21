@@ -1,0 +1,14 @@
+{
+  "id": "service-logistics",
+  "provides": "service.logistics",
+  "version": "1.0.0",
+  "description": "Dónde y cuándo se presta un servicio a domicilio. Compartido por los oficios que van al sitio del cliente.",
+  "section": {
+    "key": "logistics",
+    "label": "Logística",
+    "fields": [
+      { "key": "address", "label": "Dirección", "type": "text", "required": false },
+      { "key": "desired_time", "label": "Horario preferido", "type": "string", "required": false }
+    ]
+  }
+}
