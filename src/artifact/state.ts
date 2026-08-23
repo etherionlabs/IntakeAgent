@@ -146,7 +146,12 @@ export function bulkUpdateArtifact<S extends ArtifactState>(
   return { ok: true, intake: next };
 }
 
-function validateValueAgainstField(field: IntakeField, value: unknown): string | null {
+/**
+ * Valida un valor contra la declaración de un campo. Se exporta porque un
+ * ELEMENTO de vertical declara sus propios campos y necesita el mismo validador:
+ * sin esto acabaría escribiendo el suyo, que es como se degradan estas cosas.
+ */
+export function validateValueAgainstField(field: IntakeField, value: unknown): string | null {
   switch (field.type) {
     case 'string':
     case 'text':
@@ -225,4 +230,43 @@ export function labelForPath(schema: IntakeSchema, path: string): string {
   const section = schema.sections.find((s) => s.key === sectionKey);
   const field = section?.fields.find((f) => f.key === fieldKey);
   return field?.label ?? path;
+}
+
+/**
+ * Qué campos de un conjunto DECLARADO siguen sin valor, devueltos por su etiqueta.
+ *
+ * Es la versión genérica de "qué me falta" para un elemento que declara sus
+ * campos sin vivir en el array de secciones del artefacto. `missingRequiredPaths`
+ * hace lo mismo para las secciones del esquema; este trabaja sobre una lista de
+ * campos suelta y valores planos.
+ *
+ * Existe porque el módulo de ventas tenía esta lógica escrita a mano, con las
+ * etiquetas incrustadas en tres `if`. El conocimiento de QUÉ hay que descubrir es
+ * del elemento; el cómo se calcula lo que falta, del núcleo.
+ */
+export function unsetDeclaredFields(
+  fields: readonly IntakeField[],
+  values: Readonly<Record<string, unknown>>,
+): string[] {
+  return fields
+    .filter((f) => values[f.key] === undefined || values[f.key] === null || values[f.key] === '')
+    .map((f) => f.label);
+}
+
+/**
+ * Valida un objeto plano contra un conjunto de campos declarados. Ignora las
+ * claves ausentes (una actualización parcial es legítima: cada turno aporta lo
+ * que descubrió) y devuelve el primer error, o null.
+ */
+export function validateDeclaredFields(
+  fields: readonly IntakeField[],
+  values: Readonly<Record<string, unknown>>,
+): string | null {
+  for (const field of fields) {
+    const value = values[field.key];
+    if (value === undefined) continue;
+    const error = validateValueAgainstField(field, value);
+    if (error) return `${field.key}: ${error}`;
+  }
+  return null;
 }

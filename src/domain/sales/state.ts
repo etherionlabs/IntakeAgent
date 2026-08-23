@@ -11,6 +11,8 @@
  * COMBINACIÓN (`intake` + `ventas`) y los giros de `profiles/`, no este módulo.
  */
 import type { ArtifactState } from '../../artifact/state';
+import { unsetDeclaredFields, validateDeclaredFields } from '../../artifact/state';
+import type { IntakeField } from '../../config/intake-schema';
 
 /**
  * Estado de un servicio ADICIONAL al que el agente le movió en la conversación.
@@ -52,6 +54,29 @@ export interface Objection {
   resolved: boolean;
   updated_at: string;
 }
+
+/**
+ * Los campos del diagnóstico, DECLARADOS.
+ *
+ * Antes esto vivía disuelto: los tipos en una interfaz, las etiquetas incrustadas
+ * en tres `if` de `missingDiscovery`, y la validación en ninguna parte. Como
+ * declaración, el elemento es dueño de QUÉ hay que descubrir y el núcleo pone el
+ * cómo — mismo validador y mismo cálculo de "qué falta" que el artefacto.
+ *
+ * Las etiquetas son las que ve el modelo, así que son texto de producto: se
+ * conservan palabra por palabra las que ya usaba el prompt.
+ */
+export const DIAGNOSIS_FIELDS: readonly IntakeField[] = [
+  { key: 'pain', label: 'el problema en sus palabras', type: 'text', required: true },
+  { key: 'implication', label: 'qué le cuesta si NO lo resuelve', type: 'text', required: true },
+  {
+    key: 'urgency',
+    label: 'qué tan urgente es',
+    type: 'enum',
+    required: true,
+    options: ['alta', 'media', 'baja'],
+  },
+];
 
 export interface SalesDiagnosis {
   /** Qué problema tiene, en sus palabras. */
@@ -165,6 +190,21 @@ export interface DiagnosisUpdate {
  * por tipo — el cliente que vuelve al precio no crea una segunda objeción de
  * precio, actualiza la que ya estaba.
  */
+export type DiagnosisUpdateResult<S> = { ok: true; state: S } | { ok: false; error: string };
+
+/**
+ * Valida una actualización del diagnóstico contra los campos declarados. El
+ * agente escribe aquí lo que interpretó de una conversación: un `urgency` fuera
+ * de las opciones o un `pain` vacío entraban antes sin que nadie los mirase.
+ */
+export function validateDiagnosisUpdate(update: DiagnosisUpdate): string | null {
+  return validateDeclaredFields(DIAGNOSIS_FIELDS, {
+    ...(update.pain !== undefined ? { pain: update.pain } : {}),
+    ...(update.implication !== undefined ? { implication: update.implication } : {}),
+    ...(update.urgency !== undefined ? { urgency: update.urgency } : {}),
+  });
+}
+
 export function updateDiagnosis<S extends SalesState>(
   state: S,
   update: DiagnosisUpdate,
@@ -192,12 +232,12 @@ export function updateDiagnosis<S extends SalesState>(
   return next;
 }
 
-/** Qué le falta por descubrir al agente, en lenguaje para el modelo. */
+/**
+ * Qué le falta por descubrir al agente, en lenguaje para el modelo. Se deriva de
+ * `DIAGNOSIS_FIELDS`: añadir un campo al diagnóstico ya no exige tocar esta
+ * función ni el bloque del prompt.
+ */
 export function missingDiscovery(state: SalesState): string[] {
-  const diag = getDiagnosis(state);
-  const missing: string[] = [];
-  if (!diag.pain) missing.push('el problema en sus palabras');
-  if (!diag.implication) missing.push('qué le cuesta si NO lo resuelve');
-  if (!diag.urgency) missing.push('qué tan urgente es');
-  return missing;
+  const diag = getDiagnosis(state) as unknown as Record<string, unknown>;
+  return unsetDeclaredFields(DIAGNOSIS_FIELDS, diag);
 }

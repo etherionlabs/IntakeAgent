@@ -12,6 +12,7 @@
 import type { ArtifactRenderSection } from '../../artifact/render';
 import type { ArtifactState } from '../../artifact/state';
 import {
+  DIAGNOSIS_FIELDS,
   getDiagnosis,
   listOpportunities,
   missingDiscovery,
@@ -33,12 +34,19 @@ export const diagnosisSection: ArtifactRenderSection = {
     const missing = missingDiscovery(state as SalesState);
     const lines: string[] = [];
 
+    // Los títulos que ve el modelo son texto de producto y se mantienen; lo que
+    // se deriva de la declaración es QUÉ campos existen y en qué orden.
+    const titulos: Record<string, string> = {
+      pain: 'Problema',
+      implication: 'Qué le cuesta no resolverlo',
+      urgency: 'Urgencia',
+    };
+    const valores = diag as unknown as Record<string, string | undefined>;
     lines.push('Diagnóstico de venta:');
-    lines.push(`  ${diag.pain ? '✓' : '✗'} Problema: ${diag.pain ?? '(sin descubrir)'}`);
-    lines.push(
-      `  ${diag.implication ? '✓' : '✗'} Qué le cuesta no resolverlo: ${diag.implication ?? '(sin descubrir)'}`,
-    );
-    lines.push(`  ${diag.urgency ? '✓' : '✗'} Urgencia: ${diag.urgency ?? '(sin descubrir)'}`);
+    for (const field of DIAGNOSIS_FIELDS) {
+      const valor = valores[field.key];
+      lines.push(`  ${valor ? '✓' : '✗'} ${titulos[field.key] ?? field.label}: ${valor ?? '(sin descubrir)'}`);
+    }
     for (const o of diag.objections) {
       lines.push(
         `  ${o.resolved ? '✓' : '⚠'} Objeción (${o.type}): ${o.note}${o.resolved ? '' : ' — SIN RESOLVER'}`,

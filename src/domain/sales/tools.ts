@@ -19,6 +19,7 @@ import {
   openObjections,
   updateDiagnosis,
   upsertOpportunities,
+  validateDiagnosisUpdate,
 } from './state';
 
 const RegisterOpportunityArgsZ = z.object({
@@ -120,6 +121,9 @@ export function buildRegisterDiscoveryTool(ctx: TurnContext, host: ElementHost):
     execute: async (rawArgs) => {
       const parse = RegisterDiscoveryArgsZ.safeParse(rawArgs);
       if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
+
+      const invalido = validateDiagnosisUpdate(parse.data);
+      if (invalido) return { ok: false, error: `diagnóstico inválido: ${invalido}` };
 
       const nextIntake = updateDiagnosis(ctx.intake, parse.data, ctx.now);
       await host.saveArtifact(ctx.job.id, nextIntake);

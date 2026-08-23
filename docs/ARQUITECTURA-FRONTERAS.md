@@ -595,3 +595,75 @@ Está verificado que caza una violación real, no que pase por vacío.
 
 Es la traducción a CI de las dos frases del objetivo: el núcleo se puede
 sustituir, y el elemento se puede actualizar.
+
+---
+
+## 11. El diagnóstico, declarado
+
+### 11.1 Un desvío deliberado
+
+El plan era meter `diagnosis` como sección del esquema del artefacto. Al ir a
+hacerlo apareció el coste real: `GET /settings/fields` devuelve
+`intakeSchema.sections` y el `PUT` las reescribe, así que el dueño del negocio
+vería —y podría borrar— la sección del módulo de ventas. Evitarlo obligaba a que
+el esquema del worker y el del panel divergieran, componiendo en tres sitios, más
+una migración de datos en producción.
+
+Demasiado riesgo para lo que aportaba. La vía que se tomó da casi todo el valor
+sin nada de eso: **el elemento declara sus campos y usa los validadores del
+núcleo**, sin vivir en el array de secciones.
+
+### 11.2 Qué era antes
+
+```ts
+function missingDiscovery(state) {
+  if (!diag.pain)        missing.push('el problema en sus palabras');
+  if (!diag.implication) missing.push('qué le cuesta si NO lo resuelve');
+  if (!diag.urgency)     missing.push('qué tan urgente es');
+}
+```
+
+Los tipos en una interfaz, las etiquetas incrustadas en tres condiciones, y la
+validación en ninguna parte. Tres copias del mismo conocimiento en tres formas
+distintas.
+
+### 11.3 Qué es ahora
+
+```ts
+export const DIAGNOSIS_FIELDS: readonly IntakeField[] = [
+  { key: 'pain',        label: 'el problema en sus palabras',    type: 'text', required: true },
+  { key: 'implication', label: 'qué le cuesta si NO lo resuelve', type: 'text', required: true },
+  { key: 'urgency',     label: 'qué tan urgente es',              type: 'enum',
+    required: true, options: ['alta', 'media', 'baja'] },
+];
+```
+
+De esa declaración se derivan ahora **lo que falta** (`unsetDeclaredFields`), **la
+validación** (`validateDeclaredFields`) y **el bloque del prompt**. Añadir un
+campo al diagnóstico ya no exige tocar tres funciones: se añade a la lista.
+
+El reparto es el del §10: el elemento es dueño de QUÉ hay que descubrir; el
+núcleo pone el CÓMO se calcula lo que falta y cómo se valida — los mismos
+mecanismos que usa el artefacto, no una copia.
+
+### 11.4 Lo que se ganó por el camino
+
+**Validación que no existía.** `register_discovery` escribe lo que el modelo
+interpretó de una conversación, y hasta ahora nadie lo miraba: un `urgency` fuera
+de las opciones o un `pain` vacío entraban sin más. Ahora se rechazan.
+
+**El texto que ve el modelo no cambió**, y hay tests que lo fijan palabra por
+palabra, con el bloque vacío y con el bloque completo.
+
+### 11.5 Lo que sigue pendiente
+
+Las **colecciones** (`opportunities`, `objections`) siguen sin declarar: son
+listas con upsert por clave y el vocabulario de campos declarados solo conoce
+escalares. Hay dos casos, que es evidencia suficiente para justificar un tipo
+"colección" — pero se hará cuando se aborde, no de rebote.
+
+Y el **criterio de cierre** sigue sin conectarse: `mark_ready_for_review` solo
+consulta `isIntakeComplete`, así que se pueden cerrar trabajos con el formulario
+lleno y sin haber descubierto nada. La declaración ya marca los tres campos como
+`required`; falta el contrato de entrega (§4) que le dé voz al elemento en el
+cierre, **con severidad de advertir, no de bloquear**.
