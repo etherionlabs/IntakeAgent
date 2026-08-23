@@ -509,3 +509,89 @@ referencias, se habría cambiado duplicación por indirección sin ganar nada.
 
 Que existan tres variantes cercanas sí es señal de que el override acabará
 necesitando más que etiquetas. Se hará cuando haya casos, no antes.
+
+---
+
+## 10. El elemento ejecuta procesos, y por eso se puede mejorar
+
+Un elemento de vertical no es solo datos. Ejecuta lógica propia —hoy TypeScript,
+mañana lo que haga falta— y eso **no es una concesión: es el mecanismo**.
+
+El razonamiento corto: si el elemento fuera solo datos, quien los interpreta es
+el núcleo. Mejorar cómo funciona algo obligaría a tocar el núcleo, y eso afecta a
+todas las verticales a la vez. **Para poder actualizar un elemento por separado,
+el elemento tiene que ser dueño de su comportamiento.**
+
+### 10.1 Lo que lo impedía
+
+```
+sales/tools.ts: import { updateJobIntake } from '../../services/job';   ← Prisma + modelo Job
+sales/tools.ts: import { incOpportunity }  from '../../lib/metrics';    ← registro en memoria
+```
+
+Dos imports. Con ellos, cambiar el núcleo por otro arnés rompía el elemento, y
+cambiar cómo se persiste o cómo se mide obligaba a editar el dominio. Los dos
+objetivos —núcleo sustituible, elementos actualizables— estaban bloqueados por la
+misma línea de código.
+
+### 10.2 `ElementHost`: la superficie completa del anfitrión
+
+```ts
+interface ElementHost {
+  saveArtifact(caseId, state): Promise<void>;
+  countEvent(name, labels?): void;
+}
+```
+
+Dos métodos. El criterio de admisión es explícito: **aquí solo entra lo que
+cualquier arnés agéntico tendría**. Si algún día hace falta un método que solo
+este runtime sabe hacer, la abstracción está mal puesta.
+
+Y la frontera no depende de disciplina. Un elemento declara sus tools como
+`ElementToolProvider`, cuya firma es `build(ctx, host)` — **nunca recibe
+`AgentDeps`**. No puede alcanzar la base de datos, el notificador ni la config
+aunque quiera, porque nadie se los entrega.
+
+`src/services/elementHost.ts` es la única pieza que traduce entre lo que pide un
+elemento y cómo lo resuelve este runtime. Portar Intake a otro arnés consiste,
+del lado del dominio, en escribir otro archivo como ése.
+
+### 10.3 Las métricas dejaron de conocer el dominio
+
+`incOpportunity` / `incObjection` desaparecen del núcleo; queda
+`incDomainEvent(name, labels)`. El nombre lo elige el elemento y el arnés lo
+transporta sin interpretarlo. **Los nombres publicados no cambian**
+(`intake_opportunities_total{status}`, `intake_objections_total{type,state}`), así
+que ningún dashboard ni alerta se entera — pero ahora un elemento puede añadir o
+cambiar sus métricas sin tocar `src/lib/`.
+
+### 10.4 Hallazgo: `intake` no era un elemento
+
+Al intentar declarar sus tools como tools de elemento, el compilador mostró que
+`update_intake`, `mark_ready_for_review` y `close_job` necesitan el notificador,
+la config y el esquema del perfil. Es decir: **son primitivas del arnés, no
+conocimiento de dominio.** Capturar información estructurada en un artefacto y
+escalarla a una persona es lo que hace el runtime.
+
+El módulo `intake` queda sin tools. Lo específico de ese dominio son el esquema
+—que ya vive en `profiles/`— y su motivo de seguimiento. **El único elemento con
+código propio hoy es `ventas`**, y conviene saberlo: la superficie real de lo que
+hay que portar, o reescribir para otra vertical, es mucho menor de lo que
+parecía.
+
+### 10.5 Versión: la puerta a mejorarlos
+
+Cada elemento declara `version`, y esa versión entra en el `configHash`. Si se
+publica una forma mejor de que `ventas` haga su trabajo, el hash se mueve aunque
+no cambie ningún archivo del giro, y cada `AgentRun` queda atribuido a la versión
+que de verdad corrió. Sin eso, "actualizar el elemento" sería un cambio invisible
+en la auditoría.
+
+### 10.6 La regla, ejecutable
+
+`tests/architecture/boundaries.test.ts` falla si cualquier archivo de
+`src/domain/**` importa `services/`, `lib/metrics`, `storage/` o `@prisma/client`.
+Está verificado que caza una violación real, no que pase por vacío.
+
+Es la traducción a CI de las dos frases del objetivo: el núcleo se puede
+sustituir, y el elemento se puede actualizar.

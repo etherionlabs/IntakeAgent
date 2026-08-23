@@ -12,6 +12,7 @@
  */
 import type { z } from 'zod';
 import type { TurnContext, AgentDeps } from './types';
+import type { ElementHost } from './elementHost';
 
 /** Forma común a todas las tools del agent. Compatible con @openrouter/sdk `tool()`. */
 export interface AgentTool {
@@ -51,4 +52,30 @@ export function buildToolsFrom(
   return providers
     .filter((p) => (p.isAvailable ? p.isAvailable(ctx, deps) : true))
     .map((p) => p.build(ctx, deps));
+}
+
+/**
+ * Tool aportada por un ELEMENTO de vertical.
+ *
+ * La diferencia con `ToolProvider` no es cosmética: un elemento recibe
+ * `ElementHost` y NO recibe `AgentDeps`. No puede alcanzar la base de datos, el
+ * notificador ni la configuración aunque quiera, porque nadie se los pasa. Esa
+ * es la frontera que hace que el núcleo sea sustituible: para hospedar estos
+ * mismos elementos, otro arnés solo tiene que implementar `ElementHost`.
+ */
+export interface ElementToolProvider {
+  name: string;
+  isAvailable?(ctx: TurnContext): boolean;
+  build(ctx: TurnContext, host: ElementHost): AgentTool;
+}
+
+/** Resuelve las tools de los elementos, conservando el orden declarado. */
+export function buildElementTools(
+  providers: readonly ElementToolProvider[],
+  ctx: TurnContext,
+  host: ElementHost,
+): AgentTool[] {
+  return providers
+    .filter((p) => (p.isAvailable ? p.isAvailable(ctx) : true))
+    .map((p) => p.build(ctx, host));
 }

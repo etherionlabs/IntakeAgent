@@ -3,9 +3,8 @@ import {
   incMessage,
   incLlmError,
   incHttp,
-  incOpportunity,
+  incDomainEvent,
   incFollowUp,
-  incObjection,
   setBotsConnected,
   renderMetrics,
   resetMetrics,
@@ -33,9 +32,9 @@ describe('métricas de venta', () => {
   beforeEach(() => resetMetrics());
 
   it('cuenta las oportunidades por estado', () => {
-    incOpportunity('offered');
-    incOpportunity('offered');
-    incOpportunity('accepted');
+    incDomainEvent('opportunities', { status: 'offered' });
+    incDomainEvent('opportunities', { status: 'offered' });
+    incDomainEvent('opportunities', { status: 'accepted' });
     const out = renderMetrics();
     expect(out).toContain('intake_opportunities_total{status="offered"} 2');
     expect(out).toContain('intake_opportunities_total{status="accepted"} 1');
@@ -51,7 +50,7 @@ describe('métricas de venta', () => {
   });
 
   it('resetMetrics limpia también los contadores de venta', () => {
-    incOpportunity('accepted');
+    incDomainEvent('opportunities', { status: 'accepted' });
     incFollowUp('pending_offer');
     resetMetrics();
     const out = renderMetrics();
@@ -64,10 +63,10 @@ describe('métricas de objeciones', () => {
   beforeEach(() => resetMetrics());
 
   it('separa las abiertas de las resueltas por tipo', () => {
-    incObjection('precio', false);
-    incObjection('precio', false);
-    incObjection('precio', true);
-    incObjection('tiempo', true);
+    incDomainEvent('objections', { type: 'precio', state: 'abierta' });
+    incDomainEvent('objections', { type: 'precio', state: 'abierta' });
+    incDomainEvent('objections', { type: 'precio', state: 'resuelta' });
+    incDomainEvent('objections', { type: 'tiempo', state: 'resuelta' });
     const out = renderMetrics();
     expect(out).toContain('intake_objections_total{type="precio",state="abierta"} 2');
     expect(out).toContain('intake_objections_total{type="precio",state="resuelta"} 1');

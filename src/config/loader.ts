@@ -174,7 +174,10 @@ export async function loadProfile(
   // configHash: los AgentRun quedarían atribuidos a una configuración que ya no
   // es la que corrió.
   const fragFingerprint = fragmentsFingerprint(rawSchemaJson, fragments);
-  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${JSON.stringify(welcomeTranslations)}\n${skillsFingerprint}\n${fragFingerprint}`;
+  // Los elementos son actualizables: si se publica una versión mejor de `ventas`,
+  // el hash tiene que moverse aunque no cambie ningún archivo del giro.
+  const modulesFingerprint = modules.map((m) => `${m.name}@${m.version}`).join(',');
+  const combined = `${schemaRaw}\n${promptRaw}\n${factsRaw}\n${welcomeRaw}\n${JSON.stringify(welcomeTranslations)}\n${skillsFingerprint}\n${fragFingerprint}\n${modulesFingerprint}`;
   const hash = createHash('sha256').update(combined).digest('hex').slice(0, 12);
 
   return {

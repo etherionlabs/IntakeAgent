@@ -18,6 +18,8 @@ import type { Config, Profile } from '../config/schema';
 import type { Notifier } from '../services/notification';
 import { buildDescribeBaseContext, reanalyzeDescription } from '../services/imageDescription';
 import { imageMimeFromPath } from '../media/describer';
+import { buildElementTools } from './toolRegistry';
+import { createElementHost } from '../services/elementHost';
 import { resolveModules, toolProvidersFor } from '../domain/modules';
 import { INTAKE_MODULES, MODULE_REGISTRY } from '../domain/registry';
 
@@ -497,6 +499,9 @@ export function buildGeneratePreviewTool(ctx: TurnContext, deps: GeneratePreview
  * registrar una venta) las aporta cada módulo desde `src/domain/`.
  */
 export const runtimeToolProviders: readonly ToolProvider[] = [
+  { name: 'update_intake', build: buildUpdateIntakeTool },
+  { name: 'mark_ready_for_review', build: buildMarkReadyTool },
+  { name: 'close_job', build: buildCloseJobTool },
   { name: 'flag_non_intake', build: buildFlagNonIntakeTool },
   { name: 'request_photo', build: (ctx) => buildRequestPhotoTool(ctx) },
 ];
@@ -542,15 +547,34 @@ export const conditionalToolProviders: readonly ToolProvider[] = [
 ];
 
 /**
- * Catálogo del turno: tools de los módulos compuestos, luego las capacidades del
- * runtime, luego las condicionales. El orden es el que ve el modelo; moverlo
+ * Catálogo del turno: tools de los elementos compuestos, luego las capacidades
+ * del runtime, luego las condicionales. El orden es el que ve el modelo; moverlo
  * cambia su comportamiento sin que ningún test lo note.
+ *
+ * Las dos mitades se construyen distinto a propósito: las capacidades del
+ * runtime reciben `AgentDeps` (base de datos, notifier, media); los elementos
+ * reciben solo `ElementHost`. Un elemento no puede alcanzar el núcleo aunque
+ * quiera, porque nunca se le entrega.
  */
-export function providersFor(modules: readonly string[]): ToolProvider[] {
-  const composed = resolveModules(modules, MODULE_REGISTRY);
-  return [...toolProvidersFor(composed), ...runtimeToolProviders, ...conditionalToolProviders];
+export function elementProvidersFor(modules: readonly string[]) {
+  return toolProvidersFor(resolveModules(modules, MODULE_REGISTRY));
+}
+
+/** Nombres de todas las tools del turno, en el orden en que las ve el modelo. */
+export function toolNamesFor(modules: readonly string[]): string[] {
+  return [
+    ...runtimeToolProviders.map((p) => p.name),
+    ...elementProvidersFor(modules).map((p) => p.name),
+    ...conditionalToolProviders.map((p) => p.name),
+  ];
 }
 
 export function buildTools(ctx: TurnContext, deps: AgentDeps): AgentTool[] {
-  return buildToolsFrom(providersFor(deps.profile.modules ?? INTAKE_MODULES), ctx, deps);
+  const modules = deps.profile.modules ?? INTAKE_MODULES;
+  const host = deps.host ?? createElementHost(deps.prisma, deps.tenantId);
+  return [
+    ...buildToolsFrom(runtimeToolProviders, ctx, deps),
+    ...buildElementTools(elementProvidersFor(modules), ctx, host),
+    ...buildToolsFrom(conditionalToolProviders, ctx, deps),
+  ];
 }

@@ -13,7 +13,7 @@
  * módulos existentes ya necesitaban, recogidos en una declaración. Lo que un
  * módulo todavía no ha pedido, no está aquí.
  */
-import type { ToolProvider } from '../agent/toolRegistry';
+import type { ElementToolProvider } from '../agent/toolRegistry';
 import type { ArtifactRenderSection } from '../artifact/render';
 import type { ArtifactState } from '../artifact/state';
 import type { IntakeSchema } from '../config/intake-schema';
@@ -29,11 +29,19 @@ export interface FollowUpClaim {
 export interface DomainModule {
   name: string;
 
+  /**
+   * Versión del elemento. Existe para poder MEJORARLO: si encontramos una forma
+   * mejor de que haga su trabajo, se publica una versión nueva sin tocar el
+   * núcleo ni las demás verticales. Entra en el configHash para que una
+   * ejecución quede atribuida a la versión que de verdad corrió.
+   */
+  version: string;
+
   /** Bloques que añade al artefacto al crearlo vacío. */
   emptyState(): Record<string, unknown>;
 
-  /** Tools que expone al modelo. */
-  toolProviders: readonly ToolProvider[];
+  /** Tools que expone al modelo. Reciben el host, nunca las dependencias del núcleo. */
+  toolProviders: readonly ElementToolProvider[];
 
   /** Bloques que añade al estado del artefacto en el prompt. */
   renderSections: readonly ArtifactRenderSection[];
@@ -88,7 +96,7 @@ export function emptyStateFor(modules: readonly DomainModule[]): Record<string, 
   return Object.assign({}, ...modules.map((m) => m.emptyState()));
 }
 
-export function toolProvidersFor(modules: readonly DomainModule[]): ToolProvider[] {
+export function toolProvidersFor(modules: readonly DomainModule[]): ElementToolProvider[] {
   return modules.flatMap((m) => [...m.toolProviders]);
 }
 

@@ -115,6 +115,12 @@ export interface AgentDeps {
   describer?: import('../media/describer').Describer;
   /** Editor de imágenes (necesario para `generate_preview`). Opcional. */
   imageEditor?: import('../media/imageEditor').ImageEditor;
+  /**
+   * Superficie que se les entrega a los elementos de vertical. Si falta, se
+   * construye la de este arnés. Inyectable para tests y para hospedar los mismos
+   * elementos en otro runtime.
+   */
+  host?: import('./elementHost').ElementHost;
 }
 
 /** Tipos mínimos del SDK que el runner consume. */

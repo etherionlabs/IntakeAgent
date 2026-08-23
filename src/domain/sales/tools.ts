@@ -10,10 +10,9 @@
  * obtiene; una que no lo componga no las ve. No se copian ni se adaptan.
  */
 import { z } from 'zod';
-import type { AgentDeps, TurnContext } from '../../agent/types';
-import type { AgentTool, ToolProvider } from '../../agent/toolRegistry';
-import { updateJobIntake } from '../../services/job';
-import { incObjection, incOpportunity } from '../../lib/metrics';
+import type { TurnContext } from '../../agent/types';
+import type { AgentTool, ElementToolProvider } from '../../agent/toolRegistry';
+import type { ElementHost } from '../../agent/elementHost';
 import {
   acceptedOpportunities,
   getDiagnosis,
@@ -45,10 +44,7 @@ export type RegisterOpportunityArgs = z.infer<typeof RegisterOpportunityArgsZ>;
  * se ofreció y cómo respondió el cliente. Es lo que permite que el agente no
  * repita una oferta rechazada y que el dueño reciba la lista de extras a cotizar.
  */
-export function buildRegisterOpportunityTool(
-  ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
-): AgentTool {
+export function buildRegisterOpportunityTool(ctx: TurnContext, host: ElementHost): AgentTool {
   return {
     name: 'register_opportunity',
     description:
@@ -70,9 +66,9 @@ export function buildRegisterOpportunityTool(
         sourceMessageId,
       );
 
-      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
+      await host.saveArtifact(ctx.job.id, nextIntake);
       ctx.intake = nextIntake;
-      for (const item of parse.data.items) incOpportunity(item.status);
+      for (const item of parse.data.items) host.countEvent('opportunities', { status: item.status });
 
       return {
         ok: true,
@@ -111,10 +107,7 @@ export type RegisterDiscoveryArgs = z.infer<typeof RegisterDiscoveryArgsZ>;
  * en cada turno y termina proponiendo antes de entender, que es el error que más
  * cuesta en una venta consultiva.
  */
-export function buildRegisterDiscoveryTool(
-  ctx: TurnContext,
-  deps: Pick<AgentDeps, 'prisma' | 'tenantId'>,
-): AgentTool {
+export function buildRegisterDiscoveryTool(ctx: TurnContext, host: ElementHost): AgentTool {
   return {
     name: 'register_discovery',
     description:
@@ -129,11 +122,14 @@ export function buildRegisterDiscoveryTool(
       if (!parse.success) return { ok: false, error: `args inválidos: ${parse.error.message}` };
 
       const nextIntake = updateDiagnosis(ctx.intake, parse.data, ctx.now);
-      await updateJobIntake(deps.prisma, deps.tenantId, ctx.job.id, nextIntake);
+      await host.saveArtifact(ctx.job.id, nextIntake);
       ctx.intake = nextIntake;
 
       if (parse.data.objection) {
-        incObjection(parse.data.objection.type, parse.data.objection.resolved ?? false);
+        host.countEvent('objections', {
+          type: parse.data.objection.type,
+          state: parse.data.objection.resolved ? 'resuelta' : 'abierta',
+        });
       }
 
       const diag = getDiagnosis(nextIntake);
@@ -153,7 +149,7 @@ export function buildRegisterDiscoveryTool(
 }
 
 /** Pack de tools que aporta el dominio de venta. */
-export const salesToolProviders: readonly ToolProvider[] = [
+export const salesToolProviders: readonly ElementToolProvider[] = [
   { name: 'register_opportunity', build: buildRegisterOpportunityTool },
   { name: 'register_discovery', build: buildRegisterDiscoveryTool },
 ];

@@ -20,6 +20,14 @@ import {
   buildRegisterOpportunityTool,
   buildRegisterDiscoveryTool,
 } from '../../src/domain/sales/tools';
+import { createElementHost } from '../../src/services/elementHost';
+
+/**
+ * Un elemento de vertical NO recibe las dependencias del núcleo: recibe el host.
+ * Los tests lo construyen igual que el runtime, que es justo lo que se quiere
+ * probar — que la tool funciona sin tocar Prisma directamente.
+ */
+const host = () => createElementHost(prisma, TEST_TENANT_ID);
 import type { IntakeSchema } from '../../src/config/intake-schema';
 import { NoopNotifier } from '../../src/services/notification';
 
@@ -143,7 +151,7 @@ describe('tool register_opportunity', () => {
 
   it('registra extras ofrecidos y los persiste en el intake del job', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    const tool = buildRegisterOpportunityTool(ctx, host());
     const out = await tool.execute({
       items: [
         { service: 'polarizado 20%', status: 'offered', note: 'se quejó del calor' },
@@ -170,7 +178,7 @@ describe('tool register_opportunity', () => {
 
   it('actualiza el estado de un extra ya registrado sin duplicarlo', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    const tool = buildRegisterOpportunityTool(ctx, host());
     await tool.execute({ items: [{ service: 'protección cerámica', status: 'offered' }] });
     await tool.execute({ items: [{ service: 'protección cerámica', status: 'declined' }] });
 
@@ -189,7 +197,7 @@ describe('tool register_opportunity', () => {
     if (!filled.ok) throw new Error('fail');
     ctx.intake = filled.intake;
 
-    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    const tool = buildRegisterOpportunityTool(ctx, host());
     await tool.execute({ items: [{ service: 'rotulación', status: 'accepted' }] });
 
     const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });
@@ -200,7 +208,7 @@ describe('tool register_opportunity', () => {
 
   it('rechaza status inválidos y listas vacías', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterOpportunityTool(ctx, deps as any);
+    const tool = buildRegisterOpportunityTool(ctx, host());
     const bad = await tool.execute({ items: [{ service: 'x y z', status: 'quizás' }] });
     expect(bad.ok).toBe(false);
     const empty = await tool.execute({ items: [] });
@@ -213,7 +221,7 @@ describe('tool register_discovery', () => {
 
   it('guarda el diagnóstico y devuelve lo que sigue faltando', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const tool = buildRegisterDiscoveryTool(ctx, host());
     const out = await tool.execute({ pain: 'el sillón está hundido y ya no lo usan' });
     expect(out.ok).toBe(true);
     if (!out.ok) return;
@@ -226,7 +234,7 @@ describe('tool register_discovery', () => {
 
   it('acumula entre llamadas sin perder lo anterior', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const tool = buildRegisterDiscoveryTool(ctx, host());
     await tool.execute({ pain: 'la tela ya no da' });
     const out = await tool.execute({ implication: 'le da pena recibir visitas', urgency: 'alta' });
     expect(out.ok).toBe(true);
@@ -241,7 +249,7 @@ describe('tool register_discovery', () => {
 
   it('registra una objeción abierta y la cuenta', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const tool = buildRegisterDiscoveryTool(ctx, host());
     const out = await tool.execute({
       objection: { type: 'precio', note: 'lo compara con otra cotización' },
     });
@@ -253,7 +261,7 @@ describe('tool register_discovery', () => {
 
   it('resolver una objeción la cierra sin duplicarla', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const tool = buildRegisterDiscoveryTool(ctx, host());
     await tool.execute({ objection: { type: 'precio', note: 'lo ve caro' } });
     const out = await tool.execute({
       objection: { type: 'precio', note: 'entendió el alcance', resolved: true },
@@ -266,7 +274,7 @@ describe('tool register_discovery', () => {
 
   it('rechaza una llamada vacía y una urgencia inventada', async () => {
     const ctx = await setupCtx();
-    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const tool = buildRegisterDiscoveryTool(ctx, host());
     expect((await tool.execute({})).ok).toBe(false);
     expect((await tool.execute({ urgency: 'muchísima' })).ok).toBe(false);
   });
@@ -280,7 +288,7 @@ describe('tool register_discovery', () => {
     if (!filled.ok) throw new Error('fail');
     ctx.intake = filled.intake;
 
-    const tool = buildRegisterDiscoveryTool(ctx, deps as any);
+    const tool = buildRegisterDiscoveryTool(ctx, host());
     await tool.execute({ pain: 'algo' });
 
     const reload = await prisma.job.findUnique({ where: { id: ctx.job.id } });

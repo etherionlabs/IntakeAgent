@@ -51,6 +51,7 @@ export function salesFollowUpContext(state: ArtifactState): string[] {
 
 export const salesModule: DomainModule = {
   name: 'ventas',
+  version: '1.0.0',
   emptyState: emptySalesExtensions,
   toolProviders: salesToolProviders,
   renderSections: salesRenderSections,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadProfile } from '../../src/config/loader';
 import { buildSystemPrompt } from '../../src/agent/prompt';
-import { providersFor } from '../../src/agent/tools';
+import { toolNamesFor } from '../../src/agent/tools';
 import { createEmptyIntakeFromSchema, renderIntakeForModel } from '../../src/services/intake';
 import { evaluateJob } from '../../src/services/followUp';
 import { resolveModules } from '../../src/domain/modules';
@@ -30,14 +30,14 @@ const config = {
 
 describe('composición: catálogo de tools', () => {
   it('sin `ventas` el modelo no ve ninguna tool de venta', () => {
-    const names = providersFor(SOLO_INTAKE).map((p) => p.name);
+    const names = toolNamesFor(SOLO_INTAKE);
     expect(names).not.toContain('register_opportunity');
     expect(names).not.toContain('register_discovery');
   });
 
   it('las capacidades del runtime van siempre, se componga lo que se componga', () => {
     for (const mods of [SOLO_INTAKE, CON_VENTAS]) {
-      const names = providersFor(mods).map((p) => p.name);
+      const names = toolNamesFor(mods);
       expect(names).toContain('update_intake');
       expect(names).toContain('mark_ready_for_review');
       expect(names).toContain('flag_non_intake');
@@ -46,8 +46,8 @@ describe('composición: catálogo de tools', () => {
   });
 
   it('componer `ventas` solo AÑADE: no quita ni renombra nada', () => {
-    const sin = providersFor(SOLO_INTAKE).map((p) => p.name);
-    const con = providersFor(CON_VENTAS).map((p) => p.name);
+    const sin = toolNamesFor(SOLO_INTAKE);
+    const con = toolNamesFor(CON_VENTAS);
     expect(con).toEqual(expect.arrayContaining(sin));
     expect(con.length).toBe(sin.length + 2);
   });
@@ -179,7 +179,7 @@ describe('composición: huecos que el experimento dejó al descubierto', () => {
    * catálogo. Este test PINTA el hueco, no lo aprueba.
    */
   it('las skills por tenant pueden contradecir la composición (hueco conocido)', () => {
-    const names = providersFor(SOLO_INTAKE).map((p) => p.name);
+    const names = toolNamesFor(SOLO_INTAKE);
     expect(names).not.toContain('register_opportunity');
     // Nada impide que TenantSettings.skills traiga 'ventas' con esta composición:
     // la selección de skills y la de módulos son hoy dos ejes sin validación cruzada.

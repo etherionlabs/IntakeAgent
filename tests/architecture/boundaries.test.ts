@@ -33,7 +33,18 @@ const CORE_PATHS = [
   'src/pipeline/debouncer.ts',
   'src/pipeline/idempotency.ts',
   'src/config/intake-schema.ts',
+  'src/agent/elementHost.ts',
 ];
+
+/**
+ * Módulos del NÚCLEO que un elemento de vertical no puede importar.
+ *
+ * Un elemento ejecuta procesos propios —eso es deseado— pero si para hacerlo
+ * alcanza la persistencia o la telemetría del runtime, deja de ser portable: ni
+ * el núcleo se puede sustituir por otro arnés, ni el elemento se puede actualizar
+ * por separado. Todo lo que necesite del anfitrión pasa por `ElementHost`.
+ */
+const CORE_INTERNALS = ['/services/', '/lib/metrics', '/storage/', '@prisma/client'];
 
 /**
  * Vocabulario que delata conocimiento del negocio de Intake. NO incluye
@@ -101,6 +112,14 @@ describe('fronteras de arquitectura: capa de dominio', () => {
    * El dominio SÍ puede depender del core: es la dirección correcta de la
    * flecha. Lo que no debe hacer es depender de otra vertical.
    */
+  it.each(DOMAIN_FILES)('%s no alcanza la persistencia ni la telemetría del núcleo', (file) => {
+    const source = readFileSync(join(ROOT, file), 'utf-8');
+    const prohibidos = [...source.matchAll(/from\s+'([^']+)'/g)]
+      .map((m) => m[1])
+      .filter((spec) => CORE_INTERNALS.some((interno) => spec.includes(interno)));
+    expect(prohibidos).toEqual([]);
+  });
+
   it.each(DOMAIN_FILES)('%s no depende de otra vertical', (file) => {
     const source = readFileSync(join(ROOT, file), 'utf-8');
     const vertical = file.split('/')[2];

@@ -5,19 +5,20 @@
  * completo y una persona debe tomarlo". Es reutilizable: cualquier vertical que
  * necesite reunir datos validados antes de escalar a un humano lo compone.
  *
- * No incluye las capacidades del RUNTIME (marcar spam, pedir fotos, re-analizar
- * imágenes, elegir a qué caso pertenece un mensaje): esas no son de dominio, van
- * siempre y viven en `src/agent/tools.ts`.
+ * NO declara tools, y eso es un hallazgo, no un olvido. Al intentar dárselas
+ * como tools de elemento, el compilador mostró que `update_intake`,
+ * `mark_ready_for_review` y `close_job` necesitan el notificador, la config y el
+ * esquema del perfil — es decir, son primitivas del ARNÉS, no conocimiento de
+ * dominio. Capturar información estructurada en un artefacto y escalarla a una
+ * persona es lo que hace el runtime; lo específico de este dominio son el
+ * esquema (que vive en `profiles/`) y su motivo de seguimiento.
+ *
+ * Dicho de otro modo: el único elemento con código propio hoy es `ventas`.
  */
 import type { ArtifactState } from '../../artifact/state';
 import { labelForPath, missingRequiredPaths } from '../../artifact/state';
 import type { IntakeSchema } from '../../config/intake-schema';
 import type { DomainModule, FollowUpClaim } from '../modules';
-import {
-  buildCloseJobTool,
-  buildMarkReadyTool,
-  buildUpdateIntakeTool,
-} from '../../agent/tools';
 
 /**
  * Persigue los campos requeridos que faltan.
@@ -43,13 +44,10 @@ export function resolveIncompleteIntake(
 
 export const intakeModule: DomainModule = {
   name: 'intake',
+  version: '1.0.0',
   // El artefacto base (secciones del esquema, media, notas) lo crea el core.
   emptyState: () => ({}),
-  toolProviders: [
-    { name: 'update_intake', build: buildUpdateIntakeTool },
-    { name: 'mark_ready_for_review', build: buildMarkReadyTool },
-    { name: 'close_job', build: buildCloseJobTool },
-  ],
+  toolProviders: [],
   // El estado del artefacto ya lo renderiza el core: este módulo no añade bloques.
   renderSections: [],
   skills: [],
