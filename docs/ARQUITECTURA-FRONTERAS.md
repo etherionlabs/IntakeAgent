@@ -667,3 +667,85 @@ consulta `isIntakeComplete`, así que se pueden cerrar trabajos con el formulari
 lleno y sin haber descubierto nada. La declaración ya marca los tres campos como
 `required`; falta el contrato de entrega (§4) que le dé voz al elemento en el
 cierre, **con severidad de advertir, no de bloquear**.
+
+---
+
+## 12. Portabilidad: qué sale primero al separar en proyectos
+
+Intake, movilidad y lo que venga acabarán siendo proyectos separados que
+comparten arquitectura. Esta sección fija qué se puede extraer **hoy**, medido
+en vez de supuesto.
+
+### 12.1 Contar archivos no sirve
+
+La primera medición fue por archivo: *"¿cuántos importan `@prisma/client`?"*.
+Daba esto:
+
+```
+src/adapters   0 de 8      ← "limpio"
+src/channels   0 de 1      ← "limpio"
+```
+
+**Ambos eran falsos.** Un recorrido transitivo del grafo de imports encontró 13
+caminos que llegaban a Prisma:
+
+```
+src/channels/types.ts → src/pipeline/types.ts → @prisma/client
+src/adapters/whatsapp/adapter.ts → src/pipeline/coordinator.ts → @prisma/client
+```
+
+Una carpeta es portable cuando **nada de lo que alcanza** necesita la base de
+datos, no cuando sus archivos no la nombran. Es la diferencia entre creer que se
+puede extraer y poder hacerlo.
+
+### 12.2 La inversión que lo arregló
+
+Los dos escapes eran el mismo error de dirección:
+
+| Estaba en | Debía estar en | Por qué |
+|---|---|---|
+| `Channel` | `channels/` | Es vocabulario del canal; el pipeline los consume, no al revés |
+| `RawInboundMessage` | `channels/` | Es lo que un canal PRODUCE, antes de que nadie lo interprete |
+| — | `InboundSink` (nuevo) | El adaptador importaba la clase `InboundCoordinator` y arrastraba el pipeline entero, cuando solo usa **un método** |
+
+Un adaptador no debe saber qué se hace con el mensaje: solo que alguien lo
+recoge. Con eso, los caminos a Prisma pasaron de 13 a **cero**.
+
+### 12.3 Lo que sale hoy sin tocar una línea
+
+```
+@etherion/core   src/artifact · src/research · src/channels
+                 src/media · src/lib · src/adapters
+```
+
+28 archivos alcanzables, ninguno necesita la base de datos.
+
+`src/domain/` (los elementos `intake`, `ventas`, `rutas`) y `fragments/` salen
+también: ya los protege la regla del §10.
+
+### 12.4 Lo que NO sale, y es una sola cosa
+
+`src/pipeline/` y `src/services/` siguen atados a Prisma, y **está bien**: son el
+modelo de caso de Intake —`Job`, `Contact`, `Message`, el ciclo `OPEN_INTAKE →
+READY_FOR_REVIEW`—. No es acoplamiento accidental repartido: es la deuda de §4,
+concentrada en un sitio.
+
+Queda una fuga menor apuntada: **`AgentDeps` menciona `PrismaClient`**. Los
+elementos están blindados por `ElementHost`, pero los tipos del arnés no.
+
+### 12.5 Por qué no separar todavía
+
+Movilidad ya demostró que su ciclo de vida **no** es el de Intake: no hay dueño a
+quien avisar, `mark_ready_for_review` no aplica. Publicar `@etherion/core` con
+`Job` dentro heredaría ese error en tres proyectos a la vez.
+
+Separar después es barato porque las fronteras están limpias y hay tests que las
+sostienen. Decidir mal el modelo de caso es caro siempre.
+
+### 12.6 La regla, ejecutable
+
+`tests/architecture/portabilidad.test.ts` recorre el grafo transitivo desde las
+seis carpetas portables y falla si alguna alcanza la persistencia, **imprimiendo
+el camino completo** — sin él, "algo importa Prisma" no dice por dónde. Además
+comprueba que la deuda siga donde está documentada, y que el recorrido no pase
+por vacío. Verificado que caza una regresión real.

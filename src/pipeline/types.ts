@@ -8,22 +8,9 @@ import type { ImageEditor } from '../media/imageEditor';
 import type { MediaStore } from '../media/store';
 import type { AgentFactory } from '../agent/types';
 
-export type Channel = 'whatsapp' | 'sms' | 'voice';
-
-export interface RawInboundMessage {
-  /** ID del mensaje en el canal de origen (idempotencia). Antes `whatsappMsgId`. */
-  externalMsgId: string;
-  /** Canal por el que entró el mensaje. */
-  channel: Channel;
-  fromPhoneE164: string;
-  chatKind: 'individual' | 'group' | 'status' | 'other';
-  fromMe: boolean;
-  kind: 'text' | 'image' | 'audio' | 'sticker' | 'location' | 'other';
-  text: string | null;
-  media: { buffer: Buffer; mimetype: string } | null;
-  raw: unknown;
-  receivedAt: string;
-}
+// El canal define qué entra y por dónde; el pipeline solo lo consume. Se
+// reexportan para no tocar a quien ya los importaba de aquí.
+export type { Channel, RawInboundMessage } from '../channels/types';
 
 export interface PipelineDeps {
   prisma: PrismaClient;

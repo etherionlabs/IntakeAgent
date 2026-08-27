@@ -1,15 +1,14 @@
-import type { InboundCoordinator } from '../../pipeline/coordinator';
+
 import { BaileysConnection } from './connection';
 import { mapWAMessageToRaw } from './mapMessage';
 import type { Notifier } from '../../services/notification';
 import { logger } from '../../lib/logger';
-import type { Channel } from '../../pipeline/types';
-import type { InboundSource, ConnectionControl } from '../../channels/types';
+import type { Channel, InboundSink, InboundSource, ConnectionControl } from '../../channels/types';
 import type { AdapterStateSnapshot, ConnectionStatus, WASocket } from './types';
 
 export interface BaileysAdapterOptions {
   sessionDir: string;
-  coordinator: InboundCoordinator;
+  coordinator: InboundSink;
   notifier: Notifier;
   /** Tenant al que pertenece esta conexión (acompaña las alertas; forward-compat Fase 2). */
   tenantId?: string;

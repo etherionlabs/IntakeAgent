@@ -5,7 +5,7 @@ import type {
 } from '../../services/notification';
 import type { OutboundSender } from '../../services/outbound';
 import type { ChannelNotifier } from '../../channels/types';
-import type { Channel } from '../../pipeline/types';
+import type { Channel } from '../../channels/types';
 import { logger } from '../../lib/logger';
 
 export class WhatsAppNotifier implements ChannelNotifier {

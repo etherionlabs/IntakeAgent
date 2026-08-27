@@ -1,4 +1,4 @@
-import type { RawInboundMessage } from '../../pipeline/types';
+import type { RawInboundMessage } from '../../channels/types';
 
 export interface WAMessageLike {
   key: {

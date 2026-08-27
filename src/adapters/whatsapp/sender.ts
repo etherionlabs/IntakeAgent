@@ -1,5 +1,5 @@
 import type { ChannelOutboundSender } from '../../channels/types';
-import type { Channel } from '../../pipeline/types';
+import type { Channel } from '../../channels/types';
 import type { WASocket } from './types';
 
 /**

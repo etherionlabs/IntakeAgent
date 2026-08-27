@@ -1,6 +1,43 @@
-import type { Channel } from '../pipeline/types';
 import type { OutboundSender } from '../services/outbound';
 import type { Notifier } from '../services/notification';
+
+/**
+ * Canales soportados. Vive aquí y no en el pipeline porque es vocabulario del
+ * CANAL: el pipeline consume canales, no al revés. Tenerlo del otro lado hacía
+ * que `channels/` dependiera del pipeline y, por él, de la base de datos.
+ */
+export type Channel = 'whatsapp' | 'sms' | 'voice';
+
+/**
+ * Mensaje entrante tal como lo entrega un canal, antes de que nadie lo
+ * interprete ni lo persista. Es la frontera de entrada: un adaptador produce
+ * esto y no necesita saber qué pasa después.
+ */
+export interface RawInboundMessage {
+  /** ID del mensaje en el canal de origen (idempotencia). */
+  externalMsgId: string;
+  channel: Channel;
+  fromPhoneE164: string;
+  chatKind: 'individual' | 'group' | 'status' | 'other';
+  fromMe: boolean;
+  kind: 'text' | 'image' | 'audio' | 'sticker' | 'location' | 'other';
+  text: string | null;
+  media: { buffer: Buffer; mimetype: string } | null;
+  raw: unknown;
+  receivedAt: string;
+}
+
+/**
+ * A dónde entrega un adaptador lo que recibe.
+ *
+ * Es un método, y por eso es una interfaz: antes el adaptador de WhatsApp
+ * importaba la clase concreta `InboundCoordinator`, y con ella arrastraba el
+ * pipeline entero y Prisma. Un adaptador no debe saber qué se hace con el
+ * mensaje — solo que alguien lo recoge.
+ */
+export interface InboundSink {
+  handleInbound(raw: RawInboundMessage): Promise<void>;
+}
 
 /**
  * Frontera del worker: contratos por canal. WhatsApp (Baileys) es UNA
