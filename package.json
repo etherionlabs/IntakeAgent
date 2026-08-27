@@ -25,7 +25,8 @@
     "db:inspect": "tsx src/cli/db-inspect.ts",
     "api:dev": "tsx api/src/index.ts",
     "api:create-user": "tsx api/src/cli/create-user.ts",
-    "platform:create-superadmin": "tsx api/src/cli/create-superadmin.ts"
+    "platform:create-superadmin": "tsx api/src/cli/create-superadmin.ts",
+    "cli:investigar": "tsx src/cli/investigar.ts"
   },
   "keywords": [],
   "author": "",
