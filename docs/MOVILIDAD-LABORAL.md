@@ -110,3 +110,77 @@ trabajos no aplican.
 Es exactamente la pregunta abierta de §4 —si el ciclo de vida del caso se
 comparte entre verticales— y ésta la ejerce el primer día. La respuesta parece
 ser que **no** se comparte.
+
+---
+
+# La vertical: `[intake, rutas]`
+
+Construida como herramienta, no como producto: sin canal propio, sin cobro, sin
+panel, sin multi-tenant. Se conversa desde la línea de comandos.
+
+## Cómo correrla
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-…          # sin clave, `investigar` no se expone
+npm run cli:chat -- --perfil ./profiles/movilidad
+```
+
+El CLI imprime al arrancar qué perfil, qué módulos y si la investigación está
+disponible. `--perfil` sirve igual para depurar cualquier giro de Intake.
+
+## Qué prueba sobre la arquitectura
+
+Es la primera vertical que **no es Intake**, y se construyó **componiendo**:
+
+| | |
+|---|---|
+| Módulos | `[intake, rutas]` — sin `ventas`, que no pinta nada aquí |
+| Fragmento reutilizado | `customer.identity`, **nacido en tapicería**, con la etiqueta adaptada a "Ciudad / Zona donde vive" |
+| Núcleo tocado | **ninguno** — ni runner, ni artefacto, ni canales, ni pipeline |
+| Primitiva nueva | `ElementHost.research`, opcional |
+
+Lo único que se añadió al contrato del anfitrión fue `research`, y se admitió por
+la misma regla que `saveArtifact`: **el anfitrión es dueño de todo lo que exige
+credenciales o E/S.** Un elemento no debe sostener una clave de API igual que no
+sostiene una conexión a la base de datos. Qué se pregunta es del dominio; con qué
+se pregunta, del arnés.
+
+## El elemento `rutas`
+
+Cuatro tools, en el orden del proceso: `investigar` → `registrar_ruta` →
+`activar_ruta` → `registrar_avance`. `investigar` solo se expone si el arnés
+ofrece investigación; sin clave, el modelo no la ve y no puede fingir que buscó.
+
+Tres motivos de seguimiento propios, con prioridad **5** — por delante de
+`incomplete_intake` (20), porque una ruta viva sin avanzar cuesta más que un campo
+del perfil sin capturar:
+
+| Motivo | Cuándo |
+|---|---|
+| `ruta_bloqueada` | algo la frenó; retoma proponiendo un cambio, no repitiendo |
+| `ruta_en_marcha` | hay próxima acción pendiente y silencio |
+| `rutas_sin_elegir` | se le presentaron y no eligió — suele ser tiempo o dinero, no interés |
+
+## Un bug que encontró el test
+
+`registrarAvance` con un bloqueo ponía la ruta en `bloqueada`, y la función que
+devolvía "la ruta actual" solo miraba `activa`. Resultado: **una ruta bloqueada
+quedaba irrecuperable** — no se le podía registrar más avance, el seguimiento no
+la perseguía y desaparecía del prompt. Es decir, un tropiezo mataba el
+acompañamiento, que es justo lo que el producto existe para evitar.
+
+Estar bloqueada es una condición de la ruta en curso, no un abandono.
+`rutaEnCurso` incluye ahora ambos estados, y desbloquear limpia el motivo.
+
+## Lo que sigue faltando
+
+**La investigación sigue sin verificar** (ver arriba): sin ella, el agente tiene
+la tool pero no material, y por diseño no puede inventarlo.
+
+**No hay evaluación comparativa de rutas.** El modelo registra 2-3 y las explica,
+pero no hay puntuación por probabilidad de entrada / incremento de ingreso /
+tiempo / coste. Se hará cuando haya rutas reales que comparar.
+
+**El ciclo de vida del caso sigue siendo el de Intake.** No se usa
+`mark_ready_for_review` ni el aviso al dueño —aquí no hay dueño— pero las tools
+siguen expuestas. Es la deuda de §4, ahora ejercida por una vertical real.

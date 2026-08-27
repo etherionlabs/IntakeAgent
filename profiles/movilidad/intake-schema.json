@@ -1,0 +1,165 @@
+{
+  "$businessName": "Ruta",
+  "$businessDomain": "movilidad laboral",
+  "$language": "es-MX",
+  "sections": [
+    {
+      "use": "customer.identity",
+      "labels": {
+        "city_or_zone": "Ciudad / Zona donde vive"
+      }
+    },
+    {
+      "key": "situacion",
+      "label": "Situación actual",
+      "fields": [
+        {
+          "key": "trabajo_actual",
+          "label": "En qué trabaja hoy",
+          "type": "string",
+          "required": true,
+          "hint": "delivery, almacén, construcción, desempleado…"
+        },
+        {
+          "key": "ingreso_aprox",
+          "label": "Ingreso aproximado por hora o por semana",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "anos_experiencia",
+          "label": "Años de experiencia laboral en total",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 60
+        },
+        {
+          "key": "autorizacion_trabajo",
+          "label": "Autorización para trabajar",
+          "type": "enum",
+          "required": false,
+          "options": [
+            "sí",
+            "no",
+            "prefiere no decir"
+          ],
+          "hint": "Solo si el usuario lo menciona. NUNCA se le pregunta de entrada."
+        }
+      ]
+    },
+    {
+      "key": "capacidades",
+      "label": "Con qué cuenta",
+      "fields": [
+        {
+          "key": "experiencia_relevante",
+          "label": "Oficios o tareas que ya sabe hacer",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "educacion",
+          "label": "Nivel de estudios",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "certificaciones",
+          "label": "Certificaciones o licencias que ya tiene",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "ingles",
+          "label": "Nivel de inglés",
+          "type": "enum",
+          "required": false,
+          "options": [
+            "ninguno",
+            "básico",
+            "intermedio",
+            "avanzado"
+          ]
+        },
+        {
+          "key": "licencia_conducir",
+          "label": "Licencia de conducir",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "key": "transporte",
+          "label": "Transporte disponible",
+          "type": "enum",
+          "required": false,
+          "options": [
+            "auto propio",
+            "transporte público",
+            "bicicleta",
+            "ninguno"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "objetivo",
+      "label": "A dónde quiere llegar",
+      "fields": [
+        {
+          "key": "meta",
+          "label": "Qué quiere lograr",
+          "type": "text",
+          "required": true,
+          "hint": "en sus palabras: ganar más, estabilidad, dejar de manejar…"
+        },
+        {
+          "key": "ingreso_deseado",
+          "label": "Ingreso al que aspira",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "dispuesto_capacitarse",
+          "label": "Dispuesto a capacitarse",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "key": "semanas_capacitacion_max",
+          "label": "Cuántas semanas de capacitación aceptaría",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 260
+        },
+        {
+          "key": "presupuesto_capacitacion",
+          "label": "Cuánto podría invertir en capacitarse",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "distancia_max_km",
+          "label": "Distancia máxima dispuesto a viajar",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 500
+        },
+        {
+          "key": "trabajo_fisico",
+          "label": "Acepta trabajo físico",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "key": "restricciones",
+          "label": "Restricciones de horario u otras",
+          "type": "text",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

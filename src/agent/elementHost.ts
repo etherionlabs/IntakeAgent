@@ -23,6 +23,7 @@
  * config. No es disciplina: es que no los recibe.
  */
 import type { ArtifactState } from '../artifact/state';
+import type { ResearchQuery, ResearchResult } from '../research/types';
 
 export interface ElementHost {
   /**
@@ -36,4 +37,16 @@ export interface ElementHost {
    * son vocabulario del elemento: el arnés los transporta sin interpretarlos.
    */
   countEvent(name: string, labels?: Record<string, string>): void;
+
+  /**
+   * Busca hechos del mundo con procedencia. OPCIONAL: un arnés puede no
+   * ofrecerlo, y un elemento que lo necesite debe comprobar su presencia antes
+   * de exponer la tool que lo usa.
+   *
+   * Admitido aquí por la misma regla que `saveArtifact`: **el anfitrión es dueño
+   * de todo lo que exige credenciales o E/S**. Un elemento no debe sostener una
+   * clave de API ni un cliente HTTP, igual que no sostiene una conexión a la base
+   * de datos. Qué se pregunta es del dominio; con qué se pregunta, del arnés.
+   */
+  research?(query: ResearchQuery): Promise<ResearchResult>;
 }

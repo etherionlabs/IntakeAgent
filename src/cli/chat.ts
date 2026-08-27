@@ -22,6 +22,9 @@ import 'dotenv/config';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { loadProfile, ConfigCache } from '../config/loader';
+import { createElementHost } from '../services/elementHost';
+import { WebResearcher } from '../research/webResearcher';
+import type { Researcher } from '../research/types';
 import { getPrisma, disconnectPrisma } from '../storage/client';
 import { FilesystemMediaStore } from '../media/store';
 import { NoopTranscriber } from '../media/transcriber';
@@ -51,18 +54,41 @@ const COLORS = {
 
 const c = (color: keyof typeof COLORS, s: string) => `${COLORS[color]}${s}${COLORS.reset}`;
 
+/**
+ * Perfil contra el que conversar. Por defecto el de `config.json` (Intake); con
+ * `--perfil ./profiles/<x>` se apunta a cualquier otro, que es lo que permite
+ * ejercer una vertical distinta sin tocar la configuración del producto.
+ */
+function perfilPedido(argv: string[]): string | null {
+  const i = argv.indexOf('--perfil');
+  return i >= 0 ? (argv[i + 1] ?? null) : null;
+}
+
 async function main() {
-  const phone = process.argv[2] || '+15550009999';
+  const argv = process.argv.slice(2);
+  const perfilDir = perfilPedido(argv);
+  const phone = argv.find((a) => a.startsWith('+')) ?? '+15550009999';
   const cache = new ConfigCache('./config.json', { warn: (m) => console.warn(m) });
   let { config, profile } = await cache.refresh();
+  if (perfilDir) profile = await loadProfile(perfilDir);
   const prisma = getPrisma();
   const tenantId = await ensureDevTenant(prisma);
+
+  // La investigación sale a internet; sin clave no se ofrece y el agente lo sabe.
+  const apiKey = process.env.OPENROUTER_API_KEY ?? '';
+  const researcher: Researcher | undefined = apiKey
+    ? new WebResearcher({ apiKey, model: process.env.RESEARCH_MODEL })
+    : undefined;
 
   const mediaStore = new FilesystemMediaStore(config.media.storeDir);
   const transcriber = new NoopTranscriber();
   const notifier = new NoopNotifier();
 
   console.log(c('cyan', `\n=== Chat simulado · ${profile.intakeSchema.$businessName} ===`));
+  console.log(
+    c('dim', `perfil: ${perfilDir ?? config.profile} · módulos: ${profile.modules.join(', ')}`) +
+      c('dim', ` · investigación: ${researcher ? 'activa' : 'no disponible (falta OPENROUTER_API_KEY)'}`),
+  );
   console.log(c('dim', `Contacto simulado: ${phone}`));
   console.log(c('dim', 'Comandos: /quit · /state · /history · /reset · /flush · /help'));
   console.log(c('dim', 'Tipea cualquier otra cosa y será tratada como mensaje del cliente.\n'));
@@ -115,7 +141,8 @@ async function main() {
     if (userText === '/flush') {
       const r = await cache.refresh();
       config = r.config;
-      profile = r.profile;
+      // El perfil pedido por bandera gana también tras recargar.
+      profile = perfilDir ? await loadProfile(perfilDir) : r.profile;
       console.log(c('yellow', '✓ config recargado'));
       continue;
     }
@@ -218,6 +245,9 @@ async function main() {
           profile,
           notifier,
           createAgent: defaultAgentFactory,
+          // Host con investigación cuando hay clave: sin ella, las tools que la
+          // necesitan sencillamente no se exponen al modelo.
+          host: createElementHost(prisma, tenantId, researcher),
         },
       );
 

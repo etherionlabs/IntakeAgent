@@ -10,9 +10,15 @@ import type { PrismaClient } from '@prisma/client';
 import type { ElementHost } from '../agent/elementHost';
 import type { ArtifactState } from '../artifact/state';
 import { incDomainEvent } from '../lib/metrics';
+import type { Researcher } from '../research/types';
 import { updateJobIntake } from './job';
 
-export function createElementHost(prisma: PrismaClient, tenantId: string): ElementHost {
+export function createElementHost(
+  prisma: PrismaClient,
+  tenantId: string,
+  /** Sin investigador, el host no ofrece `research` y las tools que lo usan no se exponen. */
+  researcher?: Researcher,
+): ElementHost {
   return {
     async saveArtifact(caseId: string, state: ArtifactState): Promise<void> {
       await updateJobIntake(prisma, tenantId, caseId, state);
@@ -20,5 +26,6 @@ export function createElementHost(prisma: PrismaClient, tenantId: string): Eleme
     countEvent(name: string, labels: Record<string, string> = {}): void {
       incDomainEvent(name, labels);
     },
+    ...(researcher ? { research: (query) => researcher.research(query) } : {}),
   };
 }

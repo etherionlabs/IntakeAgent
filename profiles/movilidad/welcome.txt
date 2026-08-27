@@ -1,0 +1,3 @@
+Hola, soy {{businessName}}. Te ayudo a encontrar una ruta realista hacia un trabajo mejor que el que tienes hoy.
+
+Para empezar dime dos cosas: ¿en qué ciudad estás y en qué trabajas ahora?
